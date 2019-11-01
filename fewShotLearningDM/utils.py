@@ -4,6 +4,7 @@ import os
 import torch
 from fs_model1 import FsModel
 import config as cfg
+import kmeans
 import torch.nn as nn
 from torchvision.models.vgg import vgg16_bn
 import torchvision.utils as vutils
@@ -69,6 +70,7 @@ def train_model(model, dataloaders, criterion, optimizer, phases=['train', 'val'
                             # forward
                             # track history if only in train
                             outputs = model(query)
+                            assigned_features = assignFeatures(outputs, clusteredFeatures)
                             loss = criterion(outputs, clusteredFeatures)
                             loss.backward()
                             optimizer.step()
@@ -128,7 +130,14 @@ def train_model(model, dataloaders, criterion, optimizer, phases=['train', 'val'
     model.load_state_dict(best_model_wts)
     return model, val_acc_history, best_acc
 
-def clusterFeatures(features)
+def clusterFeatures(features):
+    ret = []
+    for feat in features:
+        centers, codes, weights = kmeans.cluster(feat, 500)
+        ret.append((centers, weights))
+    return ret
+
+def assignClusterToFeatures(clusters, features):
     for feat in features:
 
 

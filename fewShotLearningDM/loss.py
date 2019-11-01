@@ -56,10 +56,9 @@ class HypercubeDistLoss(nn.Module):
                 rep4 = nn.functional.pad(simplex_2, (bgBn.shape[0], 0, 0, 0), mode='replicate')
                 pdist = nn.PairwiseDistance(p=2)
                 sumDist += self.weights[0] * torch.sum(nn.functional.softmin(pdist(rep1, rep2), dim=1))
-                sumDist += self.weights[0] * torch.sum(nn.functional.softmax(pdist(rep1, rep4), dim=1))
-                pdist = nn.PairwiseDistance(p=2)
+                sumDist -= self.weights[0] * torch.sum(nn.functional.softmax(pdist(rep1, rep4), dim=1))
                 sumDist += self.weights[1] * torch.sum(nn.functional.softmin(pdist(rep3, rep4), dim=1))
-                sumDist += self.weights[1] * torch.sum(nn.functional.softmax(pdist(rep3, rep2), dim=1))
+                sumDist -= self.weights[1] * torch.sum(nn.functional.softmax(pdist(rep3, rep2), dim=1))
         return sumDist
 
 class HyperplaneDistLoss(nn.Module):
@@ -86,6 +85,17 @@ class HyperplaneDistLoss(nn.Module):
             sumDist += self.weights[1] * (torch.einsum('bs,bs->b', bgFeat, padded_wg) + b) / norm_w
             sumDist += self.weights[0] * torch.sqrt(torch.einsum('bs,bs->b', fgFeat, fgFeat))
             sumDist += self.weights[1] * torch.sqrt(torch.einsum('bs,bs->b', bgFeat, bgFeat))
+
+class FeatureDistributionLoss(nn.Module):
+    def __init__(self, weights=torch.tensor([1, 1], device=device)):
+        super(HyperplaneDistLoss, self).__init__()
+        """ Loss that calculates the summed distance of fg bg features to each side of the hyperplane 
+            <(1,1,1,...,1,1,1),x>+0=0
+        """
+        self.smooth = 1.0
+        self.weights = weights
+
+    def forward(self, features):
 
 
 class CeLoss(nn.Module):

@@ -51,6 +51,13 @@ def compute_codes(dataset, centers):
         codes[begin:end] = min_ind
     return codes
 
+def compute_weights(codes, centers):
+    num_centers = centers.size(0)
+    center_weights = torch.zeros(num_centers, dtype=torch.long, device=device_gpu)
+    for idx in range(num_centers):
+        center_weights[idx] = (codes == idx).sum()
+    return center_weights
+
 # Compute new centers as means of the data points forming the clusters
 def update_centers(dataset, codes, num_centers):
     num_points = dataset.size(0)
@@ -82,7 +89,8 @@ def cluster(dataset, num_centers):
             print('Converged in %d iterations' % num_iterations)
             break
         codes = new_codes
-    return centers, codes
+    weights = compute_weights(codes, centers)
+    return centers, codes, weights
 
 if __name__ == '__main__':
     n = 1000000
@@ -92,5 +100,5 @@ if __name__ == '__main__':
     dataset_numpy = np.random.randn(n, d).astype(np.float32)
     dataset = torch.from_numpy(dataset_numpy).to(device_gpu)
     print('Starting clustering')
-    centers, codes = cluster(dataset, num_centers)
+    centers, codes, weights = cluster(dataset, num_centers)
     print(codes)
