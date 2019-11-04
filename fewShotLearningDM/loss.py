@@ -86,16 +86,15 @@ class HyperplaneDistLoss(nn.Module):
             sumDist += self.weights[0] * torch.sqrt(torch.einsum('bs,bs->b', fgFeat, fgFeat))
             sumDist += self.weights[1] * torch.sqrt(torch.einsum('bs,bs->b', bgFeat, bgFeat))
 
-class FeatureDistributionLoss(nn.Module):
-    def __init__(self, weights=torch.tensor([1, 1], device=device)):
-        super(HyperplaneDistLoss, self).__init__()
-        """ Loss that calculates the summed distance of fg bg features to each side of the hyperplane 
-            <(1,1,1,...,1,1,1),x>+0=0
-        """
-        self.smooth = 1.0
-        self.weights = weights
-
-    def forward(self, features):
+# class FeatureDistributionLoss(nn.Module):
+#     def __init__(self, weights=torch.tensor([1, 1], device=device)):
+#         super(HyperplaneDistLoss, self).__init__()
+#         """ Loss for difference in feature distributions of query features and support cluster
+#         """
+#         self.smooth = 1.0
+#         self.weights = weights
+#
+#     def forward(self, features):
 
 
 class CeLoss(nn.Module):

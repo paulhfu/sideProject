@@ -10,6 +10,7 @@ torch.cuda.set_device(device)
 import argparse
 import config as cfg
 from pascal5 import loadDataSet
+from data.datasets import OvulesDset
 from pascal5 import randObjDset
 from torchvision import models
 import utils
@@ -24,49 +25,11 @@ if __name__ == '__main__':
     parser.add_argument('--mode', '-m', required=True, help='run mode, valid values are train and eval')
     args = parser.parse_args()
 
-    if cfg.general.augmentImgs:
-        # setup transforms in order to have all images in the dataset equally sized which is required for larger batch sizes
-        transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.RandomRotation(90),
-            transforms.ToTensor(),
-            transforms.Normalize((0, 0, 0), (1, 1, 1)),
-            transforms.Lambda(lambda x: x + torch.randn_like(x) * cfg.general.noiseLevel),
-            transforms.Lambda(utils.salt_and_pepper),
-        ])
-        supp_transform = transforms.Compose([
-            # transforms.Grayscale(num_output_channels=1),
-            transforms.Resize((256, 256)),
-            transforms.RandomRotation(90),
-            transforms.ToTensor(),
-            transforms.Normalize((0,), (1,)),
-            transforms.Lambda(lambda x: x + torch.randn_like(x) * cfg.general.noiseLevel),
-            transforms.Lambda(utils.salt_and_pepper),
-        ])
-        tgt_transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.RandomRotation(90),
-            transforms.ToTensor(),
-            transforms.Lambda(lambda x: x[0].round().long()),  # for some reason the loss function wants the target type to be long
-        ])
-    else:
-        # setup transforms in order to have all images in the dataset equally sized which is required for larger batch sizes
-        transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Normalize((0, 0, 0), (1, 1, 1)),
-        ])
-        supp_transform = transforms.Compose([
-            # transforms.Grayscale(num_output_channels=1),
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Normalize((0,), (1,)),
-        ])
-        tgt_transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Lambda(lambda x: x[0].round().long()),  # for some reason the loss function wants the target type to be long
-        ])
+    files = ['N_536.h5','N_536_ds2x.h5','N_536.h5','N_563_ds2x.h5','N_563_ds3x.h5', 'N_226.h5', 'N_226_ds2x.h5', 'N_226_ds3x.h5', 'N_290.h5', 'N_290_ds2x.h5', 'N_290_ds3x.h5']
+    train_dset = OvulesDset('/g/kreshuk/wolny/Datasets/Ovules/train', files, train=True, shuffle=cfg.general.shuffleClasses)
+
+    for data in train_dset:
+        pass
 
     print('----START TRAINING----' * 4)
     # accs = {}
@@ -81,36 +44,10 @@ if __name__ == '__main__':
         for param in model.features.parameters():
             param.requires_grad = False
 
+
     criterion = HyperplaneDistLoss(weights=torch.tensor(cfg.general.lossWeights, device=device))
     optimizer = torch.optim.Adam(model.parameters())
 
-    for dataIdx in cfg.general.dataIdx:
-        if cfg.general.usePascalVOC:
-            train_dset = loadDataSet.Pascal5FewShotDset(os.getcwd(), "train", dataIdx, transform=transform, tgt_transform=tgt_transform, supp_transform=supp_transform,
-                                                        shuffle_lasses=cfg.general.shuffleClasses, shots=cfg.general.shots)
-            test_dset = loadDataSet.Pascal5FewShotDset(os.getcwd(), "test", dataIdx, transform=transform, tgt_transform=tgt_transform, supp_transform=supp_transform,
-                                                       shuffle_lasses=cfg.general.shuffleClasses, shots=cfg.general.shots)
-
-            train_loader = DataLoader(train_dset, batch_size=cfg.general.trainBatchSize, shuffle=False, pin_memory=True)
-
-            validate_loader = DataLoader(test_dset, batch_size=cfg.general.testBatchSize, shuffle=False, pin_memory=True)
-
-            dataloaders = {'train' : train_loader, 'val' : validate_loader}
-        else:
-            train_dset = randObjDset.RandObjDset(os.getcwd(), transform=transform, tgt_transform=tgt_transform,
-                                                 supp_transform=supp_transform, shots=cfg.general.shots)
-
-            train_loader = DataLoader(train_dset, batch_size=cfg.general.trainBatchSize,
-                                      shuffle=cfg.general.shuffleClasses, pin_memory=True)
-
-            dataloaders = {'train': train_loader}
-
-        if cfg.general.usePascalVOC:
-            model, val_acc_history, best_acc = utils.train_model(model, dataloaders, criterion, optimizer,
-                                                                 phases=['train', 'val'])
-        else:
-            model, val_acc_history, best_acc = utils.train_model(model, dataloaders, criterion, optimizer,
-                                                                 phases=['train'])
         # accs.append(best_acc)
     torch.save(model.state_dict(), os.path.join(cfg.general.checkpointSaveDir, cfg.model.saveToName))
     print('----FINISHED TRAINING----' * 4)

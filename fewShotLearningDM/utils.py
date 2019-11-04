@@ -138,7 +138,7 @@ def clusterFeatures(features):
     return ret
 
 def assignClusterToFeatures(clusters, features):
-    for feat in features:
+    pass
 
 
 def make_vgg_blocks(cfg, batch_norm=False):
