@@ -10,7 +10,7 @@ torch.cuda.set_device(device)
 import argparse
 import config as cfg
 from pascal5 import loadDataSet
-from data.datasets import OvulesDset
+from data.datasets import OvuleDset, TomatoeDset
 from pascal5 import randObjDset
 from torchvision import models
 import utils
@@ -25,11 +25,25 @@ if __name__ == '__main__':
     parser.add_argument('--mode', '-m', required=True, help='run mode, valid values are train and eval')
     args = parser.parse_args()
 
-    files = ['N_536.h5','N_536_ds2x.h5','N_536.h5','N_563_ds2x.h5','N_563_ds3x.h5', 'N_226.h5', 'N_226_ds2x.h5', 'N_226_ds3x.h5', 'N_290.h5', 'N_290_ds2x.h5', 'N_290_ds3x.h5']
-    train_dset = OvulesDset('/g/kreshuk/wolny/Datasets/Ovules/train', files, train=True, shuffle=cfg.general.shuffleClasses)
+    files = ['N_491.h5', 'N_226_ds2x.h5', 'N_226_ds3x.h5', 'N_290.h5', 'N_290_ds2x.h5', 'N_290_ds3x.h5']
+    ovule_dset = OvuleDset('/g/kreshuk/wolny/Datasets/Ovules/train', ['N_491.h5'])
+    tomato_dset = TomatoeDset('/g/kreshuk/hilt/projects/fewShotLearning/data/RichardTomatoMeristem', ['meristem_T0_PI.h5'])
 
-    for data in train_dset:
-        pass
+    test = ovule_dset[100]
+
+
+
+    # files = ['N_536.h5','N_536_ds2x.h5','N_536.h5','N_563_ds2x.h5','N_563_ds3x.h5', 'N_226.h5', 'N_226_ds2x.h5', 'N_226_ds3x.h5', 'N_290.h5', 'N_290_ds2x.h5', 'N_290_ds3x.h5']
+    # train_dset = OvulesDset('/g/kreshuk/wolny/Datasets/Ovules/train', files, train=True, shuffle=cfg.general.shuffleClasses)
+
+    # for data in train_dset:
+    #     pass
+
+    ovule_loader = DataLoader(ovule_dset, batch_size=cfg.general.trainBatchSize, shuffle=False, pin_memory=True)
+
+    tomato_loader = DataLoader(tomato_dset, batch_size=cfg.general.testBatchSize, shuffle=False, pin_memory=True)
+
+    dataloaders = {'train': ovule_loader, 'val': tomato_loader}
 
     print('----START TRAINING----' * 4)
     # accs = {}
@@ -40,13 +54,16 @@ if __name__ == '__main__':
 
     for param in model.parameters():
         param.requires_grad = True
-    if cfg.model.freezeVgg:
-        for param in model.features.parameters():
-            param.requires_grad = False
+    # if cfg.model.freezeVgg:
+    #     for param in model.features.parameters():
+    #         param.requires_grad = False
 
 
-    criterion = HyperplaneDistLoss(weights=torch.tensor(cfg.general.lossWeights, device=device))
-    optimizer = torch.optim.Adam(model.parameters())
+    criterion = HypercubeDistLoss(weights=torch.tensor(cfg.general.lossWeights, device=device))
+    optimizer = torch.optim.SGD(model.parameters())
+
+    model, val_acc_history, best_acc = utils.train_model(model, dataloaders, criterion, optimizer,
+                                                         phases=['train', 'val'])
 
         # accs.append(best_acc)
     torch.save(model.state_dict(), os.path.join(cfg.general.checkpointSaveDir, cfg.model.saveToName))

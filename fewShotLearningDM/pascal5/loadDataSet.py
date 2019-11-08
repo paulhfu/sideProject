@@ -73,8 +73,10 @@ class Pascal5FewShotDset(torch_data.Dataset):
         self.length = 0
         self.unUsedIndices = {}
         if train:
+            self.train = True
             self.data, self.suppSets = self.load_all_data(root, "train", idx)
         else:
+            self.train = False
             self.data, self.suppSets = self.load_all_data(root, "test", idx)
 
         for key, dset in self.data.items():
@@ -106,41 +108,42 @@ class Pascal5FewShotDset(torch_data.Dataset):
         s_sample_idx = np.random.choice(range(len(supset)), (shots,), replace=False)
         q_sample_idx = np.random.choice(self.unUsedIndices[cl])
 
-        # be sure to use a query image only once
-        self.unUsedIndices[cl].remove(q_sample_idx)
-        if self.unUsedIndices[cl] == []:
-            self.classes = np.delete(self.classes, np.where(self.classes == cl))
+        if self.train:
 
-        # draw images from data set and apply transforms
-        s_sets = None
-        for shot in range(shots):
-            idx = s_sample_idx[shot]
-            supp_sample = supset[idx]
-            supp_o = Image.fromarray(supp_sample[0], mode='RGB')
-            supp_g = Image.fromarray(supp_sample[1], mode='RGB')
+            # be sure to use a query image only once
+            self.unUsedIndices[cl].remove(q_sample_idx)
+            if self.unUsedIndices[cl] == []:
+                self.classes = np.delete(self.classes, np.where(self.classes == cl))
+
+            # draw images from data set and apply transforms
+            s_sets = None
+            for shot in range(shots):
+                idx = s_sample_idx[shot]
+                supp_sample = supset[idx]
+                supp_o = Image.fromarray(supp_sample[0], mode='RGB')
+                supp_g = Image.fromarray(supp_sample[1], mode='RGB')
+                if self.transform is not None:
+                    supp_o = self.supp_transform(supp_o)
+                    supp_g = self.tgt_transform(supp_g)
+                if self.maskSupps:
+                    s_set = supp_o * supp_g
+                else:
+                    s_set = torch.cat([supp_o, supp_g.unsqueeze(0).float(), (supp_g==0.0).unsqueeze(0).float()], dim=0)
+                s_set = s_set.unsqueeze(0)
+                if s_sets is None:
+                    s_sets = s_set
+                else:
+                    s_sets =torch.cat([s_sets, s_set], dim=0)
+
+            query_sample = dset[q_sample_idx]
+            q_img = Image.fromarray(query_sample[0], mode='RGB')
+            q_gt = Image.fromarray(query_sample[1], mode='RGB')
             if self.transform is not None:
-                supp_o = self.supp_transform(supp_o)
-                supp_g = self.tgt_transform(supp_g)
-            if self.maskSupps:
-                s_set = supp_o * supp_g
-            else:
-                s_set = torch.cat([supp_o, supp_g.unsqueeze(0).float(), (supp_g==0.0).unsqueeze(0).float()], dim=0)
-            s_set = s_set.unsqueeze(0)
-            if s_sets is None:
-                s_sets = s_set
-            else:
-                s_sets =torch.cat([s_sets, s_set], dim=0)
-
-        query_sample = dset[q_sample_idx]
-        q_img = Image.fromarray(query_sample[0], mode='RGB')
-        q_gt = Image.fromarray(query_sample[1], mode='RGB')
-        if self.transform is not None:
-            q_img = self.transform(q_img)
-            q_gt = self.tgt_transform(q_gt)
-        q_gt = q_gt.unsqueeze(0)  # no binary class seg. Need to round
-        q_gt = torch.cat((q_gt==0.0, q_gt==1.0) ,0).long()  # need a two channel gt for fore- and background
-
-        return (s_sets, q_img), q_gt
+                q_img = self.transform(q_img)
+                q_gt = self.tgt_transform(q_gt)
+            q_gt = q_gt.unsqueeze(0)  # no binary class seg. Need to round
+            q_gt = torch.cat((q_gt == 0.0, q_gt == 1.0), 0).long()  # need a two channel gt for fore- and background
+            return s_sets, (q_img, q_gt)
 
     def __len__(self):
         return self.length

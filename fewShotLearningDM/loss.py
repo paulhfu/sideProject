@@ -33,7 +33,7 @@ class HypercubeDistLoss(nn.Module):
 
     def __init__(self, weights=torch.tensor([1, 1], device=device)):
         super(HypercubeDistLoss, self).__init__()
-        """  Calculates the distance to the two distinct simplexes in the unit cube defined by the permutations of
+        """  Calculates the distance to the two simplexes in the unit cube defined by the permutations of
             (-.5,.5,.5,.5,...,.5,.5,.5) and (.5,-.5,-.5,-.5,...,-.5,-.5,-.5)
         """
         self.smooth = 1.0
