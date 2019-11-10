@@ -3,6 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 import utils
 import config as cfg
+import matplotlib.pyplot as plt
 
 class FsModel(nn.Module):
 
@@ -10,7 +11,7 @@ class FsModel(nn.Module):
         super(FsModel, self).__init__()
         self.trainOnSups = False
         # self.features = utils.make_vgg_blocks([64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512,], batch_norm=True)
-        self.features = utils.make_vgg_blocks([64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512], batch_norm=True)
+        self.features = utils.make_vgg_blocks([64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512], batch_norm=True)
 
     def forward(self, input):
         if self.trainOnSups:
@@ -32,7 +33,8 @@ class FsModel(nn.Module):
             feat0, ind = self.features[0](input)
             feat1, ind = self.features[1](feat0)
             feat2, ind = self.features[2](feat1)
-            feat3, ind = self.features[3](feat2)
+            feat3 = self.features[3](feat2)
+            # plt.imshow(input[0, 0, :, :].squeeze().detach().cpu().numpy());plt.show()
             return feat0, feat1, feat2, feat3
 
     def _maskDownsampledFeatures(self, feat, indi, mask):

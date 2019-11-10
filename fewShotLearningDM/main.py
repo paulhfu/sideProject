@@ -29,8 +29,6 @@ if __name__ == '__main__':
     ovule_dset = OvuleDset('/g/kreshuk/wolny/Datasets/Ovules/train', ['N_491.h5'])
     tomato_dset = TomatoeDset('/g/kreshuk/hilt/projects/fewShotLearning/data/RichardTomatoMeristem', ['meristem_T0_PI.h5'])
 
-    test = ovule_dset[100]
-
 
 
     # files = ['N_536.h5','N_536_ds2x.h5','N_536.h5','N_563_ds2x.h5','N_563_ds3x.h5', 'N_226.h5', 'N_226_ds2x.h5', 'N_226_ds3x.h5', 'N_290.h5', 'N_290_ds2x.h5', 'N_290_ds3x.h5']
@@ -42,8 +40,6 @@ if __name__ == '__main__':
     ovule_loader = DataLoader(ovule_dset, batch_size=cfg.general.trainBatchSize, shuffle=False, pin_memory=True)
 
     tomato_loader = DataLoader(tomato_dset, batch_size=cfg.general.testBatchSize, shuffle=False, pin_memory=True)
-
-    dataloaders = {'train': ovule_loader, 'val': tomato_loader}
 
     print('----START TRAINING----' * 4)
     # accs = {}
@@ -60,10 +56,9 @@ if __name__ == '__main__':
 
 
     criterion = HypercubeDistLoss(weights=torch.tensor(cfg.general.lossWeights, device=device))
-    optimizer = torch.optim.SGD(model.parameters())
+    optimizer = torch.optim.SGD(model.parameters(),  lr=0.001)
 
-    model, val_acc_history, best_acc = utils.train_model(model, dataloaders, criterion, optimizer,
-                                                         phases=['train', 'val'])
+    model, val_acc_history, best_acc = utils.getFeaturesAndCompare(model, ovule_loader, tomato_loader, criterion, optimizer)
 
         # accs.append(best_acc)
     torch.save(model.state_dict(), os.path.join(cfg.general.checkpointSaveDir, cfg.model.saveToName))

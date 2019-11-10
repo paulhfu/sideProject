@@ -10,9 +10,14 @@ import h5py
 
 class OvuleDset(torch_data.Dataset):
 
-    def __init__(self, root, files, x_transform=None, y_transform=None, shuffle=False):
-        self.x_transform = x_transform
-        self.y_transform = y_transform
+    def __init__(self, root, files, shuffle=False):
+
+        self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.RandomRotation(360),
+            transforms.ToTensor(),
+            transforms.Normalize((0,), (1,)),
+        ])
 
         self.group = h5py.File(os.path.join(root, files[0]), 'r')
         all_labels = self.group['label']
@@ -26,21 +31,21 @@ class OvuleDset(torch_data.Dataset):
         all_labels.astype(np.float32)
         all_raw.astype(np.float32)
 
+    def __len__(self):
+        return self.length
+
     def __getitem__(self, idx):
         qlabel = self.group['label'][idx, :, :].astype(np.float32)
         qraw = self.group['raw'][idx, :, :].astype(np.float32)
         labelVals = np.unique(qlabel)
-        maskedCells = ()
+        # plt.imshow(qraw * (qlabel == 0));plt.show()
+        maskedCells = []
         for labelVal in labelVals[1:len(labelVals)]:
             mask = (qlabel == labelVal)
             maskedRaw = mask * qraw
             rmin, rmax, cmin, cmax = self.bbox(mask)
-            maskedCells += (maskedRaw[rmin:rmax + 1, cmin:cmax + 1],)
+            maskedCells.append(self.transform(Image.fromarray(maskedRaw[rmin:rmax + 1, cmin:cmax + 1])))
 
-        plt.imshow(qlabel);plt.show()
-        plt.imshow(qraw);plt.show()
-        for cell in maskedCells:
-            plt.imshow(cell);plt.show()
         return maskedCells
 
     def bbox(self, array2d):
@@ -63,6 +68,9 @@ class TomatoeDset(torch_data.Dataset):
         self.length = len(self.group['data'])
         # all_data.astype(np.float32)
         all_raw.astype(np.float32)
+
+    def __len__(self):
+        return self.length
 
     def __getitem__(self, idx):
         # data = self.group['data'][0, idx, :, :, 0].astype(np.float32)

@@ -2,7 +2,7 @@ import time
 import copy
 import os
 import torch
-from fs_model1 import FsModel
+from fs_model2 import FsModel
 import config as cfg
 import kmeans
 import torch.nn as nn
@@ -14,121 +14,63 @@ import numpy as np
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def train_model(model, dataloaders, criterion, optimizer, phases=['train', 'val'], clusteredFeatures=None):
+def getFeaturesAndCompare(model, SLoader, QLoader, criterion, optimizer, clusteredFeatures=None):
     model.cuda()
     since = time.time()
 
     writer = SummaryWriter(logdir=cfg.general.logDir)
+    model.eval()   # Set model to evaluate mode
 
-    val_acc_history = []
+    running_loss = 0.0
+    metric = SegmentationMetric(nclass=2)
 
-    best_model_wts = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
+    with torch.set_grad_enabled(False):
+        # backward + optimize only if in training phase
+        for step, inputs in enumerate(SLoader):
+            if not inputs:
+                continue
+            suppFeats = None
+            for supp in inputs:
+                supp = nn.functional.pad(supp.unsqueeze(1), (0, 0, 0, 0, 0, 2), mode='replicate').squeeze(0)
+                supp = supp.to(device)
+            # zero the parameter gradients
+            # optimizer.zero_grad()
+            # forward
+            # track history if only in train
+            # loss = criterion(outputs)
+                suppFeats = mergeFeats(model(supp), suppFeats)
+            # import matplotlib.pyplot as plt;plt.imshow(suppFeats[0][0, 0, :, :].squeeze().detach().cpu().numpy());plt.show()
+            # loss.backward()
+            # optimizer.step()
+            # writer.add_scalar("step/Loss", loss.item(), step)
 
-    for epoch in range(cfg.general.numEpochs):
-        print('Epoch {}/{}'.format(epoch, cfg.general.numEpochs - 1))
-        print('-' * 10)
+        for step, (inputs, labels) in enumerate(QLoader):
+            query = inputs
+            query = query.to(device)
+            # zero the parameter gradients
+            optimizer.zero_grad()
+            # forward
+            # track history if only in train
+            queryFeats = model(query)
+            # assigned_features = assignFeatures(outputs, clusteredFeatures)
+            # loss = criterion(outputs, clusteredFeatures)
+            # loss.backward()
+            # optimizer.step()
+            # writer.add_scalar("step/Loss", loss.item(), step+len(dataloaders[phase])*epoch)
+            # print('epoch: '+str(epoch)+' step: '+str(step)+' loss: '+str(loss.item()))
 
-        if epoch == 1:
-            dummy=1
+        dist = getDistance(suppFeats, queryFeats)
 
-        # Each epoch has a training and validation phase
-        for phase in phases:
-            if phase == 'train':
-                model.train()  # Set model to training mode
-            else:
-                model.eval()   # Set model to evaluate mode
+def mergeFeats(a, b):
+    if b is None:
+        return a
+    ret = ()
+    for f1 ,f2 in zip(a,b):
+        ret += ((f1+f2)/2,)
+    return a
 
-            running_loss = 0.0
-            metric = SegmentationMetric(nclass=2)
-
-            with torch.set_grad_enabled(phase == 'train'):
-                # backward + optimize only if in training phase
-                if phase == 'train':
-                        # Iterate over data.
-                    if model.trainOnSups == True:
-                        for step, (inputs, labels) in enumerate(dataloaders[phase]):
-                            supp = inputs
-                            supp = supp.to(device)
-                            # zero the parameter gradients
-                            optimizer.zero_grad()
-                            # forward
-                            # track history if only in train
-                            outputs = model(supp)
-                            loss = criterion(outputs)
-                            loss.backward()
-                            optimizer.step()
-                            writer.add_scalar("step/Loss", loss.item(), step+len(dataloaders[phase])*epoch)
-                            print('epoch: '+str(epoch)+' step: '+str(step)+' loss: '+str(loss.item()))
-                        return clusterFeatures(outputs)
-                    else:
-                        for step, (inputs, labels) in enumerate(dataloaders[phase]):
-                            query = inputs
-                            query = query.to(device)
-                            # zero the parameter gradients
-                            optimizer.zero_grad()
-                            # forward
-                            # track history if only in train
-                            outputs = model(query)
-                            assigned_features = assignFeatures(outputs, clusteredFeatures)
-                            loss = criterion(outputs, clusteredFeatures)
-                            loss.backward()
-                            optimizer.step()
-                            writer.add_scalar("step/Loss", loss.item(), step+len(dataloaders[phase])*epoch)
-                            print('epoch: '+str(epoch)+' step: '+str(step)+' loss: '+str(loss.item()))
-
-
-            if phase == 'val':
-                # Iterate over data.
-                for step, (inputs, labels) in enumerate(dataloaders[phase]):
-                    supp, query = inputs
-                    supp = supp.to(device)
-                    query = query.to(device)
-                    labels = labels.to(device)
-                    model.trainOnSups = False
-                    outputs = model(query)
-                    metric.update(outputs, torch.argmax(labels, 1))
-                    miou, pixacc = metric.get()
-                    writer.add_scalar("step/Accuracy/mIoU", miou, step+len(dataloaders[phase])*epoch)
-                    writer.add_scalar("step/Accuracy/pixAcc", pixacc, step+len(dataloaders[phase])*epoch)
-
-        # deep copy the model
-        if phase == 'val' and miou > best_acc:
-            best_acc = miou
-            best_model_wts = copy.deepcopy(model.state_dict())
-
-
-        # log some images
-        def norm_ip(img, min, max):
-            img.clamp_(min=min, max=max)
-            img.add_(-min).div_(max - min + 1e-5)
-
-        statInputs, statOutputs, statLabels, statSupports = inputs[1][0:2], preds[0:2], labels[0:2], inputs[0][0:2]
-
-        suppShape = statSupports.shape
-        concatSupp = statSupports.view((suppShape[0] * suppShape[1], suppShape[2], suppShape[3], suppShape[4]))
-
-        concatSuppMask = concatSupp[:,1,:,:].unsqueeze(1)
-        concatSupp = concatSupp[:, 0, :, :].unsqueeze(1)
-
-        supportGrid1 = vutils.make_grid(concatSuppMask, normalize=True, scale_each=True)
-        supportGrid2 = vutils.make_grid(concatSupp, normalize=True, scale_each=True)
-        inputGrid = vutils.make_grid(statInputs, normalize=True, scale_each=True)
-        outputGrid = vutils.make_grid(statOutputs.unsqueeze(1), normalize=True, scale_each=True)
-        labelGrid = vutils.make_grid(torch.argmax(statLabels, 1).unsqueeze(1), normalize=True, scale_each=True)
-        writer.add_image('inputs/Image', inputGrid, epoch)
-        writer.add_image('outputs/Image', outputGrid, epoch)
-        writer.add_image('labels/Image', labelGrid, epoch)
-        writer.add_image('supportSets1/Image', supportGrid1, epoch)
-        writer.add_image('supportSets2/Image', supportGrid2, epoch)
-
-    time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    print('Best val Acc: {:4f}'.format(best_acc))
-
-    # load best model weights
-    model.load_state_dict(best_model_wts)
-    return model, val_acc_history, best_acc
+def getDistance(a, b):
+    pass
 
 def clusterFeatures(features):
     ret = []
@@ -183,10 +125,11 @@ def load_sdict(fs_model, vgg):
     for subnet in fs_model.features:
         for block in subnet:
             block.load_state_dict(vgg_model.features[idx].state_dict())
-            if idx == 19:
-                idx += 4
-            else:
-                idx += 1
+            idx += 1
+            # if idx == 19:
+            #     idx += 4
+            # else:
+            #     idx += 1
 
 def get_pretrained_model():
     model = FsModel()
