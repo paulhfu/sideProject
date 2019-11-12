@@ -17,7 +17,7 @@ import utils
 import numpy as np
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from fs_model1 import FsModel
+from vgg16Bn3D import Vgg16Bn3D
 from loss import DiceLoss, CeLoss, HyperplaneDistLoss, HypercubeDistLoss
 
 if __name__ == '__main__':
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     files = ['N_491.h5', 'N_226_ds2x.h5', 'N_226_ds3x.h5', 'N_290.h5', 'N_290_ds2x.h5', 'N_290_ds3x.h5']
-    ovule_dset = OvuleDset('/g/kreshuk/wolny/Datasets/Ovules/train', ['N_491.h5', ''])
+    ovule_dset = OvuleDset('/g/kreshuk/hilt/projects/fewShotLearning/data/Ovules', ['N_482_ds2x.h5', 'N_482_ds2x_McSeg.h5'])
     tomato_dset = TomatoeDset('/g/kreshuk/hilt/projects/fewShotLearning/data/RichardTomatoMeristem', ['meristem_T0_PI.h5'])
 
 
