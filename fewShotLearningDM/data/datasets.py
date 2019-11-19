@@ -56,6 +56,7 @@ class OvuleDset(torch_data.Dataset):
 
         return rmin, rmax, cmin, cmax
 
+
 class TomatoeDset(torch_data.Dataset):
 
     def __init__(self, root, files, x_transform=None, y_transform=None, shuffle=False):
