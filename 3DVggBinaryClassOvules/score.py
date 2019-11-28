@@ -5,6 +5,36 @@ import numpy as np
 __all__ = ['SegmentationMetric', 'batch_pix_accuracy', 'batch_intersection_union',
            'pixelAccuracy', 'intersectionAndUnion', 'hist_info', 'compute_score']
 
+class ClassificationMetric(object):
+    """Computes the averaged l2 distance over a set with two vectors as elements
+    """
+
+    def __init__(self, nclass):
+        super(ClassificationMetric, self).__init__()
+        self.nclass = nclass
+        self.reset()
+
+    def update(self, preds, labels):
+        """Updates the internal evaluation result.
+        Parameters
+        """
+        for pred, label in zip(preds, labels):
+            self.num_dists += 1
+            for i in range(self.nclass):
+                if label == i:
+                    self.total_dist += abs(1-pred[i])
+
+
+    def get(self):
+        """Gets the current evaluation result.
+        """
+        return self.total_dist/self.num_dists
+
+    def reset(self):
+        """Resets the internal evaluation result to initial state."""
+        self.total_dist = 0
+        self.num_dists = 0
+
 
 class SegmentationMetric(object):
     """Computes pixAcc and mIoU metric scores

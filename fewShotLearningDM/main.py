@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     model, val_acc_history, best_acc = utils.getFeaturesAndCompare(model, ovule_loader, tomato_loader, criterion, optimizer)
 
-        # accs.append(best_acc)
+    # accs.append(best_acc)
     torch.save(model.state_dict(), os.path.join(cfg.general.checkpointSaveDir, cfg.model.saveToName))
     print('----FINISHED TRAINING----' * 4)
 
