@@ -45,16 +45,18 @@ class Up(nn.Module):
     def __init__(self, in_channels, out_channels, bilinear=True):
         super().__init__()
 
+        self.bilinear = bilinear
         # if bilinear, use the normal convolutions to reduce the number of channels
-        if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        else:
+        if not bilinear:
             self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
 
         self.conv = DoubleConv(in_channels, out_channels)
 
     def forward(self, x1, x2):
-        x1 = self.up(x1)
+        if self.bilinear:
+            x1 = nn.functional.interpolate(x1, scale_factor=2, mode='bilinear', align_corners=True)
+        else:
+            x1 = self.up(x1)
         # input is CHW
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
@@ -78,8 +80,9 @@ class OutConv(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels=1, n_classes=10, bilinear=True):
+    def __init__(self, n_channels=1, n_classes=10, bilinear=True, device=None):
         super(UNet, self).__init__()
+        self.device = device
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
@@ -105,5 +108,27 @@ class UNet(nn.Module):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
+        logits = self.outc(x)
+        return torch.sigmoid(logits)
+
+class smallUNet(nn.Module):
+    def __init__(self, n_channels=1, n_classes=10, bilinear=True, device=None):
+        super(smallUNet, self).__init__()
+        self.device = device
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        self.bilinear = bilinear
+
+        self.inc = DoubleConv(n_channels, 64)
+        self.down1 = Down(64, 64)
+        self.up1 = Up(128, 64, bilinear)
+        self.up2 = Up(128, 64, bilinear)
+        self.outc = OutConv(64, n_classes)
+
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x = self.up1(x1, x2)
+        x = self.up2(x, x1)
         logits = self.outc(x)
         return torch.sigmoid(logits)

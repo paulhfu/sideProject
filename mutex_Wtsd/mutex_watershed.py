@@ -141,7 +141,7 @@ def compute_partial_mws_prim_segmentation(edge_weight_exp,
         # add the next node to pq
         add_neighbours(v, offset_strides, number_of_nodes, edge_weight_exp, valid_edges_exp, node_ufd, visited, pq)
         itr += 1
-        if itr == iterations:
+        if itr > iterations and len(cut_edges) > 50:
             break
 
     # create node labeling from disjoint sets
@@ -157,7 +157,7 @@ def compute_mws_prim_segmentation(edge_weight_exp,
                                   valid_edges_exp,
                                   offsets,
                                   number_of_attractive_channels,
-                                  image_shape, iterations):
+                                  image_shape):
 
     visited = np.zeros(edge_weight_exp.size, dtype=bool)
     node_labeling = np.zeros(image_shape).ravel()
@@ -188,7 +188,6 @@ def compute_mws_prim_segmentation(edge_weight_exp,
 
     # start prim from top left node
     add_neighbours(0, offset_strides, number_of_nodes, edge_weight_exp, valid_edges_exp, node_ufd, visited, pq)
-    itr = 0
     # iterate over all edges
     while not pq.empty():
         # extract next element from the queue
@@ -217,9 +216,6 @@ def compute_mws_prim_segmentation(edge_weight_exp,
 
         # add the next node to pq
         add_neighbours(v, offset_strides, number_of_nodes, edge_weight_exp, valid_edges_exp, node_ufd, visited, pq)
-        itr += 1
-        if itr == iterations:
-            break
 
     # create node labeling from disjoint sets
     # 0's indicate no labeling

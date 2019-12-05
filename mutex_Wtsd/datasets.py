@@ -9,6 +9,9 @@ import os
 from tqdm import tqdm
 import h5py
 
+offsets = [[0, -1], [-1, 0],
+           # direct 3d nhood for attractive edges
+           [0, -1], [-1, 0]]
 
 def computeAffs(file_from, offsets):
     file = h5py.File(file_from, 'a')
@@ -22,6 +25,22 @@ def computeAffs(file_from, offsets):
         file['masks'].create_dataset(k, data=data)
         del file[k]
     return
+
+class simpleSeg_4_4_Dset(torch_data.Dataset):
+
+    def __init__(self):
+        super(simpleSeg_4_4_Dset, self).__init__()
+
+    def __len__(self):
+        return 1
+
+    def __getitem__(self, idx):
+        simple_img = [[1,1,1,1],[1,0,1,1],[0,0,1,1],[0,0,0,0]]
+        simple_affs = [[[0, 0, 0, 0], [0, 1, 1, 0], [0, 0, 1, 0], [0, 0, 0, 0]], [[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 0, 1]],
+                       [[1, 1, 1, 1], [1, 0, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1]], [[1, 1, 0, 1], [1, 0, 1, 1], [1, 1, 1, 0], [1, 1, 1, 0]]]
+        simple_affs, _ = compute_affinities(np.array(simple_img) == 0, offsets)
+        return torch.tensor(simple_img).unsqueeze(0).float(), torch.tensor(simple_affs).unsqueeze(0).float()
+
 
 class DiscDset(torch_data.Dataset):
 
