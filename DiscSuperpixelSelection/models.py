@@ -74,7 +74,7 @@ class policy(nn.Module):
     def __init__(self, growth_rate=32, block_config=(6, 12, 24),
                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=2):
 
-        super(DenseNet3D, self).__init__()
+        super(policy, self).__init__()
 
         # First convolution
         self.features = _FirstLayer(num_init_features)

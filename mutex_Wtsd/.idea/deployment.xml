@@ -5,7 +5,7 @@
       <paths name="emblGpu">
         <serverdata>
           <mappings>
-            <mapping deploy="/fewShotLearning/mutexWtsd" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/fewShotLearning/mutexWtsd" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
