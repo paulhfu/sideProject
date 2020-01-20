@@ -284,8 +284,8 @@ def compute_mws_segmentation_cstm(weights, valid_edges, offsets, number_of_attra
     indices_ce = [0] + indices[slice(0, end, 2)].tolist()
     indices_mtx = [0] + indices[slice(1, end, 2)].tolist()
     for i in range(1, end//2+1):
-        mutexes.append(mutexes_blk[indices_mtx[i-1]:int(indices_mtx[i]+1)])
-        cutting_edges.append(cutting_edges_blk[indices_ce[i-1]:int(indices_ce[i]+1)])
+        mutexes.append(mutexes_blk[indices_mtx[i-1]:int(indices_mtx[i])])
+        cutting_edges.append(cutting_edges_blk[indices_ce[i-1]:int(indices_ce[i])])
     labels = labels.reshape(image_shape)
     # if we had an external mask, make sure it is mapped to zero
     if mask is not None:

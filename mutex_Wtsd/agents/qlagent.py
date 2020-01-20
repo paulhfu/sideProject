@@ -1,10 +1,10 @@
 from agents.replayMemory import ReplayMemory
 
 
-class Agent(object):
+class QlAgent(object):
 
     def __init__(self, gamma=1, eps=0.9, eps_min=0.000001, replace_cnt=2, mem_size=10):
-        super(Agent, self).__init__()
+        super(QlAgent, self).__init__()
         self.gamma = gamma
         self.init_eps = eps
         self.eps = self.init_eps
@@ -21,11 +21,11 @@ class Agent(object):
     def safe_models(self, directory):
         return
 
-    def load_models(self, directory):
+    def load_model(self, directory):
         return
 
-    def store_transit(self, state, action, reward, next_state):
-        self.mem.push(state, action, reward, next_state)
+    def store_transit(self, state, action, reward, next_state, terminal):
+        self.mem.push(state, action, reward, next_state, terminal)
 
     def get_action(self, state):
         return

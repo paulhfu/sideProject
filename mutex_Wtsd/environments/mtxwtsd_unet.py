@@ -4,19 +4,18 @@ import matplotlib.pyplot as plt
 from mutex_watershed import compute_mws_segmentation_cstm
 from matplotlib import cm
 import numpy as np
+from utils import ind_spat_2_flat, ind_flat_2_spat
 from math import inf
 from environments.mutex_wtsd_bc import MtxWtsdEnvBc
 
 
 class MtxWtsdEnvUnet(MtxWtsdEnvBc):
-    def __init__(self, affs, separating_channel, offsets, strides, gt_affinities, device, stop_cnt=5000,
-                 win_reward=-100, use_bbox=False, writer=None, action_aggression=2, penalize_diff_thresh=2000):
-        super(MtxWtsdEnvUnet, self).__init__(affs, separating_channel, offsets, strides, gt_affinities=gt_affinities,
+    def __init__(self, affinities, separating_channel, offsets, strides, gt_affinities, stop_cnt=500,
+                 win_reward=-100, use_bbox=False, writer=None, action_aggression=2, penalize_diff_thresh=2000,
+                 keep_first_state=True):
+        super(MtxWtsdEnvUnet, self).__init__(affinities, separating_channel, offsets, strides, gt_affinities=gt_affinities,
                                            stop_cnt=stop_cnt, win_reward=win_reward)
-
         self.writer = writer
-        self.device = device
-
         self.gt_seg, _, _, _ = compute_mws_segmentation_cstm(gt_affinities, self.valid_edges,
                                                              self.mtx_offsets, self.mtx_separating_channel,
                                                              self.img_shape)
@@ -25,8 +24,12 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
         self.penalize_diff_thresh = penalize_diff_thresh
 
         self.bbox = np.array(self.img_shape)
+        self.keep_first_state = keep_first_state
         self._update_state()
-        a=1
+
+    def update_data(self, affinities, gt_affinities=None):
+        super(MtxWtsdEnvUnet, self).update_data(affinities, gt_affinities)
+        self.gt_seg, _, _, _ = self._calc_gt_wtsd()
 
     def _get_neighbors_features(self):
         node_labeling, cut_edges, used_mtxs, neighbors_features = self._calc_wtsd()
@@ -45,8 +48,8 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
         self.mtx_wtsd_max_iter += self.mtx_wtsd_iter_step
 
         if self.counter == 0:
-            node_labeling = node_labeling.reshape(self.img_shape)
-            import matplotlib.pyplot as plt;plt.imshow(cm.prism(node_labeling / node_labeling.max()));plt.show();
+            # node_labeling = node_labeling.reshape(self.img_shape)
+            # import matplotlib.pyplot as plt;plt.imshow(cm.prism(node_labeling / node_labeling.max()));plt.show();
             if self.writer is not None:
                 self.writer.add_image('res/igmRes', cm.prism(node_labeling / node_labeling.max()), self.counter)
 
@@ -66,27 +69,10 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
             xmax_vals.append(xmax)
         return ymax_vals, xmax_vals
 
-    def ind_flat_2_spat(self, flat_indices, shape):
-        spat_indices = np.zeros([len(flat_indices)] + [len(shape)], dtype=np.integer)
-        for flat_ind, spat_ind in zip(flat_indices, spat_indices):
-            rm = flat_ind
-            for dim in range(1, len(shape)):
-                sz = np.prod(shape[dim:])
-                spat_ind[dim - 1] = rm // sz
-                rm -= spat_ind[dim - 1] * sz
-            spat_ind[-1] = rm
-        return spat_indices
-
-    def ind_spat_2_flat(self, spat_indices, shape):
-        flat_indices = np.zeros(len(spat_indices), dtype=np.integer)
-        for i, spat_ind in enumerate(spat_indices):
-            for dim in range(len(shape)):
-                flat_indices[i] += max(1, np.prod(shape[dim + 1:])) * spat_ind[dim]
-        return flat_indices
 
     def calculate_reward(self, neighbors, gt_seg, new_seg, mutexes, cutting_edges, num_edges):
-        indices = np.concatenate((np.expand_dims(self.ind_flat_2_spat(neighbors[:, 0], gt_seg.shape), 1),
-                                  np.expand_dims(self.ind_flat_2_spat(neighbors[:, 1], gt_seg.shape), 1)), axis=1)
+        indices = np.concatenate((np.expand_dims(ind_flat_2_spat(neighbors[:, 0], gt_seg.shape), 1),
+                                  np.expand_dims(ind_flat_2_spat(neighbors[:, 1], gt_seg.shape), 1)), axis=1)
         rewards = np.zeros(num_edges)
         for neighbor, mtxs, ces in zip(indices, mutexes, cutting_edges):
             mask_n1, mask_n2 = new_seg == new_seg[neighbor[0, 0], neighbor[0, 1]], new_seg == new_seg[neighbor[1, 0], neighbor[1, 1]]
@@ -130,8 +116,12 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
         reward += (penalize_change * self.used_edges_mask)
 
         total_reward = np.sum(reward)
-        keep_old_state = True
-        self.current_affs = last_affs
+        if self.keep_first_state:
+            keep_old_state = True
+            self.current_affs = last_affs
+        else:
+            keep_old_state = False
+
         if self.writer is not None:
             self.writer.add_scalar("step/reward", total_reward, self.counter + (self.stop_cnt * self.iteration))
 
@@ -139,13 +129,13 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
 
         # check if finished
         if total_reward >= self.stop_quality:
-            reward += (10000000 * self.used_edges_mask)
+            reward += (1000 * self.used_edges_mask)
             self.done = True
             self.iteration += 1
             self.last_reward = -inf
 
         if self.counter > self.stop_cnt:
-            reward += (-10000000 * self.used_edges_mask)
+            reward += (-100 * self.used_edges_mask)
             self.done = True
             self.iteration += 1
             self.last_reward = -inf

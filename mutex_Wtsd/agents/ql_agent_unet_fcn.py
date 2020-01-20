@@ -1,12 +1,12 @@
 from models.ril_function_models import DNDQN, UnetFcnDQN, UnetDQN
-from agents.agent import Agent
+from agents.qlagent import QlAgent
 from agents.replayMemory import Transition
 import numpy as np
 import torch
 import os
 
 
-class QlAgentUnetFcn(Agent):
+class QlAgentUnetFcn(QlAgent):
     """Agent for Q learning using Unet+FCN for Q-func"""
 
     def __init__(self, gamma, n_state_channels, n_edges, n_actions, action_shape, device,
@@ -26,11 +26,11 @@ class QlAgentUnetFcn(Agent):
         self.eps = eps
 
     def safe_model(self, directory):
-        torch.save(self.q_eval.state_dict(), os.path.join(directory, 'unet_Q'))
+        torch.save(self.q_eval.state_dict(), os.path.join(directory, 'unet_fcn_Q'))
 
     def load_model(self, directory):
-        self.q_eval.load_state_dict(torch.load(os.path.join(directory, 'unet_Q')), strict=True)
-        self.q_next.load_state_dict(torch.load(os.path.join(directory, 'unet_Q')), strict=True)
+        self.q_eval.load_state_dict(torch.load(os.path.join(directory, 'unet_fcn_Q')), strict=True)
+        self.q_next.load_state_dict(torch.load(os.path.join(directory, 'unet_fcn_Q')), strict=True)
 
     def get_action(self, state):
         if np.random.random() < (1-self.eps):
@@ -46,6 +46,7 @@ class QlAgentUnetFcn(Agent):
 
     def learn(self, batch_size):
         with torch.set_grad_enabled(True):
+            self.q_eval.train()
             if self.replace_cnt is not None and self.learn_steps % self.replace_cnt == 0:
                 self.q_next.load_state_dict(self.q_eval.state_dict())
 

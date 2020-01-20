@@ -1,12 +1,12 @@
 from models.ril_function_models import DNDQN, UnetFcnDQN, UnetDQN
-from agents.agent import Agent
+from agents.qlagent import QlAgent
 from agents.replayMemory import Transition
 import numpy as np
 import torch
 import os
 
 
-class QlAgentDN(Agent):
+class QlAgentDN(QlAgent):
     """Agent for Q learning using DenseNet for Q-func"""
 
     def __init__(self, gamma, n_state_channels, n_actions, n_sel_mtxs, device,
@@ -23,15 +23,12 @@ class QlAgentDN(Agent):
         self.n_sel_mtxs = n_sel_mtxs
         self.n_state_channels = n_state_channels
 
-    def reset_eps(self, eps):
-        self.eps = eps
-
     def safe_model(self, directory):
-        torch.save(self.q_eval.state_dict(), os.path.join(directory, 'q_eval_func'))
+        torch.save(self.q_eval.state_dict(), os.path.join(directory, 'dn_Q'))
 
     def load_model(self, directory):
-        self.q_eval.load_state_dict(torch.load(os.path.join(directory, 'q_eval_func')), strict=True)
-        self.q_next.load_state_dict(torch.load(os.path.join(directory, 'q_eval_func')), strict=True)
+        self.q_eval.load_state_dict(torch.load(os.path.join(directory, 'dn_Q')), strict=True)
+        self.q_next.load_state_dict(torch.load(os.path.join(directory, 'dn_Q')), strict=True)
 
     def get_action(self, state):
         if np.random.random() < (1-self.eps):

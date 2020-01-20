@@ -1,29 +1,26 @@
 from models.ril_function_models import DNDQN, UnetFcnDQN, UnetDQN
-from agents.agent import Agent
+from agents.qlagent import QlAgent
 from agents.replayMemory import Transition
 import numpy as np
 import torch
 import os
 
 
-class QlAgentUnet(Agent):
+class QlAgentUnet(QlAgent):
     """Agent for Q learning using Unet+FCN for Q-func"""
 
-    def __init__(self, gamma, n_state_channels, n_edges, action_shape, device,
+    def __init__(self, gamma, n_state_channels, n_edges, n_actions, action_shape, device,
                  eps=0.9, eps_min=0.000001, replace_cnt=5, mem_size=40,  writer=None):
         super(QlAgentUnet, self).__init__(gamma=gamma, eps=eps, eps_min=eps_min, replace_cnt=replace_cnt, mem_size=mem_size)
 
         self.writer = writer
         self.action_shape = action_shape
-        self.q_eval = UnetDQN(n_inChannels=n_state_channels, n_edges=n_edges, n_actions=len(action_shape), device=device)
-        self.q_next = UnetDQN(n_inChannels=n_state_channels, n_edges=n_edges, n_actions=len(action_shape), device=device)
+        self.q_eval = UnetDQN(n_inChannels=n_state_channels, n_edges=n_edges, n_actions=n_actions, device=device)
+        self.q_next = UnetDQN(n_inChannels=n_state_channels, n_edges=n_edges, n_actions=n_actions, device=device)
         self.q_eval.cuda(device=self.q_eval.device)
         self.q_next.cuda(device=self.q_eval.device)
-        self.n_actions = len(action_shape)
+        self.n_actions = n_actions
         self.n_state_channels = n_state_channels
-
-    def reset_eps(self, eps):
-        self.eps = eps
 
     def safe_model(self, directory):
         torch.save(self.q_eval.state_dict(), os.path.join(directory, 'unet_Q'))
@@ -33,12 +30,10 @@ class QlAgentUnet(Agent):
         self.q_next.load_state_dict(torch.load(os.path.join(directory, 'unet_Q')), strict=True)
 
     def get_action(self, state):
-        self.q_eval.eval()
         q_vals_action = self.q_eval(torch.tensor(state, dtype=torch.float32).to(self.q_eval.device).unsqueeze(0))
         action = torch.argmax(q_vals_action.squeeze(), dim=1).cpu().numpy()
         sz = np.prod(self.action_shape)
         n_rnd_insertions = int(self.eps * sz)
-        print("insertions: " + str(n_rnd_insertions))
         if n_rnd_insertions >= 1:
             indices = np.random.choice(np.arange(sz), n_rnd_insertions)
             action = action.ravel()
@@ -49,6 +44,7 @@ class QlAgentUnet(Agent):
 
     def learn(self, batch_size):
         with torch.set_grad_enabled(True):
+            self.q_eval.train()
             if self.replace_cnt is not None and self.learn_steps % self.replace_cnt == 0:
                 self.q_next.load_state_dict(self.q_eval.state_dict())
 

@@ -22,6 +22,7 @@ from environments.mtxwtsd_mnm import MtxWtsdEnvMNM
 from models.simple_unet import UNet, smallUNet
 from data.datasets import simpleSeg_4_4_Dset, CustomDiscDset, SimpleSeg_20_20_Dset
 from torch.utils.data import DataLoader
+from main import reinforce
 import time
 import torch
 import torch.nn as nn
@@ -53,81 +54,6 @@ offsets = [[0, -1], [-1, 0],
            # inplane diagonal dam edges
            [-3, 0], [0, -3]]
 
-def q_learning(dloader, rootPath, learn=True):
-    raw, affinities, gt_affinities = next(iter(dloader))
-    affinities = affinities.squeeze().detach().cpu().numpy()
-    gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
-    action_shape = [4, 56, 56]
-    agent = QlAgentMNM(gamma=1, n_state_channels=2, n_actions=2, device=device, eps=1)
-    env = MtxWtsdEnvMNM(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
-                        gt_affinities=gt_affinities, only_prop_improv=False, stop_cnt=15, win_reward=-9)
-    # env.execute_opt_policy()
-    # env.show_current_soln()
-    n_iterations = 300
-    bs = 5
-    # agent = QlAgentUnet(gamma=1, n_state_channels=len(offsets)*2,
-    #                     n_edges=len(offsets), n_actions=3, action_shape=action_shape, device=device)
-    # env = MtxWtsdEnvUnet(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
-    #                      gt_affinities=gt_affinities)
-    # n_iterations = 1000
-    # bs = 5
-    ql = Qlearning(agent, env, dloader)
-    if learn:
-        # agent.load_model(rootPath)
-        scores, epss, last_seg = ql.train_tree_search(n_iterations=n_iterations, batch_size=bs, showInterm=False, tree_node_weight=10)
-        agent.safe_model(rootPath)
-    else:
-        agent.load_model(rootPath)
-        env.show_current_soln()
-        soln = ql.test()
-        env.show_current_soln()
-
-def reinforce(dloader, rootPath, learn=True):
-    raw, affinities, gt_affinities = next(iter(dloader))
-    affinities = affinities.squeeze().detach().cpu().numpy()
-    gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
-    action_shape = [1]
-    agent = RIAgentMnm(gamma=1, n_state_channels=2,
-                       n_actions=2, action_shape=action_shape, device=device)
-    env = MtxWtsdEnvMNM(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
-                        gt_affinities=gt_affinities, stop_cnt=200, win_reward=-180)
-    # agent = RIAgentUnet(gamma=1, n_state_channels=len(offsets)*2,
-    #                     n_edges=len(offsets), n_actions=3, action_shape=action_shape, device=device)
-    agent.load_model(directory=rootPath)
-    # env = MtxWtsdEnvUnet(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
-    #                      gt_affinities=gt_affinities, keep_first_state=False, stop_cnt=15)
-    n_iterations = 500
-    ri = Reinforce(agent, env, dloader)
-    if learn:
-        scores, steps, last_seg = ri.train(n_iterations=n_iterations, showInterm=False)
-        agent.safe_model(rootPath)
-    else:
-        env.show_current_soln()
-        soln = ri.test()
-        env.show_current_soln()
-
-def a2c(dloader, rootPath, learn=True):
-    raw, affinities, gt_affinities = next(iter(dloader))
-    affinities = affinities.squeeze().detach().cpu().numpy()
-    gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
-    action_shape = [1]
-    agent = RIAgentA2c(gamma=1, n_state_channels=2,
-                       n_actions=2, action_shape=action_shape, device=device, epsilon=1)
-    # agent.load_model(rootPath)
-    env = MtxWtsdEnvMNM(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
-                        gt_affinities=gt_affinities, stop_cnt=15, win_reward=-9, only_prop_improv=False)
-    # env.execute_opt_policy()
-
-    n_iterations = 1000  # 4000
-    a2c = A2c(agent, env, dloader)
-    if learn:
-        scores, steps, last_seg = a2c.train(n_iterations=n_iterations, showInterm=False)
-        agent.safe_model(rootPath)
-    else:
-        agent.load_model(rootPath)
-        env.show_current_soln()
-        soln = a2c.test()
-        env.show_current_soln()
 
 def test_model():
     q_eval = DNDQN(num_classes=2, num_inchannels=2, device=device, block_config=(6,))
@@ -143,6 +69,7 @@ def test_model():
         # for param in self.q_eval.parameters():
         #     param.grad.data.clamp_(-1, 1)
         q_eval.optimizer.step()
+
 
 if __name__ == '__main__':
     # test_model()
@@ -167,7 +94,5 @@ if __name__ == '__main__':
     dloader_simple_img = DataLoader(SimpleSeg_20_20_Dset(), batch_size=1, shuffle=True,
                          pin_memory=True)
     #
-    q_learning(dloader_simple_img, rootPath, learn=True)
-    # reinforce(dloader_disc, rootPath, learn=True)
-    # a2c(dloader_simple_img, rootPath, learn=False)
+    reinforce(dloader_simple_img, rootPath, learn=True)
 
