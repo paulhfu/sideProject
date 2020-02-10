@@ -1,7 +1,6 @@
 class Environment(object):
-    def __init__(self, stop_cnt):
+    def __init__(self, stop_cnt=None):
         super(Environment, self).__init__()
-
         self.done = False
         self.counter = 0
         self.acc_reward = 0

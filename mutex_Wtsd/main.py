@@ -12,15 +12,19 @@ from a2c import A2c
 from agents.ql_agent_unet_fcn import QlAgentUnetFcn
 from agents.ql_agent_dn import QlAgentDN
 from agents.ql_agent_mnm import QlAgentMNM
+from agents.tr_opposd_agent_unet import OPPOSDAgentUnet
 from agents.ql_agent_unet import QlAgentUnet
 from agents.reinforce_agent_unet import RIAgentUnet
+from agents.qlretrace_agent_unet import QlRetraceAgentUnet
 from agents.reinforce_agent_mnm import RIAgentMnm
 from agents.a2C_agent_mnm import RIAgentA2c
+from agents.ql_gcn_agent_1 import QlAgentGcn1
+from environments.sp_grph_gcn_1 import SpGcnEnv
 from environments.mtxwtsd_unet_fcn import MtxWtsdEnvUnetFcn
 from environments.mtxwtsd_unet import MtxWtsdEnvUnet
 from environments.mtxwtsd_mnm import MtxWtsdEnvMNM
 from models.simple_unet import UNet, smallUNet
-from data.datasets import simpleSeg_4_4_Dset, CustomDiscDset, SimpleSeg_20_20_Dset
+from data.datasets import simpleSeg_4_4_Dset, CustomDiscDset, SimpleSeg_20_20_Dset, DiscSpGraphDset
 from torch.utils.data import DataLoader
 import time
 import torch
@@ -54,16 +58,18 @@ offsets = [[0, -1], [-1, 0],
            [-3, 0], [0, -3]]
 
 def q_learning(dloader, rootPath, learn=True):
-    raw, affinities, gt_affinities = next(iter(dloader))
-    affinities = affinities.squeeze().detach().cpu().numpy()
-    gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
-    action_shape = [4, 56, 56]
-    agent = QlAgentMNM(gamma=1, n_state_channels=2, n_actions=2, device=device, eps=1)
-    env = MtxWtsdEnvMNM(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
-                        gt_affinities=gt_affinities, only_prop_improv=False, stop_cnt=15, win_reward=-9)
+    # raw, affinities, gt_affinities = next(iter(dloader))
+    # affinities = affinities.squeeze().detach().cpu().numpy()
+    # gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
+    # action_shape = [4, 56, 56]
+    edges, edge_feat, gt_edge_weights, node_feat, seg, gt_seg, affinities, _ = next(iter(dloader))
+    node_feat, edge_feat, edges, gt_edge_weights = node_feat.squeeze(0), edge_feat.squeeze(0), edges.squeeze(0), gt_edge_weights.squeeze(0).unsqueeze(-1)
+    # agent = QlAgentMNM(gamma=1, n_state_channels=2, n_actions=2, device=device, eps=1)
+    env = SpGcnEnv(edges, edge_feat, gt_edge_weights, node_feat, seg, gt_seg, affinities)
+    agent = QlAgentGcn1(gamma=1, lambdA=1, n_actions=3, device=device, env=env, epsilon=1)
     # env.execute_opt_policy()
-    # env.show_current_soln()
-    n_iterations = 300
+    env.show_current_soln()
+    n_iterations = 3000
     bs = 5
     # agent = QlAgentUnet(gamma=1, n_state_channels=len(offsets)*2,
     #                     n_edges=len(offsets), n_actions=3, action_shape=action_shape, device=device)
@@ -71,10 +77,10 @@ def q_learning(dloader, rootPath, learn=True):
     #                      gt_affinities=gt_affinities)
     # n_iterations = 1000
     # bs = 5
-    ql = Qlearning(agent, env, dloader)
+    ql = Qlearning(agent, env)
     if learn:
         # agent.load_model(rootPath)
-        scores, epss, last_seg = ql.train_tree_search(n_iterations=n_iterations, batch_size=bs, showInterm=False, tree_node_weight=10)
+        scores, epss, last_seg = ql.train_retrace_gcn(n_iterations=n_iterations, tree_node_weight=10)
         agent.safe_model(rootPath)
     else:
         agent.load_model(rootPath)
@@ -129,6 +135,29 @@ def a2c(dloader, rootPath, learn=True):
         soln = a2c.test()
         env.show_current_soln()
 
+def opposd(dloader, rootPath, learn=True):
+    raw, affinities, gt_affinities = next(iter(dloader))
+    affinities = affinities.squeeze().detach().cpu().numpy()
+    gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
+    action_shape = [1]
+    agent = OPPOSDAgentUnet(gamma=1, n_state_channels=2,
+                       n_actions=2, action_shape=action_shape, device=device, epsilon=1)
+    # agent.load_model(rootPath)
+    env = MtxWtsdEnvUnet(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
+                        gt_affinities=gt_affinities, stop_cnt=15, win_reward=-9, only_prop_improv=False)
+    # env.execute_opt_policy()
+
+    n_iterations = 1000  # 4000
+    a2c = A2c(agent, env, dloader)
+    if learn:
+        scores, steps, last_seg = a2c.train(n_iterations=n_iterations, showInterm=False)
+        agent.safe_model(rootPath)
+    else:
+        agent.load_model(rootPath)
+        env.show_current_soln()
+        soln = a2c.test()
+        env.show_current_soln()
+
 def test_model():
     q_eval = DNDQN(num_classes=2, num_inchannels=2, device=device, block_config=(6,))
     tgt_finQ = torch.tensor([0, 0], dtype=torch.float32, device=q_eval.device)
@@ -167,7 +196,9 @@ if __name__ == '__main__':
     dloader_simple_img = DataLoader(SimpleSeg_20_20_Dset(), batch_size=1, shuffle=True,
                          pin_memory=True)
     #
-    q_learning(dloader_simple_img, rootPath, learn=True)
+    dloader_disc = DataLoader(DiscSpGraphDset(affinities_predictor_circle, separating_channel, offsets), batch_size=1,
+                              shuffle=True, pin_memory=True)
+    q_learning(dloader_disc, rootPath, learn=True)
     # reinforce(dloader_disc, rootPath, learn=True)
     # a2c(dloader_simple_img, rootPath, learn=False)
 

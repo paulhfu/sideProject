@@ -4,6 +4,14 @@ import torch
 import numpy as np
 from affogato.affinities import compute_affinities
 import torchvision.transforms as transforms
+from mutex_watershed import compute_mws_segmentation_cstm
+from sklearn.preprocessing import StandardScaler
+from utils import calculate_gt_edge_costs, multicut_from_probas
+from affogato.segmentation.mws import get_valid_edges
+import torch_geometric as tg
+import elf.segmentation.multicut as mc
+import elf.segmentation.features as feats
+from utils import bbox
 import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
@@ -161,3 +169,91 @@ class CustomDiscDset(torch_data.Dataset):
 
         return raw.squeeze(0), affinities, gt_affinities
 
+class DiscSpGraphDset(tg.data.Dataset):
+    def __init__(self, affinities_predictor, separating_channel, edge_offsets,  length=50000, shape=(112, 112), radius=36):
+        self.mp = (56, 56)
+        self.length = length
+        self.shape = shape
+        self.edge_offsets = edge_offsets
+        self.radius = radius
+        self.aff_pred = affinities_predictor
+        self.sep_chnl = separating_channel
+        self.transform = None
+        return
+
+    def __len__(self):
+        return 100000
+
+    def get(self, idx):
+        radius = np.random.randint(max(self.shape)//5, max(self.shape)//3)
+        mp = (np.random.randint(0+radius, self.shape[0]-radius),
+              np.random.randint(0+radius, self.shape[1]-radius))
+        # mp = self.mp
+        data = np.zeros(shape=self.shape, dtype=np.float)
+        for y in range(self.shape[0]):
+            for x in range(self.shape[1]):
+                ly, lx = y-mp[0], x-mp[1]
+                if (ly**2 + lx**2)**.5 <= radius:
+                    data[y, x] = 1
+        gt_affinities, _ = compute_affinities(data == 0, offsets)
+
+        affinities = gt_affinities
+        raw = torch.tensor(data).unsqueeze(0).unsqueeze(0).float()
+        if self.aff_pred is not None:
+            gt_affinities[self.sep_chnl:] *= -1
+            gt_affinities[self.sep_chnl:] += +1
+            gt_affinities[:self.sep_chnl] /= 1.5
+            with torch.set_grad_enabled(False):
+                affinities = self.aff_pred(raw.to(self.aff_pred.device))
+                affinities = affinities.squeeze().detach().cpu().numpy()
+                affinities[self.sep_chnl:] *= -1
+                affinities[self.sep_chnl:] += +1
+                affinities[:self.sep_chnl] /= 1.5
+
+        valid_edges = get_valid_edges((len(self.edge_offsets),) + self.shape, self.edge_offsets,
+                                           self.sep_chnl, None, False)
+        node_labeling, neighbors, cutting_edges, mutexes = compute_mws_segmentation_cstm(affinities.ravel(),
+                                                                                         valid_edges.ravel(),
+                                                                                         self.edge_offsets,
+                                                                                         self.sep_chnl,
+                                                                                         self.shape)
+        node_labeling = node_labeling -1
+        neighbors = (node_labeling.ravel())[neighbors]
+        nodes = np.unique(node_labeling)
+        node_features = torch.empty((len(nodes), 3), dtype=torch.float)
+
+        for i, node in enumerate(nodes):
+            seg = node_labeling == node
+            masked_data = seg * data
+            idxs = np.where(seg)
+            dxs1 = np.stack(idxs).transpose()
+            # y, x = bbox(np.expand_dims(seg, 0))
+            # y, x = y[0], x[0]
+            mass = np.sum(seg)
+            # _, s, _ = np.linalg.svd(StandardScaler().fit_transform(seg))
+            mean = np.sum(masked_data) / mass
+            cm = np.sum(dxs1, axis=0) / mass
+            var = np.var(data[idxs[0], idxs[1]])
+            # if mean > 0.0:
+            #     print(mean)
+            node_features[i] = torch.tensor([mass, mean, var])
+
+        offsets_3d = [[0, 0, -1], [0, -1, 0], [0, -3, 0], [0, 0, -3]]
+
+        rag = feats.compute_rag(np.expand_dims(node_labeling, axis=0))
+        edge_feat = feats.compute_affinity_features(rag, np.expand_dims(affinities, axis=1), offsets_3d)[:, 0]
+        gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), raw.squeeze().cpu().numpy())
+        # affs = np.expand_dims(affinities, axis=1)
+        # boundary_input = np.mean(affs, axis=0)
+        # plt.imshow(multicut_from_probas(node_labeling, neighbors, gt_edge_weights, boundary_input));plt.show()
+
+        edges = torch.from_numpy(neighbors.astype(np.long))
+        edges = edges.t().contiguous()
+        edges = torch.cat((edges, torch.stack((edges[1], edges[0]))), dim=1)
+        raw = raw.squeeze()
+        edge_feat = torch.from_numpy(edge_feat.astype(np.float32)).unsqueeze(-1)
+        gt_edge_weights = torch.from_numpy(gt_edge_weights.astype(np.float32))
+        affinities = torch.from_numpy(affinities.astype(np.float32))
+        gt_affinities = torch.from_numpy(gt_affinities.astype(np.float32))
+        node_labeling = torch.from_numpy(node_labeling.astype(np.float32))
+        return edges, edge_feat, gt_edge_weights, node_features, node_labeling, raw.squeeze(), affinities, gt_affinities

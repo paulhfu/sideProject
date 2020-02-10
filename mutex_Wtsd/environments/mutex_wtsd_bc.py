@@ -8,7 +8,7 @@ from math import inf
 
 
 class MtxWtsdEnvBc(Environment):
-    def __init__(self, affinities, separating_channel, offsets, strides, win_reward, lost_bound, gt_affinities=None,
+    def __init__(self, affinities, separating_channel, offsets, strides, win_reward, gt_affinities=None,
                  stop_cnt=15, separating_channel_lr_attr=None):
         super(MtxWtsdEnvBc, self).__init__(stop_cnt)
 
@@ -44,7 +44,6 @@ class MtxWtsdEnvBc(Environment):
         self.mtx_wtsd_iter_step = 50
         self.mtx_wtsd_max_iter = self.mtx_wtsd_start_iter
         self.stop_quality = win_reward
-        self.lost_bound = lost_bound
         self.iteration = 0
         self.last_reward = -inf
 

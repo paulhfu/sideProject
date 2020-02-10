@@ -82,19 +82,6 @@ class MtxWtsdEnvMNM(MtxWtsdEnvBc):
     def calculate_reward(self, neighbors, gt_seg, new_seg):
         rewards = np.zeros([len(neighbors)] + [2])
         self.masks = []
-        # if self.n_neighbors == 36:
-        #    self.show_current_soln()
-        # if self.n_neighbors == 33:
-        #     a = np.zeros((2, 40, 40))
-        #     a = a.ravel()
-        #     self.show_current_soln()
-        #     for edge in self.cutting_edges:
-        #         for e in edge:
-        #             a[e] = 1
-        #     a = a.reshape((2, 40, 40))
-        #     for img in a:
-        #         plt.imshow(img);
-        #         plt.show();
 
         for idx, neighbor in enumerate(neighbors):
             mask_n1, mask_n2 = new_seg == new_seg[neighbor[0, 0], neighbor[0, 1]], new_seg == new_seg[neighbor[1, 0], neighbor[1, 1]]

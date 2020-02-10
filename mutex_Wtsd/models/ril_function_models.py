@@ -185,7 +185,7 @@ class UnetDQN(nn.Module):
         x = self.up3(x, x1)
         spatial_sel = self.outc(x)
         shape = spatial_sel.shape
-        return spatial_sel.view(shape[0], self.n_edges, self.n_actions, shape[2], shape[3])
+        return spatial_sel.view(shape[0], self.n_edges, shape[2], shape[3], self.n_actions)
 
 
 class UnetRI(nn.Module):
@@ -219,4 +219,38 @@ class UnetRI(nn.Module):
         spatial_sel = self.outc(x)
         shape = spatial_sel.shape
         spatial_sel = spatial_sel.view(shape[0], self.n_edges, shape[2], shape[3], self.n_actions)
+        return nn.functional.softmax(spatial_sel, -1)
+
+
+class UnetRI2(nn.Module):
+    def __init__(self, n_inChannels, n_edges, n_actions, bilinear=True, device=None):
+        super(UnetRI, self).__init__()
+        self.device = device
+        self.bilinear = bilinear
+        self.n_edges = n_edges
+        self.n_actions = n_actions
+
+        self.inc = DoubleConv(n_inChannels, 64)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 256)
+        self.down3 = Down(256, 256)
+        self.up1 = Up(512, 128, bilinear)
+        self.up2 = Up(256, 64, bilinear)
+        self.up3 = Up(128, 128, bilinear)
+        self.outc = OutConv(128, n_edges*n_actions)
+
+        self.optimizer = torch.optim.Adam(self.parameters())
+        self.loss = nn.MSELoss()
+
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x = self.up1(x4, x3)
+        x = self.up2(x, x2)
+        x = self.up3(x, x1)
+        spatial_sel = self.outc(x)
+        shape = spatial_sel.shape
+        spatial_sel = spatial_sel.view(shape[0], self.n_edges * shape[2], shape[3], self.n_actions)
         return nn.functional.softmax(spatial_sel, -1)

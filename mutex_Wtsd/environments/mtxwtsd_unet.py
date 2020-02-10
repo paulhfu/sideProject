@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 from mutex_watershed import compute_mws_segmentation_cstm
 from matplotlib import cm
 import numpy as np
-from utils import ind_spat_2_flat, ind_flat_2_spat
+import torch
+from utils import pca_svd, ind_spat_2_flat, ind_flat_2_spat
 from math import inf
 from environments.mutex_wtsd_bc import MtxWtsdEnvBc
 
@@ -22,10 +23,11 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
         self.use_bbox = use_bbox
         self.action_aggression = action_aggression
         self.penalize_diff_thresh = penalize_diff_thresh
+        self.loosing_diff_thresh = penalize_diff_thresh * 3
 
         self.bbox = np.array(self.img_shape)
         self.keep_first_state = keep_first_state
-        self._update_state()
+        self._update_state_1()
 
     def update_data(self, affinities, gt_affinities=None):
         super(MtxWtsdEnvUnet, self).update_data(affinities, gt_affinities)
@@ -34,17 +36,39 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
     def _get_neighbors_features(self):
         node_labeling, cut_edges, used_mtxs, neighbors_features = self._calc_wtsd()
 
+    def _update_state_1(self, actions=None):
+        #update state for the retrace algorithm
+        node_labeling, _, cut_edges, used_mtxs = self._calc_wtsd()
+        # used_mtxs = used_mtxs - self.mtx_separating_channel * node_labeling.size  # remove offset
+
+        self.used_edges_mask = torch.zeros(node_labeling.size*len(self.mtx_offsets), dtype=torch.bool)
+        for edge_id in used_mtxs + cut_edges:
+            self.used_edges_mask[edge_id.astype(np.long)] = True
+
+        self.used_edges_mask = self.used_edges_mask.reshape((len(self.mtx_offsets),)+self.img_shape)
+        self.state = self.current_affs
+
+        if self.counter == 0:
+            # node_labeling = node_labeling.reshape(self.img_shape)
+            # import matplotlib.pyplot as plt;plt.imshow(cm.prism(node_labeling / node_labeling.max()));plt.show();
+            if self.writer is not None:
+                self.writer.add_image('res/igmRes', cm.prism(node_labeling / node_labeling.max()), self.counter)
+
+        ret = None
+        if actions is not None:
+            ret = self.calculate_reward_1(actions)
+        return ret
+
     def _update_state(self):
         node_labeling, neighbors, cutting_edges, mutexes = self._calc_wtsd()
 
-        used_edge_imgs = np.zeros(node_labeling.size*len(self.mtx_offsets), dtype=np.bool)
+        used_edge_imgs = torch.zeros(node_labeling.size*len(self.mtx_offsets), dtype=torch.bool)
 
         for edge_id in cutting_edges + mutexes:
             used_edge_imgs[edge_id] = 1
 
-        used_edge_imgs = used_edge_imgs.reshape((len(self.mtx_offsets),)+self.img_shape)
-        self.state = np.concatenate((used_edge_imgs, self.current_affs), axis=0).astype(np.float)
-        self.used_edges_mask = used_edge_imgs
+        self.used_edges_mask = used_edge_imgs.reshape((len(self.mtx_offsets),)+self.img_shape)
+        self.state = np.concatenate((self.used_edges_mask, self.current_affs), axis=0).astype(np.float)
         self.mtx_wtsd_max_iter += self.mtx_wtsd_iter_step
 
         if self.counter == 0:
@@ -69,8 +93,21 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
             xmax_vals.append(xmax)
         return ymax_vals, xmax_vals
 
+    def calculate_reward_1(self, actions):
+        # penalty on up or down action of unused mtxs, also on variance of selection in terms of datapt indices and l2norm (pca components), mtxs with up/down action that where used get reward according to ground truth
+        # assuming we start from an oversegmentation and only wand to reduce mutex values. it is sufficient to only reduce mutex values that where used by watershed
+        action_indices = actions != 0  # have only one action
+        # components, variances = pca_svd(X=action_indices, k=1)
+        # n_wrong_selected = -(torch.sum((action_indices + self.used_edges_mask).bool() != self.used_edges_mask) / action_indices.numel())
+        essential_mtxs = self.used_edges_mask == action_indices
+        wrong_selected = -((action_indices + self.used_edges_mask).bool() != self.used_edges_mask).float()
+        gt_penalty = - essential_mtxs.float() * torch.from_numpy(self.current_affs - self.gt_affs).abs()
+        return wrong_selected + gt_penalty
+        
+
 
     def calculate_reward(self, neighbors, gt_seg, new_seg, mutexes, cutting_edges, num_edges):
+        # penalty on up or down action of unused mtxs, also on variance of selection in terms of datapt indices and l2norm, mtxs with up/down action that where used get reward according to ground truth
         indices = np.concatenate((np.expand_dims(ind_flat_2_spat(neighbors[:, 0], gt_seg.shape), 1),
                                   np.expand_dims(ind_flat_2_spat(neighbors[:, 1], gt_seg.shape), 1)), axis=1)
         rewards = np.zeros(num_edges)
@@ -103,19 +140,19 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
 
     def execute_action(self, actions):
         last_affs = self.current_affs.copy()
-        mask = (actions == 1) * 2 + (actions == 2) / 2
-        mask += mask == 0
-        self.current_affs *= mask
-        reward = self._update_state()
+        mask = (actions == 1).float() / 2
+        mask += (mask == 0).float()
+        self.current_affs *= mask.numpy()
+        reward = self._update_state_1(actions)
 
         # calculate reward
-        data_changed = np.sum(np.abs(self.current_affs - self.initial_affs))
+        self.data_changed = np.sum(np.abs(self.current_affs - self.initial_affs))
         penalize_change = 0
-        if data_changed > self.penalize_diff_thresh:
-            penalize_change = (self.penalize_diff_thresh - data_changed) / np.prod(self.img_shape) * 10
-        reward += (penalize_change * self.used_edges_mask)
+        if self.data_changed > self.penalize_diff_thresh:
+            penalize_change = (self.penalize_diff_thresh - self.data_changed) / np.prod(self.img_shape) * 10
+        reward += (penalize_change * self.used_edges_mask.float())
 
-        total_reward = np.sum(reward)
+        total_reward = torch.sum(reward)
         if self.keep_first_state:
             keep_old_state = True
             self.current_affs = last_affs
@@ -129,25 +166,23 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
 
         # check if finished
         if total_reward >= self.stop_quality:
-            reward += (1000 * self.used_edges_mask)
+            reward += (1000 * self.used_edges_mask.float())
             self.done = True
             self.iteration += 1
             self.last_reward = -inf
 
-        if self.counter > self.stop_cnt:
-            reward += (-100 * self.used_edges_mask)
+        if self.data_changed > self.loosing_diff_thresh:
+            reward += (-100 * self.used_edges_mask.float())
             self.done = True
             self.iteration += 1
             self.last_reward = -inf
 
         self.acc_reward += total_reward
-        spatial_reward_unused = (self.used_edges_mask == 0) * (actions != 0) * (-5) + \
-                                (self.used_edges_mask == 0) * (actions == 0) * (-1)
         try:
             assert all(((self.used_edges_mask == 0) * reward == 0).ravel())
         except:
             pass
-        return self.state, spatial_reward_unused + reward, keep_old_state
+        return self.state, reward, keep_old_state
 
     def reset(self):
         self.done = False
@@ -156,5 +191,5 @@ class MtxWtsdEnvUnet(MtxWtsdEnvBc):
         self.counter = 0
         self.current_affs = self.initial_affs.copy()
         self.mtx_wtsd_max_iter = self.mtx_wtsd_start_iter
-        self._update_state()
+        self._update_state_1()
 
