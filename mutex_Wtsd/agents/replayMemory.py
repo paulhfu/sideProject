@@ -56,6 +56,7 @@ class TransitionData(object):
 
     def clear(self):
         self.memory = []
+        self.position = 0
 
     def __len__(self):
         return len(self.memory)

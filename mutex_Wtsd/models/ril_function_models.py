@@ -254,3 +254,51 @@ class UnetRI2(nn.Module):
         shape = spatial_sel.shape
         spatial_sel = spatial_sel.view(shape[0], self.n_edges * shape[2], shape[3], self.n_actions)
         return nn.functional.softmax(spatial_sel, -1)
+
+
+class NodeFeatureExtractor(nn.Module):
+    def __init__(self, n_in_channels=2, n_out_channels=16, angular_resolution=64, bilinear=True, device=None):
+        super(NodeFeatureExtractor, self).__init__()
+        self.device = device
+        self.bilinear = bilinear
+
+        self.conv1 = DoubleConv(n_in_channels, 8)
+        self.down1 = Down(8, 16)
+        self.conv2 = DoubleConv(16, 16)
+        self.outc = DoubleConv(16, n_out_channels)
+        self.global_pool = nn.AdaptiveAvgPool2d([1, 1])
+        self.out_lcf = nn.Linear(n_out_channels, angular_resolution)
+
+        self.optimizer = torch.optim.Adam(self.parameters())
+        self.loss = nn.MSELoss()
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.down1(out)
+        out = self.conv2(out)
+        spatial_features = self.outc(out)
+        ax = self.global_pool(spatial_features)
+        angular_weights = self.out_lcf(ax.squeeze(-1).squeeze(-1))
+        return spatial_features, angular_weights
+
+
+class EdgeFeatureExtractor(nn.Module):
+    def __init__(self, n_in_channels=2, n_out_channels=16, bilinear=True, device=None):
+        super(EdgeFeatureExtractor, self).__init__()
+        self.device = device
+        self.bilinear = bilinear
+
+        self.conv1 = DoubleConv(n_in_channels, n_out_channels//4)
+        self.down1 = Down(n_out_channels//4, n_out_channels//2)
+        self.conv2 = DoubleConv(n_out_channels//2, n_out_channels//2)
+        self.outc = DoubleConv(n_out_channels//2, n_out_channels)
+
+        self.optimizer = torch.optim.Adam(self.parameters())
+        self.loss = nn.MSELoss()
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.down1(out)
+        out = self.conv2(out)
+        spatial_features = self.outc(out)
+        return spatial_features

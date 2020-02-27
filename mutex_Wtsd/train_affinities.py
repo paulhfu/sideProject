@@ -57,7 +57,7 @@ def trainAffPredSimpleImg(saveToFile, device, separating_channel, offsets, strid
     return model
 
 
-def trainAffPredCircles(saveToFile, device, separating_channel, offsets, strides, numEpochs=6):
+def trainAffPredCircles(saveToFile, device, separating_channel, offsets, strides, numEpochs=8):
     file = 'mask/masks.h5'
     rootPath = '/g/kreshuk/hilt/projects/fewShotLearning/data/Discs'
 
@@ -101,7 +101,7 @@ def trainAffPredCircles(saveToFile, device, separating_channel, offsets, strides
         affs[separating_channel:] *= -1
         affs[separating_channel:] += +1
 
-        weights[:separating_channel] /= 2
+        weights[:separating_channel] /= 1.5
 
         ndim = len(offsets[0])
         assert all(len(off) == ndim for off in offsets)
@@ -144,7 +144,7 @@ def trainAffPredCircles(saveToFile, device, separating_channel, offsets, strides
         img2 = np.concatenate([np.concatenate([show_seg, show_seg1], axis=1),
                               np.concatenate([show_raw, show_seg2], axis=1)], axis=0)
         # plt.imshow(img1); plt.show()
-        plt.imshow(img2); plt.show()
+        # plt.imshow(img2); plt.show()
 
     torch.save(model.state_dict(), saveToFile)
     time_elapsed = time.time() - since

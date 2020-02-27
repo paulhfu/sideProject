@@ -1,16 +1,10 @@
 # this agent implements the opposd algorithm introduced here : http://auai.org/uai2019/proceedings/papers/440.pdf
 # using the trust region policy introduced by the acer algorithm: https://arxiv.org/pdf/1611.01224.pdf
 
-from models.ril_function_models import UnetDQN, UnetFcnDQN, UnetRI
-from distribution_correction import DensityRatio
-from agents.replayMemory import Transition_t
+from models.ril_function_models import UnetDQN
 import torch
 import torch.nn as nn
 from agents.qlagent import QlAgent1
-from torch.autograd import Variable
-import numpy as np
-from agents.qlagent import QlAgent
-from utils import add_rndness_in_dis
 import os
 
 

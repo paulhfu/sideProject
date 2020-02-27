@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import numpy as np
-from utils import EpsRule, ActionPathTreeNodes
+from agents.exploitation_functions import NaiveEpsDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 import torch
 
 class Qlearning(object):
@@ -32,7 +32,7 @@ class Qlearning(object):
     def train_eps_greedy(self, n_iterations=150, batch_size=1, showInterm=True):
         with torch.set_grad_enabled(True):
             state = self.env.state
-            eps_rule = EpsRule(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5), step_increase=0.001,
+            eps_rule = NaiveEpsDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5),
                                limiting_epsiode=n_iterations - 10, change_after_n_episodes=5)
             self.agent.q_eval.train()
             for step in tqdm(range(self.agent.mem.capacity)):
@@ -131,12 +131,12 @@ class Qlearning(object):
                 self.env.reset()
         return scores, eps_hist, self.env.get_current_soln()
 
-    def train_retrace_gcn(self, n_iterations=150, tree_node_weight=20):
+    def train_retrace_gcn(self, n_iterations=150, limiting_behav_iter=130):
         with torch.set_grad_enabled(True):
             tree_nodes = ActionPathTreeNodes()
             self.agent.q_eval.train()
-            eps_rule = EpsRule(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5), step_increase=0.001,
-                               limiting_epsiode=n_iterations - 10, change_after_n_episodes=5)
+            eps_rule = ExpSawtoothEpsDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5), step_increase=n_iterations * 0.001,
+                               limiting_epsiode=limiting_behav_iter, change_after_n_episodes=5)
 
             print("----Fnished mem init----")
             eps_hist = []
@@ -145,26 +145,32 @@ class Qlearning(object):
                 eps_hist.append(self.agent.eps)
                 state = self.env.state.clone()
                 steps = 0
+                eps_steps = 0
                 while not self.env.done:
-                    self.agent.reset_eps(eps_rule.apply(episode, steps))
+                    self.agent.reset_eps(eps_rule.apply(episode, eps_steps))
+                    self.env.stop_quality = np.exp(-(0.0003 * episode) ** 2) * 20
+                    # self.agent.reset_eps(0)
+                    # self.env.stop_quality = 0
                     if self.agent.eps == 0:
-                        steps = 0
-                    action, behav_probs = self.agent.get_action(state)
-                    state_, reward = self.env.execute_action(action)
+                        eps_steps = 0
+                    action, behav_probs = self.agent.get_action(state, self.env.counter)
+                    state_, reward = self.env.execute_action(action, episode)
                     self.agent.store_transit(state.clone(), action, reward, state_.clone(), steps, behav_probs, int(self.env.done))
-                    self.agent.learn()
+                    if not len(self.agent.mem) < self.agent.mem.cap:
+                        self.agent.learn()
                     state = state_
                     steps += 1
-                while len(self.agent.mem) > 0:
-                    self.agent.learn()
-                    self.agent.mem.pop(0)
+                    eps_steps += 1
+                # while len(self.agent.mem) > 0:
+                #     self.agent.mem.pop(0)
+                self.agent.learn()
                 self.agent.mem.clear()
                 if self.dloader is not None:
-                    edges, edge_feat, gt_edge_weights, node_feat, seg, gt_seg, affinities, _ = next(iter(self.dloader))
-                    node_feat, edge_feat, edges, gt_edge_weights = node_feat.squeeze(0), edge_feat.squeeze(
-                        0), edges.squeeze(0), gt_edge_weights.squeeze(0).unsqueeze(-1)
-                    self.env.update_data(edges, edge_feat, gt_edge_weights, node_feat, seg, gt_seg, affinities)
+                    edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, _, angles = next(iter(self.dloader))
+                    node_feat, edge_feat, edges, gt_edge_weights, angles = node_feat.squeeze(0), edge_feat.squeeze(
+                        0), edges.squeeze(0), gt_edge_weights.squeeze(0), angles.squeeze(0)
+                    self.env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, anles=angles)
                 scores.append(self.env.acc_reward)
                 print("score: ", self.env.acc_reward, "; eps: ", self.agent.eps, "; steps: ", steps)
                 self.env.reset()
-        return scores, eps_hist, self.env.get_current_soln()
+        return scores, eps_hist, None

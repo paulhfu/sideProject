@@ -1,5 +1,5 @@
 import os
-
+from tensorboardX import SummaryWriter
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 from models.ril_function_models import DNDQN, UnetFcnDQN, UnetDQN
 from train_affinities import trainAffPredCircles, trainAffPredSimpleImg
@@ -62,25 +62,25 @@ def q_learning(dloader, rootPath, learn=True):
     # affinities = affinities.squeeze().detach().cpu().numpy()
     # gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
     # action_shape = [4, 56, 56]
-    edges, edge_feat, gt_edge_weights, node_feat, seg, gt_seg, affinities, _ = next(iter(dloader))
-    node_feat, edge_feat, edges, gt_edge_weights = node_feat.squeeze(0), edge_feat.squeeze(0), edges.squeeze(0), gt_edge_weights.squeeze(0).unsqueeze(-1)
+    writer = SummaryWriter(logdir='./logs')
+    edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, _, angles = next(iter(dloader))
+    node_feat, edge_feat, edges, gt_edge_weights, angles = node_feat.squeeze(0), edge_feat.squeeze(0), edges.squeeze(0), gt_edge_weights.squeeze(0), angles.squeeze(0)
     # agent = QlAgentMNM(gamma=1, n_state_channels=2, n_actions=2, device=device, eps=1)
-    env = SpGcnEnv(edges, edge_feat, gt_edge_weights, node_feat, seg, gt_seg, affinities)
-    agent = QlAgentGcn1(gamma=1, lambdA=1, n_actions=3, device=device, env=env, epsilon=1)
+    env = SpGcnEnv(edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, writer=writer, angles=angles)
+    agent = QlAgentGcn1(gamma=0.5, lambdA=1, n_actions=3, device=device, env=env, epsilon=1, mem_size=200, train_phase=1, writer=writer)
+    # agent.load_model(rootPath)
     # env.execute_opt_policy()
-    env.show_current_soln()
-    n_iterations = 3000
-    bs = 5
+    # env.show_current_soln()
     # agent = QlAgentUnet(gamma=1, n_state_channels=len(offsets)*2,
     #                     n_edges=len(offsets), n_actions=3, action_shape=action_shape, device=device)
     # env = MtxWtsdEnvUnet(affinities=affinities, separating_channel=separating_channel, offsets=offsets, strides=strides,
     #                      gt_affinities=gt_affinities)
     # n_iterations = 1000
     # bs = 5
-    ql = Qlearning(agent, env)
+    ql = Qlearning(agent, env, dloader=dloader)
     if learn:
         # agent.load_model(rootPath)
-        scores, epss, last_seg = ql.train_retrace_gcn(n_iterations=n_iterations, tree_node_weight=10)
+        scores, epss, last_seg = ql.train_retrace_gcn(n_iterations=10000, limiting_behav_iter=10000)
         agent.safe_model(rootPath)
     else:
         agent.load_model(rootPath)

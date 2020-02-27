@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import torch
-from utils import EpsRule
+from agents.exploitation_functions import NaiveEpsDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 
 class Reinforce(object):
 
@@ -31,7 +31,7 @@ class Reinforce(object):
             numsteps = []
             avg_numsteps = []
             scores = []
-            eps_rule = EpsRule(initial_eps=1, episode_shrinkage=1/(n_iterations/5), step_increase=0.1,
+            eps_rule = NaiveEpsDecay(initial_eps=1, episode_shrinkage=1/(n_iterations/5),
                                limiting_epsiode=n_iterations-10, change_after_n_episodes=5)
             self.agent.policy.train()
 

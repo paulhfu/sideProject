@@ -1,15 +1,12 @@
 # this agent implements the opposd algorithm introduced here : http://auai.org/uai2019/proceedings/papers/440.pdf
 # using the trust region policy introduced by the acer algorithm: https://arxiv.org/pdf/1611.01224.pdf
 
-from models.ril_function_models import UnetDQN, UnetFcnDQN, UnetRI
-from distribution_correction import DensityRatio
-from agents.replayMemory import Transition_t
+from models.ril_function_models import UnetDQN, UnetRI
+from agents.distribution_correction import DensityRatio
 import torch
-from torch.autograd import Variable
 import numpy as np
-from agents.qlagent import QlAgent
-from utils import add_rndness_in_dis
 import os
+import torch.nn as nn
 
 
 class OPPOSDAgentUnet(object):
@@ -54,80 +51,107 @@ class OPPOSDAgentUnet(object):
             param.grad.data.clamp_(-1, 1)
         self.policy.optimizer.step()
 
-    def get_qLoss(self, transition_data):
+    def get_loss(self):
         # according to thm3 in https://arxiv.org/pdf/1606.02647.pdf
-        loss = 0
+        c_loss, a_loss = 0, 0
+        transition_data = self.mem.memory
         correction = 0
         current = transition_data[0].time
         importance_weight = 1
-        m = 1
-        for t, t_ in reversed(zip(transition_data[:-1], transition_data[1:])):
-            qvals_ = self.q_val(t_.state)
-            pvals_ = self.policy(t_.state)
-            qvals = self.q_val(t.state)
+        m = 0
+        z = 0
+        self.dist_correction.update_density(transition_data)
+        for t in transition_data:
+            if not t.terminal:
+                with torch.set_grad_enabled(False):
+                    qvals_, tt = self.q_next(self.env.node_features.to(self.q_eval.device),
+                                         torch.cat((t.state_, self.env.initial_edge_weights), -1).to(self.q_eval.device),
+                                         self.env.edge_ids.to(self.q_eval.device))
+                    qvals_ = qvals_.squeeze().detach()
+                    assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
+                    pvals_ = nn.functional.softmax(qvals_, -1).detach()
+            with torch.set_grad_enabled(True):
+                qvals, tt = self.q_eval(self.env.node_features.to(self.q_eval.device),
+                                     torch.cat((t.state, self.env.initial_edge_weights), -1).to(self.q_next.device),
+                                     self.env.edge_ids.to(self.q_eval.device))
+                qvals = qvals.squeeze()
+                assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
+            pvals = nn.functional.softmax(qvals, -1).detach()
+            actions = t.action.to(self.q_eval.device)
 
-            m += self.gamma ** (t.time-current) * importance_weight
-            importance_weight *= self.lambdA * min(1, self.policy(transition_data[t.time].state)[transition_data[t.time].action].detach().cpu().numpy() / transition_data[t.time].behavior_proba)
+            m = m + self.gamma ** (t.time-current) * importance_weight
+            importance_weight = importance_weight * self.lambdA * \
+                                torch.min(torch.ones(actions.unsqueeze(-1).shape).to(self.q_eval.device),
+                                          pvals.gather(-1, actions.unsqueeze(-1)) / t.behav_probs.to(self.q_eval.device)).squeeze()
+            if t.terminal:
+                c_loss += c_loss + self.q_eval.loss(t.reward.to(self.q_eval.device) * m, qvals.gather(-1, actions.unsqueeze(-1)).squeeze() * m)
+            else:
+                c_loss += c_loss + self.q_eval.loss((t.reward.to(self.q_eval.device) + self.gamma * qvals_.max(-1)[0]) * m, qvals.gather(-1, actions.unsqueeze(-1)).squeeze() * m)
 
-            loss += t.reward + self.gamma*self.expected_qval(qvals_, pvals_) - qvals * m
-        loss /= len(transition_data)
-        return loss
+        a_loss = a_loss / len(transition_data)
+
+        # sample according to discounted state dis
+        discount_distribution = [self.gamma ** (i.time + 1) for i in transition_data]
+        batch = np.random.choice(transition_data, size=len(transition_data), p=discount_distribution)
+        for t in batch:
+            z += self.dist_correction.density_ratio(t.state.to(self.dist_correction.density_ratio.device))
+        for t in batch:
+            w = self.dist_correction.density_ratio(t.state.to(self.dist_correction.density_ratio.device))
+            a_loss +=  t.policy_ratio * w / z * torch.log(t.behav_probs) * self.q_eval()
+        a_loss = a_loss / len(batch)
+        return c_loss, a_loss
 
     def safe_model(self, directory):
-        torch.save(self.policy.state_dict(), os.path.join(directory, 'mnm_ri'))
+        torch.save(self.q_eval.state_dict(), os.path.join(directory, 'ql_retrace_ri_gcn'))
 
     def load_model(self, directory):
-        self.policy.load_state_dict(torch.load(os.path.join(directory, 'mnm_ri')), strict=True)
+        self.q_eval.load_state_dict(torch.load(os.path.join(directory, 'ql_retrace_ri_gcn')), strict=True)
 
     def reset_eps(self, eps):
         self.eps = eps
 
-    def get_action(self, state, by_max=False):
-        action_probs = self.policy(torch.tensor(state, dtype=torch.float32, requires_grad=True).to(self.policy.device).unsqueeze(0)).squeeze()
-        values = self.v_eval(torch.tensor(state, dtype=torch.float32, requires_grad=True).to(self.v_eval.device).unsqueeze(0)).squeeze()
-        if by_max:
-            action = np.array(action_probs.detach().cpu().numpy().argmax(axis=-1))
+    def get_action(self, state, count):
+        action_probs, tt = self.policy(self.env.node_features.to(self.q_eval.device),
+                                 torch.cat((state, self.env.initial_edge_weights), -1).to(self.q_eval.device),
+                                 self.env.edge_ids.to(self.q_eval.device))
+        assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
+        if self.train_phase == 0:
+            behav_probs = action_probs + self.eps * (1 / self.n_actions - action_probs)
+            actions = torch.multinomial(behav_probs, 1).squeeze()
+            sel_behav_probs = behav_probs.gather(-1, actions.unsqueeze(-1)).squeeze()
+        elif self.train_phase == 1:
+            randm_draws = int(self.eps * len(action_probs))
+            if randm_draws > 0:
+                actions = action_probs.max(-1)[1].squeeze()
+                if self.writer is not None and count == 0 and self.learn_steps%5 == 0:
+                    self.writer.add_text("actions", np.array2string(actions.cpu().numpy(), precision=2, separator=',', suppress_small=True))
+                randm_indices = torch.multinomial(torch.ones(len(action_probs))/len(action_probs), randm_draws)
+                actions[randm_indices] = torch.randint(0, self.n_actions, (randm_draws, )).to(self.q_eval.device)
+                sel_behav_probs = action_probs.gather(-1, actions.unsqueeze(-1)).squeeze()
+                sel_behav_probs[randm_indices] = 1 / self.n_actions
+            else:
+                actions = action_probs.max(-1)[1].squeeze()
+                if self.writer is not None and count == 0 and self.learn_steps%5 == 0:
+                    self.writer.add_text("actions", np.array2string(actions.cpu().numpy(), precision=2, separator=',', suppress_small=True))
+                sel_behav_probs = action_probs.gather(-1, actions.unsqueeze(-1)).squeeze()
         else:
-            rnd_pol_dis = add_rndness_in_dis(np.squeeze(action_probs.detach().cpu().numpy()).reshape(-1, self.n_actions)
-                                             , self.eps)
-            action = np.array([np.random.choice(self.n_actions, p=dis) for dis in rnd_pol_dis])
-        entropy = - (action_probs * torch.log(action_probs)).sum()
-        action = action.item()
-        return action, entropy
+            actions = action_probs.max(-1)[1].squeeze()
+            sel_behav_probs = action_probs.gather(-1, actions.unsqueeze(-1)).squeeze()
 
-    def learn_a2c(self, trajectories, batch_size=5, steps=5):
-        # update state distribution approximation d_pi(s)/d_mu(s)
-        self.dist_correction.update_density(transit_data=trajectories, gamma=1, batch_size=batch_size)
-        # update the criric
-        qloss = self.get_qLoss(trajectories.memory)
-        self.q_val.optimizer.zero_grad()
-        qloss.backward()
-        for param in self.q_eval.parameters():
-            param.grad.data.clamp_(-1, 1)
-        self.q_val.optimizer.step()
-        # update the actor
-        discount_distribution = [self.gamma**(i.time+1) for i in trajectories.memory]
-        discount_distribution = np.exp(discount_distribution) / sum(np.exp(discount_distribution))
-        for step in steps:
-            batch = Transition_t(*zip(*np.random.choice(trajectories.memory, size=batch_size, p=discount_distribution)))
-            dist_correction = self.dist_correction.density_ratio(batch.state)
-            norm_coeff = dist_correction.sum() / batch_size
-            action_probs = self.policy(
-                torch.tensor(batch.state, dtype=torch.float32, requires_grad=True).to(self.policy.device).unsqueeze(
-                    0)).squeeze()
-            probs = self.action_probs.gather(-1, torch.from_numpy(batch.action).to(self.policy.device))
-            log_probs = torch.log(probs)
-            proba_mismatch = probs / batch.behavior_proba
-            ploss = torch.sum(dist_correction / norm_coeff * proba_mismatch * log_probs * self.q_val(batch.state)) / batch_size
-            self.policy.optimizer.zero_grad()
-            ploss.backward()
-            # for param in self.q_eval.parameters():
-            #     param.grad.data.clamp_(-1, 1)
-            self.policy.optimizer.step()
+        # log_probs = torch.log(sel_behav_probs)
+        # entropy = - (behav_probs * torch.log(behav_probs)).sum()
+        return actions.cpu(), sel_behav_probs.cpu()
 
-        self.q_val.optimizer.zero_grad()
+    def learn(self):
+        if self.replace_cnt is not None and self.learn_steps % self.replace_cnt == 0:
+            self.q_next.load_state_dict(self.q_eval.state_dict())
+        qloss, p_loss = self.get_loss()
+        if self.writer is not None:
+            self.writer.add_scalar("loss", qloss.item())
+        self.q_eval.optimizer.zero_grad()
         qloss.backward()
-        for param in self.q_eval.parameters():
-            param.grad.data.clamp_(-1, 1)
-        self.q_val.optimizer.step()
-        self.steps += 1
+        # for param in self.q_eval.parameters():
+        #     if param.grad is not None:
+        #         param.grad.data.clamp_(-1, 1)
+        self.q_eval.optimizer.step()
+        self.learn_steps += 1
