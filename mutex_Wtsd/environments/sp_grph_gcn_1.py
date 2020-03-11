@@ -1,26 +1,18 @@
-from mutex_watershed import compute_mws_segmentation_cstm
 from matplotlib import cm
 import numpy as np
-import utils
 import torch
-from utils import pca_svd, ind_spat_2_flat, ind_flat_2_spat
+from utils import utils
 from math import inf
 import matplotlib.pyplot as plt
 from environments.environment_bc import Environment
+from models.sp_embed_unet import SpVecsUnet
 
 
 class SpGcnEnv(Environment):
-    def __init__(self, edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_features, seg, gt_seg, affinities, action_aggression=0.1, writer=None, angles=None):
+    def __init__(self, writer=None, device=None):
         super(SpGcnEnv, self).__init__()
-        self.edge_features = edge_features
-        self.node_features = node_features
-        self.init_sp_seg = seg.squeeze().numpy()
-        self.gt_seg = gt_seg.squeeze().numpy()
-        self.affinities = affinities.squeeze().numpy()
-        self.edge_ids = edge_ids
-        self.gt_edge_weights = gt_edge_weights
-        self.action_agression = action_aggression
-        self.penalize_diff_thresh = diff_to_gt * 1.2
+        self.sp_feature_ext = SpVecsUnet(1, 512, device=device)
+        self.sp_feature_ext.cuda(device=self.sp_feature_ext.device)
         self.stop_quality = 0
 
         self.reset()
@@ -28,13 +20,12 @@ class SpGcnEnv(Environment):
         self.writer_idx1 = 0
         self.writer_idx2 = 0
         self.writer_idx3 = 0
-        self.edge_angles = angles
 
     def execute_action(self, actions, episode=None):
         last_diff = (self.state - self.gt_edge_weights).squeeze().abs()
-        mask = (actions == 2).float().unsqueeze(-1) * (self.state + self.action_agression)
-        mask += (actions == 1).float().unsqueeze(-1) * (self.state - self.action_agression)
-        mask += (actions == 0).float().unsqueeze(-1) * self.state
+        mask = (actions == 2).float() * (self.state + self.action_agression)
+        mask += (actions == 1).float() * (self.state - self.action_agression)
+        mask += (actions == 0).float() * self.state
         self.state = mask
 
         diff = last_diff - (self.state - self.gt_edge_weights).squeeze().abs()
@@ -45,9 +36,9 @@ class SpGcnEnv(Environment):
         self.state = torch.max(self.state, torch.zeros_like(self.state))
 
         # calculate reward
-        self.data_changed = torch.sum(torch.abs(self.state - self.initial_edge_weights))
+        self.data_changed = torch.sum(torch.abs(self.state - self.edge_features[:, 0]))
         penalize_change = 0
-        if self.data_changed > self.penalize_diff_thresh or self.counter > 90:
+        if self.data_changed > self.penalize_diff_thresh or self.counter > 10:
             # penalize_change = (self.penalize_diff_thresh - self.data_changed) / np.prod(self.state.size()) * 10
             self.done = True
             reward -= 5
@@ -66,7 +57,6 @@ class SpGcnEnv(Environment):
             self.iteration += 1
             if self.writer is not None:
                 self.writer.add_text("winevent", str(episode) + ', ' + str(self.counter) + ', qual: ' + str(quality))
-                self.writer_idx1 += 1
         if self.writer is not None:
             self.writer.add_scalar("step/quality", quality, self.writer_idx2)
             self.writer_idx2 += 1
@@ -74,13 +64,13 @@ class SpGcnEnv(Environment):
         self.acc_reward = total_reward
         return self.state, reward
 
-    def update_data(self, edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_features, seg, gt_seg, affinities, angles=None):
+    def update_data(self, edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles):
         self.edge_features = edge_features
-        self.node_features = node_features
+        stacked_superpixels = [node_labeling == n for n in nodes]
+        self.node_features = self.sp_feature_ext(raw, stacked_superpixels)
+        self.sp_feature_ext.cuda(device=self.sp_feature_ext.device)
         self.penalize_diff_thresh = diff_to_gt * 1.5
-        self.init_sp_seg = seg.squeeze().numpy()
-        self.gt_seg = gt_seg.squeeze().numpy()
-        self.affinities = affinities.squeeze().numpy()
+        self.init_sp_seg = node_labeling.squeeze().numpy()
         self.edge_ids = edge_ids
         self.gt_edge_weights = gt_edge_weights
         self.edge_angles = angles

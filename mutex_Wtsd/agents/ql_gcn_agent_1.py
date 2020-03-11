@@ -42,18 +42,22 @@ class QlAgentGcn1(QlAgent1):
         for t in transition_data:
             if not t.terminal:
                 with torch.set_grad_enabled(False):
-                    qvals_, tt = self.q_next(self.env.node_features.to(self.q_eval.device),
-                                         torch.cat((t.state_, self.env.initial_edge_weights), -1).to(self.q_eval.device),
-                                         self.env.edge_ids.to(self.q_eval.device))
+                    qvals_ = self.q_next(self.env.node_features.to(self.q_eval.device),
+                                        self.env.edge_features.to(self.q_eval.device),
+                                        self.env.edge_ids.to(self.q_eval.device),
+                                        self.env.edge_angles.to(self.q_eval.device),
+                                        t.state_.to(self.q_eval.device))
                     qvals_ = qvals_.squeeze().detach()
-                    assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
-                    pvals_ = nn.functional.softmax(qvals_, -1).detach()
+                    # assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
+                    # pvals_ = nn.functional.softmax(qvals_, -1).detach()
             with torch.set_grad_enabled(True):
-                qvals, tt = self.q_eval(self.env.node_features.to(self.q_eval.device),
-                                     torch.cat((t.state, self.env.initial_edge_weights), -1).to(self.q_next.device),
-                                     self.env.edge_ids.to(self.q_eval.device))
+                qvals = self.q_eval(self.env.node_features.to(self.q_eval.device),
+                                     self.env.edge_features.to(self.q_eval.device),
+                                     self.env.edge_ids.to(self.q_eval.device),
+                                     self.env.edge_angles.to(self.q_eval.device),
+                                     t.state.to(self.q_eval.device))
                 qvals = qvals.squeeze()
-                assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
+                # assert all(tt.cpu().squeeze().detach() == self.env.gt_edge_weights.squeeze())
             pvals = nn.functional.softmax(qvals, -1).detach()
             actions = t.action.to(self.q_eval.device)
 
@@ -66,7 +70,7 @@ class QlAgentGcn1(QlAgent1):
                 loss = loss + self.q_eval.loss(t.reward.to(self.q_eval.device) * m, qvals.gather(-1, actions.unsqueeze(-1)).squeeze() * m)
             else:
                 loss = loss + self.q_eval.loss((t.reward.to(self.q_eval.device) + self.gamma * qvals_.max(-1)[0]) * m, qvals.gather(-1, actions.unsqueeze(-1)).squeeze() * m)
-        # loss = loss / len(transition_data)
+        # loss = loss / len(transition_dataedge_features_1d)
         return loss
 
     def safe_model(self, directory):

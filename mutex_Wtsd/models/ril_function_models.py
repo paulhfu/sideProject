@@ -262,10 +262,10 @@ class NodeFeatureExtractor(nn.Module):
         self.device = device
         self.bilinear = bilinear
 
-        self.conv1 = DoubleConv(n_in_channels, 8)
-        self.down1 = Down(8, 16)
-        self.conv2 = DoubleConv(16, 16)
-        self.outc = DoubleConv(16, n_out_channels)
+        self.conv1 = DoubleConv(n_in_channels, n_out_channels//2)
+        self.down1 = Down(n_out_channels//2, n_out_channels)
+        self.conv2 = DoubleConv(n_out_channels, n_out_channels)
+        self.outc = DoubleConv(n_out_channels, n_out_channels)
         self.global_pool = nn.AdaptiveAvgPool2d([1, 1])
         self.out_lcf = nn.Linear(n_out_channels, angular_resolution)
 
@@ -288,10 +288,10 @@ class EdgeFeatureExtractor(nn.Module):
         self.device = device
         self.bilinear = bilinear
 
-        self.conv1 = DoubleConv(n_in_channels, n_out_channels//4)
-        self.down1 = Down(n_out_channels//4, n_out_channels//2)
-        self.conv2 = DoubleConv(n_out_channels//2, n_out_channels//2)
-        self.outc = DoubleConv(n_out_channels//2, n_out_channels)
+        self.conv1 = DoubleConv(n_in_channels, n_out_channels//2)
+        self.down1 = Down(n_out_channels//2, n_out_channels)
+        self.conv2 = DoubleConv(n_out_channels, n_out_channels)
+        self.outc = DoubleConv(n_out_channels, n_out_channels)
 
         self.optimizer = torch.optim.Adam(self.parameters())
         self.loss = nn.MSELoss()

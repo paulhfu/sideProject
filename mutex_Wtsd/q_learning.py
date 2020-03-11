@@ -5,7 +5,7 @@ import torch
 
 class Qlearning(object):
 
-    def __init__(self, agent, env, dloader=None, eps=0.9):
+    def __init__(self, agent, env, dloader, eps=0.9):
         super(Qlearning, self).__init__()
         self.agent = agent
         self.env = env
@@ -93,7 +93,7 @@ class Qlearning(object):
                     self.env.state = state.copy()
                 else:
                     state = state_
-                if self.env.done:
+                if self.env.donenp.exp(-(0.0003 * episode) ** 2) * 20:
                     self.env.reset()
                     state = self.env.state
 
@@ -133,7 +133,6 @@ class Qlearning(object):
 
     def train_retrace_gcn(self, n_iterations=150, limiting_behav_iter=130):
         with torch.set_grad_enabled(True):
-            tree_nodes = ActionPathTreeNodes()
             self.agent.q_eval.train()
             eps_rule = ExpSawtoothEpsDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5), step_increase=n_iterations * 0.001,
                                limiting_epsiode=limiting_behav_iter, change_after_n_episodes=5)
@@ -142,15 +141,22 @@ class Qlearning(object):
             eps_hist = []
             scores = []
             for episode in tqdm(range(n_iterations)):
+
+                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles = next(iter(self.dloader))
+                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles = \
+                    edges.squeeze(), edge_feat.squeeze(), diff_to_gt.squeeze(), gt_edge_weights.squeeze(), \
+                    node_labeling.squeeze(), raw.squeeze(), nodes.squeeze(), angles.squeeze()
+                self.env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles)
+
                 eps_hist.append(self.agent.eps)
                 state = self.env.state.clone()
                 steps = 0
                 eps_steps = 0
                 while not self.env.done:
                     self.agent.reset_eps(eps_rule.apply(episode, eps_steps))
-                    self.env.stop_quality = np.exp(-(0.0003 * episode) ** 2) * 20
+                    self.env.stop_quality = np.exp(-(0.0015 * episode) ** 2) * 5
                     # self.agent.reset_eps(0)
-                    # self.env.stop_quality = 0
+                    self.env.stop_quality = 3
                     if self.agent.eps == 0:
                         eps_steps = 0
                     action, behav_probs = self.agent.get_action(state, self.env.counter)
@@ -161,15 +167,10 @@ class Qlearning(object):
                     state = state_
                     steps += 1
                     eps_steps += 1
-                # while len(self.agent.mem) > 0:
-                #     self.agent.mem.pop(0)
-                self.agent.learn()
+                while len(self.agent.mem) > 0:
+                    self.agent.learn()
+                    self.agent.mem.pop(0)
                 self.agent.mem.clear()
-                if self.dloader is not None:
-                    edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, _, angles = next(iter(self.dloader))
-                    node_feat, edge_feat, edges, gt_edge_weights, angles = node_feat.squeeze(0), edge_feat.squeeze(
-                        0), edges.squeeze(0), gt_edge_weights.squeeze(0), angles.squeeze(0)
-                    self.env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, anles=angles)
                 scores.append(self.env.acc_reward)
                 print("score: ", self.env.acc_reward, "; eps: ", self.agent.eps, "; steps: ", steps)
                 self.env.reset()

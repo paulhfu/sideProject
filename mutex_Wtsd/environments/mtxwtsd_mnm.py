@@ -1,12 +1,6 @@
-from environments.environment_bc import Environment
-from mutex_watershed import compute_partial_mws_prim_segmentation, compute_mws_prim_segmentation
-from affogato.segmentation.mws import get_valid_edges
-import matplotlib.pyplot as plt
-from mutex_watershed import compute_mws_segmentation_cstm
 from matplotlib import cm
-from utils import ind_spat_2_flat, ind_flat_2_spat
+from utils.utils import ind_flat_2_spat
 import numpy as np
-from math import inf
 from environments.mutex_wtsd_bc import MtxWtsdEnvBc
 
 class MtxWtsdEnvMNM(MtxWtsdEnvBc):

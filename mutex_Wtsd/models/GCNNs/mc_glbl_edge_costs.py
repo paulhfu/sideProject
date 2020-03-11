@@ -1,4 +1,5 @@
 import torch
+from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
 from models.GCNNs.cstm_message_passing import GcnEdgeConv, EdgeConv, NodeConv, EdgeConvNoEdge, SpatEdgeConv, SpatNodeConv
 from torch_geometric.utils import degree
 import torch.nn.functional as F
@@ -218,9 +219,9 @@ class GcnEdgeConvNet5(torch.nn.Module):
         return e, tt
 
 
-class GcnEdgeAngleConv1(torch.nn.Module):
+class GcnEdgeAngleConv2(torch.nn.Module):
     def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True):
-        super(GcnEdgeAngleConv1, self).__init__()
+        super(GcnEdgeAngleConv2, self).__init__()
         self.softmax = softmax
         self.node_conv1 = SpatNodeConv(n_node_channels_in, 64)
         self.edge_conv1 = SpatEdgeConv(64, 128)
@@ -235,16 +236,45 @@ class GcnEdgeAngleConv1(torch.nn.Module):
         self.device = device
 
     def forward(self, node_features, edge_features_1d, edge_index, angles, edge_weights):
-        edge_weights = torch.cat((edge_weights, edge_weights), dim=0)
-        node_features, _ = self.node_conv1(node_features, edge_index, angles, edge_weights)
-        _, edge_features = self.edge_conv1(node_features, edge_index, edge_weights)
-        node_features, _ = self.node_conv2(node_features, edge_index, angles, edge_weights)
-        _, edge_features = self.edge_conv2(node_features, edge_index, edge_weights, edge_features)
+        node_features, _ = self.node_conv1(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
+        node_features, _ = self.node_conv2(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
 
         pooled_features = self.global_pool(edge_features)
-        e = self.out_lcf1(torch.cat((pooled_features, edge_features_1d, edge_weights), 0))
+        e = self.out_lcf1(torch.cat((pooled_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), 1))
         e = self.out_lcf2(e)
         if self.softmax:
             return nn.functional.softmax(e, -1)
         return e
 
+class GcnEdgeAngleConv1(torch.nn.Module):
+    def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True):
+        super(GcnEdgeAngleConv1, self).__init__()
+        self.softmax = softmax
+        self.node_conv1 = NodeConv1(n_node_channels_in, 64)
+        self.edge_conv1 = EdgeConv1(64, 128)
+        self.node_conv2 = NodeConv1(64, 128)
+        self.edge_conv2 = EdgeConv1(128, 128, use_init_edge_feats=True, n_channels_in=128)
+        self.out_lcf1 = nn.Linear(128 + n_edge_features_in + 1, 256)
+        self.out_lcf2 = nn.Linear(256, n_edge_classes)
+
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        self.loss = torch.nn.MSELoss()
+        self.device = device
+
+    def forward(self, node_features, edge_features_1d, edge_index, angles, edge_weights):
+        node_features, _ = self.node_conv1(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        node_features = nn.functional.leaky_relu(node_features)
+        _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
+        edge_features = nn.functional.leaky_relu(edge_features)
+        node_features, _ = self.node_conv2(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        node_features = nn.functional(node_features)
+        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
+        edge_features = nn.functional.leaky_relu(edge_features)
+
+        e = self.out_lcf1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), 1))
+        e = self.out_lcf2(e)
+        if self.softmax:
+            return nn.functional.softmax(e, -1)
+        return e

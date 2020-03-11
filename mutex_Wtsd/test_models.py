@@ -3,17 +3,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 # from models.GCNNs.mc_pooling_1 import test
 from data.datasets import DiscSpGraphDset
-from models.GCNNs.mc_glbl_edge_costs import GcnEdgeConvNet, GcnEdgeConvNet2, GcnEdgeConvNet3
+from models.GCNNs.mc_glbl_edge_costs import GcnEdgeConvNet3
 from models.simple_unet import UNet
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
-import utils
-from matplotlib import cm
-from utils import check_no_singles
 import numpy as np
 import torch
-import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
 
 assert torch.cuda.device_count() == 1
 torch.set_default_tensor_type('torch.FloatTensor')

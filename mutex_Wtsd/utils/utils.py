@@ -52,8 +52,8 @@ def bbox(array2d_c):
         x = np.where(np.any(array2d, axis=0))
         ymin, ymax = y[0][[0, -1]] if len(y[0]) != 0 else (0, 0)
         xmin, xmax = x[0][[0, -1]] if len(x[0]) != 0 else (0, 0)
-        y_vals.append([ymin, ymax])
-        x_vals.append([xmin, xmax])
+        y_vals.append([ymin, ymax+1])
+        x_vals.append([xmin, xmax+1])
     return y_vals, x_vals
 
 

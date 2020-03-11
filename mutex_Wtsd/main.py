@@ -12,7 +12,7 @@ from a2c import A2c
 from agents.ql_agent_unet_fcn import QlAgentUnetFcn
 from agents.ql_agent_dn import QlAgentDN
 from agents.ql_agent_mnm import QlAgentMNM
-from agents.tr_opposd_agent_unet import OPPOSDAgentUnet
+from agents.tr_opposd_agent_gcn import OPPOSDAgentUnet
 from agents.ql_agent_unet import QlAgentUnet
 from agents.reinforce_agent_unet import RIAgentUnet
 from agents.qlretrace_agent_unet import QlRetraceAgentUnet
@@ -28,6 +28,7 @@ from data.datasets import simpleSeg_4_4_Dset, CustomDiscDset, SimpleSeg_20_20_Ds
 from torch.utils.data import DataLoader
 import time
 import torch
+from models import sp_fe_ae
 import torch.nn as nn
 
 import matplotlib.pyplot as plt
@@ -63,12 +64,11 @@ def q_learning(dloader, rootPath, learn=True):
     # gt_affinities = gt_affinities.squeeze().detach().cpu().numpy()
     # action_shape = [4, 56, 56]
     writer = SummaryWriter(logdir='./logs')
-    edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, _, angles = next(iter(dloader))
-    node_feat, edge_feat, edges, gt_edge_weights, angles = node_feat.squeeze(0), edge_feat.squeeze(0), edges.squeeze(0), gt_edge_weights.squeeze(0), angles.squeeze(0)
     # agent = QlAgentMNM(gamma=1, n_state_channels=2, n_actions=2, device=device, eps=1)
-    env = SpGcnEnv(edges, edge_feat, diff_to_gt, gt_edge_weights, node_feat, seg, gt_seg, affinities, writer=writer, angles=angles)
-    agent = QlAgentGcn1(gamma=0.5, lambdA=1, n_actions=3, device=device, env=env, epsilon=1, mem_size=200, train_phase=1, writer=writer)
-    # agent.load_model(rootPath)
+    env = SpGcnEnv(writer=writer, device=device)
+    # agent = QlAgentGcn1(gamma=0.5, lambdA=1, n_actions=3, device=device, env=env, epsilon=1, mem_size=10, train_phase=1, writer=writer)
+    agent = OPPOSDAgentUnet(gamma=0.5, lambdA=1, n_actions=3, device=device, env=env, epsilon=1, mem_size=10, train_phase=1, writer=writer)
+    agent.load_model(rootPath)
     # env.execute_opt_policy()
     # env.show_current_soln()
     # agent = QlAgentUnet(gamma=1, n_state_channels=len(offsets)*2,
@@ -80,7 +80,7 @@ def q_learning(dloader, rootPath, learn=True):
     ql = Qlearning(agent, env, dloader=dloader)
     if learn:
         # agent.load_model(rootPath)
-        scores, epss, last_seg = ql.train_retrace_gcn(n_iterations=10000, limiting_behav_iter=10000)
+        scores, epss, last_seg = ql.train_retrace_gcn(n_iterations=1000, limiting_behav_iter=10000)
         agent.safe_model(rootPath)
     else:
         agent.load_model(rootPath)
@@ -175,9 +175,11 @@ def test_model():
 
 if __name__ == '__main__':
     # test_model()
+    sp_fe_ae.main()
+    exit()
     file = 'mask/masks.h5'
     rootPath = '/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/models'
-
+    #
     # modelFileSimple = os.path.join(rootPath, 'UnetEdgePredsSimple.pth')
     # dloader = DataLoader(simpleSeg_4_4_Dset(), batch_size=1, shuffle=True, pin_memory=True)
     # affinities_predictor_simple = smallUNet(n_channels=1, n_classes=len(offsets), bilinear=True, device=device)

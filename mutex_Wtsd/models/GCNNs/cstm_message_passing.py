@@ -2,7 +2,6 @@ import sys
 import inspect
 from torch_geometric.utils import degree
 import torch
-from utils import check_no_singles
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.utils import scatter_
 from models.ril_function_models import NodeFeatureExtractor, EdgeFeatureExtractor
@@ -237,6 +236,25 @@ class SpatNodeConv(EdgeMessagePassing):
     def update(self, aggr_out, x):
         return self.edge_conv(torch.cat((aggr_out, x), dim=1))
 
+class NodeConv1(MessagePassing):
+    def __init__(self, n_node_features_in, n_node_features_out, angle_res=64):
+        super(NodeConv, self).__init__(aggr='mean')  # no need for aggregation when only updating edges.
+        self.lin_angles = torch.nn.Linear(n_node_features_in, angle_res)
+        self.lin_edge_conv = torch.nn.Linear(n_node_features_in * 2, n_node_features_in)
+        self.lin_outer = torch.nn.Linear(n_node_features_in * 2, n_node_features_out)
+
+    def forward(self, x, edge_index, angles, edge_weights):
+        angle_weights = self.angles(x)
+        return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x, angles=angles, angle_weights=angle_weights, edge_weights=edge_weights)
+
+    def message(self, x_i, x_j, angle_weights_i, edge_index, angles, edge_weights, size):
+        angle_weights = torch.gather(angle_weights_i, 1, angles.unsqueeze(-1))
+        edge_conv = self.lin_edge_conv(torch.cat((x_i, x_j), dim=-1))
+        return torch.nn.functional.relu(angle_weights * edge_conv)
+
+    def update(self, aggr_out, x):
+        return self.lin_outer(torch.cat((aggr_out, x), dim=-1))
+
 
 class SpatEdgeConv(EdgeMessagePassing):
     def __init__(self, n_channels_interm, n_channels_out, use_init_edge_feats=False, n_channels_in=None):
@@ -259,13 +277,35 @@ class SpatEdgeConv(EdgeMessagePassing):
         # x_i = x_i * edge_weights
         x_j = x_j * edge_weights.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         if edge_features is not None:
-            edge_features = self.node_edge_conv(torch.cat((x_i, x_j, edge_features), 0))
+            edge_features = self.node_edge_conv(torch.cat((x_i, x_j, torch.cat((edge_features, edge_features), 0)), 1))
             edge_features = (edge_features[:edge_sep] + edge_features[edge_sep:]) / 2
-            return edge_features
+            return None, edge_features
         edge_features = self.node_edge_conv(torch.cat((x_i, x_j), 1))
         edge_features = (edge_features[:edge_sep] + edge_features[edge_sep:]) / 2
         return None, edge_features
 
+class EdgeConv1(EdgeMessagePassing):
+    def __init__(self, n_channels_interm, n_channels_out, use_init_edge_feats=False, n_channels_in=None):
+        super(EdgeConv, self).__init__(aggr='no_aggr')  # no need for aggregation when only updating edges.
+        if use_init_edge_feats:
+            self.lin_edges_inner = torch.nn.Linear(n_channels_in * 2, n_channels_interm)
+            self.lin_edges_outer = torch.nn.Linear(n_channels_interm * 2, n_channels_out)
+        else:
+            self.lin_edges_inner = torch.nn.Linear(n_channels_interm * 2, n_channels_out)
+
+    def forward(self, x, edge_index, edge_weights, edge_features=None):
+        return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x, edge_features=edge_features, edge_weights=edge_weights)
+
+    def message(self, x_i, x_j, edge_index, edge_features, edge_weights):
+        edge_sep = edge_index.shape[-1] // 2
+        x_j = x_j * edge_weights.unsqueeze(-1)
+        e_new = self.lin_edges_inner(torch.cat((x_i, x_j), dim=-1))
+        e_new = torch.nn.functional.relu(e_new)
+        e_new = (e_new[:edge_sep] + e_new[edge_sep:]) / 2
+        if edge_features is not None:
+            e_new = self.lin_edges_outer(torch.cat((e_new, edge_features), dim=-1))
+            e_new = torch.nn.functional.relu(e_new)
+        return None, e_new
 
 class EdgeConv(EdgeMessagePassing):
     def __init__(self, n_node_features_in, n_edge_features_in, n_edge_features_out):

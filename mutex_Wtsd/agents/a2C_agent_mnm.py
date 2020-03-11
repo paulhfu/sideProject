@@ -1,9 +1,7 @@
 from models.ril_function_models import DNDQNRI,DNDQN
 import torch
-from torch.autograd import Variable
 import numpy as np
-from agents.qlagent import QlAgent
-from utils import add_rndness_in_dis
+from utils.utils import add_rndness_in_dis
 import os
 
 class RIAgentA2c(object):
