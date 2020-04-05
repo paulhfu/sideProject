@@ -9,7 +9,7 @@ import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import DataLoader
 from data.datasets import DiscSpGraphDset
-from utils import utils
+from utils import general
 from models.simple_unet import UNet
 import numpy as np
 from tqdm import tqdm
@@ -120,7 +120,7 @@ def get_boxed_sp(nodes, segmentation, raw, size):
     sp_boxes = []
     for i, n in enumerate(nodes):
         mask = (n == haloed_seg)
-        y, x = utils.bbox(mask.unsqueeze(0).numpy())
+        y, x = general.bbox(mask.unsqueeze(0).numpy())
         x, y = x[0], y[0]
         for co, sz in zip((y, x), size):
             diff = sz - (co[1] - co[0])

@@ -3,14 +3,14 @@ import torch
 import numpy as np
 from affogato.affinities import compute_affinities
 import torchvision.transforms as transforms
-from utils.utils import calculate_gt_edge_costs
+from utils.general import calculate_gt_edge_costs
 import torch_geometric as tg
 import elf.segmentation.features as feats
 from affogato.segmentation.mws import get_valid_edges
 from mutex_watershed import compute_mws_segmentation_cstm
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from utils import utils
+from utils import general
 import os
 import h5py
 
@@ -202,7 +202,7 @@ class DiscSpGraphDset(tg.data.Dataset):
                 if (ly**2 + lx**2)**.5 <= radius:
                     data[y, x] += np.sin(x * 10 * np.pi / self.shape[1])
                     data[y, x] += np.sin(np.sqrt(x**2 + y**2) * 20 * np.pi / self.shape[1])
-                    data[y, x] += 4
+                    # data[y, x] += 4
                     gt[y, x] = 1
                 else:
                     data[y, x] += np.sin(y * 10 * np.pi / self.shape[1])
@@ -262,8 +262,9 @@ class DiscSpGraphDset(tg.data.Dataset):
                                                                                     self.sep_chnl,
                                                                                     self.shape)
         node_labeling = node_labeling -1
-        # node_labeling = seg_arbitrary
+        node_labeling = seg_arbitrary
         # plt.imshow(cm.prism(node_labeling/node_labeling.max()));plt.show()
+        # plt.imshow(data);plt.show()
         neighbors = (node_labeling.ravel())[neighbors]
         nodes = np.unique(node_labeling)
         edge_feat = get_edge_features_1d(node_labeling, offsets, affinities)
@@ -319,7 +320,7 @@ class DiscSpGraphDset(tg.data.Dataset):
         edges = torch.from_numpy(neighbors.astype(np.long))
         raw = raw.squeeze()
         edge_feat = torch.from_numpy(edge_feat.astype(np.float32))
-        nodes = torch.from_numpy(nodes)
+        nodes = torch.from_numpy(nodes.astype(np.float32))
         # gt_edge_weights = torch.from_numpy(gt_edge_weights.astype(np.float32))
         # affinities = torch.from_numpy(affinities.astype(np.float32))
         affinities = torch.from_numpy(gt_affinities.astype(np.float32))

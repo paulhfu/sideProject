@@ -6,7 +6,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 from data.datasets import DiscSpGraphDset
 from models.simple_unet import UNet
 from torch.utils.data import DataLoader
-from utils.utils import calculate_gt_edge_costs
+from utils.general import calculate_gt_edge_costs
 import torch
 import matplotlib.pyplot as plt
 assert torch.cuda.device_count() == 1

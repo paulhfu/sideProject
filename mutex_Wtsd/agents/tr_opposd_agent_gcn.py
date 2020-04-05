@@ -4,6 +4,7 @@
 from models.ril_function_models import UnetDQN, UnetRI
 from agents.distribution_correction import DensityRatio
 from models.GCNNs.mc_glbl_edge_costs import GcnEdgeAngleConv1
+from models.sp_embed_unet import SpVecsUnet
 import torch
 import numpy as np
 import os
@@ -16,7 +17,7 @@ class OPPOSDAgentUnet(QlAgent1):
     def __init__(self, gamma, lambdA, n_actions, device, env,
                  epsilon=0.9, eps_min=0.000001, replace_cnt=1, mem_size=10,  writer=None, train_phase=0):
         super(OPPOSDAgentUnet, self).__init__(gamma=gamma, eps=epsilon, eps_min=eps_min, replace_cnt=replace_cnt,
-                                          mem_size=mem_size)
+                                              mem_size=mem_size)
 
         self.train_phase = train_phase
         self.writer = writer
@@ -25,7 +26,8 @@ class OPPOSDAgentUnet(QlAgent1):
         self.q_eval = GcnEdgeAngleConv1(n_node_channels_in=1, n_edge_features_in=10, n_edge_classes=3, device=device, softmax=False)
         self.q_next = GcnEdgeAngleConv1(n_node_channels_in=1, n_edge_features_in=10, n_edge_classes=3, device=device, softmax=False)
         self.policy = GcnEdgeAngleConv1(n_node_channels_in=1, n_edge_features_in=10, n_edge_classes=3, device=device, softmax=True)
-        self.dist_correction = DensityRatio(n_state_channels=1, device=device, agent=self, kernel='gauss', gauss_sigma=1, writer=writer)
+        self.dist_correction = DensityRatio(n_state_channels=1, device=device, agent=self, kernel='gauss',
+                                            gauss_sigma=1, writer=writer)
         self.q_eval.cuda(device=self.q_eval.device)
         self.q_next.cuda(device=self.q_next.device)
         self.policy.cuda(device=self.policy.device)
@@ -73,17 +75,17 @@ class OPPOSDAgentUnet(QlAgent1):
             if not t.terminal:
                 with torch.set_grad_enabled(False):
                     qvals_ = self.q_next(self.env.node_features.to(self.q_eval.device),
-                                        self.env.edge_features.to(self.q_eval.device),
-                                        self.env.edge_ids.to(self.q_eval.device),
-                                        self.env.edge_angles.to(self.q_eval.device),
-                                        t.state_.to(self.q_eval.device))
+                                         self.env.edge_features.to(self.q_eval.device),
+                                         self.env.edge_ids.to(self.q_eval.device),
+                                         self.env.edge_angles.to(self.q_eval.device),
+                                         t.state_.to(self.q_eval.device))
                     qvals_ = qvals_.squeeze().detach()
             with torch.set_grad_enabled(True):
                 qvals = self.q_eval(self.env.node_features.to(self.q_eval.device),
-                                     self.env.edge_features.to(self.q_eval.device),
-                                     self.env.edge_ids.to(self.q_eval.device),
-                                     self.env.edge_angles.to(self.q_eval.device),
-                                     t.state.to(self.q_eval.device))
+                                    self.env.edge_features.to(self.q_eval.device),
+                                    self.env.edge_ids.to(self.q_eval.device),
+                                    self.env.edge_angles.to(self.q_eval.device),
+                                    t.state.to(self.q_eval.device))
                 qvals = qvals.squeeze()
             pvals = nn.functional.softmax(qvals, -1).detach()
             actions = t.actions.to(self.q_eval.device)
@@ -165,10 +167,10 @@ class OPPOSDAgentUnet(QlAgent1):
     def get_action(self, state, count):
         with torch.set_grad_enabled(False):
             action_probs = self.policy(self.env.node_features.to(self.policy.device),
-                                     self.env.edge_features.to(self.policy.device),
-                                     self.env.edge_ids.to(self.policy.device),
-                                     self.env.edge_angles.to(self.policy.device),
-                                     state.to(self.policy.device))
+                                       self.env.edge_features.to(self.policy.device),
+                                       self.env.edge_ids.to(self.policy.device),
+                                       self.env.edge_angles.to(self.policy.device),
+                                       state.to(self.policy.device))
         if self.train_phase == 0:
             behav_probs = action_probs + self.eps * (1 / self.n_actions - action_probs)
             actions = torch.multinomial(behav_probs, 1).squeeze()

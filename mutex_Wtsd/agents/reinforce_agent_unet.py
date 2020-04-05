@@ -1,7 +1,7 @@
 from models.ril_function_models import UnetRI
 import torch
 import numpy as np
-from utils.utils import add_rndness_in_dis
+from utils.general import add_rndness_in_dis
 import os
 
 class RIAgentUnet(object):

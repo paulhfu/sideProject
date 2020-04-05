@@ -1,5 +1,5 @@
 from matplotlib import cm
-from utils.utils import ind_flat_2_spat
+from utils.general import ind_flat_2_spat
 import numpy as np
 from environments.mutex_wtsd_bc import MtxWtsdEnvBc
 

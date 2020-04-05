@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import numpy as np
-from agents.exploitation_functions import NaiveEpsDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
+from agents.exploitation_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 import torch
 
 class Qlearning(object):
@@ -32,7 +32,7 @@ class Qlearning(object):
     def train_eps_greedy(self, n_iterations=150, batch_size=1, showInterm=True):
         with torch.set_grad_enabled(True):
             state = self.env.state
-            eps_rule = NaiveEpsDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5),
+            eps_rule = NaiveDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5),
                                limiting_epsiode=n_iterations - 10, change_after_n_episodes=5)
             self.agent.q_eval.train()
             for step in tqdm(range(self.agent.mem.capacity)):
@@ -134,31 +134,29 @@ class Qlearning(object):
     def train_retrace_gcn(self, n_iterations=150, limiting_behav_iter=130):
         with torch.set_grad_enabled(True):
             self.agent.q_eval.train()
-            eps_rule = ExpSawtoothEpsDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5), step_increase=n_iterations * 0.001,
-                               limiting_epsiode=limiting_behav_iter, change_after_n_episodes=5)
+            eps_rule = NaiveEpsDecay(initial_eps=0.05, episode_shrinkage=0.00005, limiting_epsiode=1000, change_after_n_episodes=1)
+            # eps_rule = ExpSawtoothEpsDecay(initial_eps=1, episode_shrinkage=1 / (n_iterations / 5), step_increase=n_iterations * 0.001,
+            #                    limiting_epsiode=limiting_behav_iter, change_after_n_episodes=5)
 
             print("----Fnished mem init----")
             eps_hist = []
             scores = []
             for episode in tqdm(range(n_iterations)):
 
-                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles = next(iter(self.dloader))
-                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles = \
+                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities = next(iter(self.dloader))
+                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities = \
                     edges.squeeze(), edge_feat.squeeze(), diff_to_gt.squeeze(), gt_edge_weights.squeeze(), \
-                    node_labeling.squeeze(), raw.squeeze(), nodes.squeeze(), angles.squeeze()
-                self.env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles)
-
+                    node_labeling.squeeze(), raw.squeeze(), nodes.squeeze(), angles.squeeze(), affinities.squeeze().numpy()
+                self.env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities)
+                # self.env.show_current_soln()
                 eps_hist.append(self.agent.eps)
                 state = self.env.state.clone()
                 steps = 0
-                eps_steps = 0
+                self.agent.reset_eps(eps_rule.apply(episode))
+                self.env.stop_quality = np.exp(-(0.0015 * episode) ** 2) * 20 + 20
+                # self.agent.reset_eps(0)
+                # self.env.stop_quality = 3
                 while not self.env.done:
-                    self.agent.reset_eps(eps_rule.apply(episode, eps_steps))
-                    self.env.stop_quality = np.exp(-(0.0015 * episode) ** 2) * 5
-                    # self.agent.reset_eps(0)
-                    self.env.stop_quality = 3
-                    if self.agent.eps == 0:
-                        eps_steps = 0
                     action, behav_probs = self.agent.get_action(state, self.env.counter)
                     state_, reward = self.env.execute_action(action, episode)
                     self.agent.store_transit(state.clone(), action, reward, state_.clone(), steps, behav_probs, int(self.env.done))
@@ -166,7 +164,6 @@ class Qlearning(object):
                         self.agent.learn()
                     state = state_
                     steps += 1
-                    eps_steps += 1
                 while len(self.agent.mem) > 0:
                     self.agent.learn()
                     self.agent.mem.pop(0)
@@ -174,4 +171,5 @@ class Qlearning(object):
                 scores.append(self.env.acc_reward)
                 print("score: ", self.env.acc_reward, "; eps: ", self.agent.eps, "; steps: ", steps)
                 self.env.reset()
+                self.agent.reset_node_features()
         return scores, eps_hist, None

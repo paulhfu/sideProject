@@ -1,11 +1,42 @@
 import numpy as np
 import torch
 import elf
+from torch import multiprocessing as mp
+import math
+import random
+
+# Global counter
+class Counter():
+  def __init__(self):
+    self.val = mp.Value('i', 0)
+    self.lock = mp.Lock()
+
+  def increment(self):
+    with self.lock:
+      self.val.value += 1
+
+  def value(self):
+    with self.lock:
+      return self.val.value
 
 
 def calculate_naive_gt_edge_costs(edges, sp_gt):
     return (sp_gt.squeeze()[edges.astype(np.int)][:, 0] != sp_gt.squeeze()[edges.astype(np.int)][:, 1]).float()
 
+
+# Knuth's algorithm for generating Poisson samples
+def poisson(self, lmbd):
+    L, k, p = math.exp(-lmbd), 0, 1
+    while p > L:
+        k += 1
+        p *= random.uniform(0, 1)
+    return max(k - 1, 0)
+
+
+# Adjusts learning rate
+def adjust_learning_rate(optimizer, lr):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
 def calculate_gt_edge_costs(neighbors, new_seg, gt_seg):
     rewards = np.zeros(len(neighbors))
@@ -26,7 +57,6 @@ def calculate_gt_edge_costs(neighbors, new_seg, gt_seg):
             rewards[idx] = 0
         else:
             n_obj_new = n_obj_new[1:] if n_obj_new[0] == 0 else n_obj_new
-            n_obj_pnlty = - abs(len(n_obj_new) - len(n_obj_gt)) * 10
             assert len(n_obj_new) == 2
             overlaps = np.zeros([len(n_obj_gt)] + [2])
             for j, obj in enumerate(n_obj_gt):
@@ -98,6 +128,10 @@ def pca_svd(X, k, center=True):
 
 
 def multicut_from_probas(segmentation, edges, edge_weights, boundary_input):
+    import matplotlib.pyplot as plt
+    # for comp in np.unique(segmentation):
+    #     plt.imshow(segmentation == comp)
+    #     plt.show()
     rag = elf.segmentation.features.compute_rag(np.expand_dims(segmentation, axis=0))
     edge_dict = dict(zip(list(map(tuple, edges)), edge_weights))
     costs = np.empty(len(edge_weights))
@@ -109,6 +143,11 @@ def multicut_from_probas(segmentation, edges, edge_weights, boundary_input):
     edge_sizes = elf.segmentation.features.compute_boundary_mean_and_length(rag, boundary_input)[:, 1]
     costs = elf.segmentation.multicut.transform_probabilities_to_costs(costs, edge_sizes=edge_sizes)
     node_labels = elf.segmentation.multicut.multicut_kernighan_lin(rag, costs)
+    mc_seg = elf.segmentation.features.project_node_labels_to_pixels(rag, node_labels).squeeze()
+
+    # for comp in np.unique(mc_seg):
+    #     plt.imshow(mc_seg == comp)
+    #     plt.show()
     return elf.segmentation.features.project_node_labels_to_pixels(rag, node_labels).squeeze()
 
 

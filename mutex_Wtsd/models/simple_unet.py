@@ -12,13 +12,16 @@ class DoubleConv(nn.Module):
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
+        # weiredly with distributedparallel inplace error is happening in batchnorm2d. GroupNorm works though
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
+            # nn.BatchNorm2d(out_channels),
+            nn.GroupNorm(32, out_channels),
+            nn.ReLU(inplace=False),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            # nn.BatchNorm2d(out_channels),
+            nn.GroupNorm(32, out_channels),
+            nn.ReLU(inplace=False)
         )
 
     def forward(self, x):
@@ -110,6 +113,32 @@ class UNet(nn.Module):
         x = self.up4(x, x1)
         logits = self.outc(x)
         return torch.sigmoid(logits)
+
+
+class MediumUNet(nn.Module):
+    def __init__(self, n_channels=1, n_classes=10, bilinear=True, device=None):
+        super(MediumUNet, self).__init__()
+        self.device = device
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        self.bilinear = bilinear
+
+        self.inc = DoubleConv(n_channels, 64)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 128)
+        self.up1 = Up(256, 64, bilinear)
+        self.up2 = Up(128, 64, bilinear)
+        self.outc = OutConv(64, n_classes)
+
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x = self.up1(x2, x3)
+        x = self.up2(x, x1)
+        logits = self.outc(x)
+        return torch.sigmoid(logits)
+
 
 class smallUNet(nn.Module):
     def __init__(self, n_channels=1, n_classes=10, bilinear=True, device=None):

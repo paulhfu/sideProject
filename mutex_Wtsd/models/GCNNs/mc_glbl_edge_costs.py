@@ -5,6 +5,7 @@ from torch_geometric.utils import degree
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn import BatchNorm1d
+from models.sp_embed_unet import SpVecsUnet
 from torch_geometric.nn import GCNConv, GATConv
 
 
@@ -249,17 +250,20 @@ class GcnEdgeAngleConv2(torch.nn.Module):
         return e
 
 class GcnEdgeAngleConv1(torch.nn.Module):
-    def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True):
+    def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True, fe_params=None):
         super(GcnEdgeAngleConv1, self).__init__()
         self.softmax = softmax
-        self.node_conv1 = NodeConv1(n_node_channels_in, 64)
-        self.edge_conv1 = EdgeConv1(64, 128)
-        self.node_conv2 = NodeConv1(64, 128)
-        self.edge_conv2 = EdgeConv1(128, 128, use_init_edge_feats=True, n_channels_in=128)
-        self.out_lcf1 = nn.Linear(128 + n_edge_features_in + 1, 256)
+        self.node_conv1 = NodeConv1(n_node_channels_in, n_node_channels_in)
+        self.edge_conv1 = EdgeConv1(n_node_channels_in, n_node_channels_in)
+        self.node_conv2 = NodeConv1(n_node_channels_in, n_node_channels_in)
+        self.edge_conv2 = EdgeConv1(n_node_channels_in, n_node_channels_in, use_init_edge_feats=True, n_channels_in=n_node_channels_in)
+        self.out_lcf1 = nn.Linear(n_node_channels_in + n_edge_features_in + 1, 256)
         self.out_lcf2 = nn.Linear(256, n_edge_classes)
 
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        if fe_params is not None:
+            self.optimizer = torch.optim.Adam(list(self.parameters()) + list(fe_params), lr=1e-9)
+        else:
+            self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-9)
         self.loss = torch.nn.MSELoss()
         self.device = device
 
@@ -269,12 +273,67 @@ class GcnEdgeAngleConv1(torch.nn.Module):
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
         edge_features = nn.functional.leaky_relu(edge_features)
         node_features, _ = self.node_conv2(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
-        node_features = nn.functional(node_features)
+        node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
         edge_features = nn.functional.leaky_relu(edge_features)
 
-        e = self.out_lcf1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), 1))
+        e = self.out_lcf1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
         e = self.out_lcf2(e)
         if self.softmax:
+            e = torch.sigmoid(e)
             return nn.functional.softmax(e, -1)
         return e
+
+
+class GcnEdgeAngle1dPQV(torch.nn.Module):
+    def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True):
+        super(GcnEdgeAngle1dPQV, self).__init__()
+        self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
+        self.softmax = softmax
+        self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels)
+        self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels)
+        self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels)
+        self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, use_init_edge_feats=True, n_channels_in=n_embedding_channels)
+        # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
+        self.out_p1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
+        self.out_p2 = nn.Linear(256, n_edge_classes)
+        self.out_q1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
+        self.out_q2 = nn.Linear(256, n_edge_classes)
+        self.device = device
+
+    def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None):
+        edge_weights = state[0].to(self.device)
+        input = torch.stack((state[1], state[2])).unsqueeze(0).to(self.device)
+        if sp_indices is None:
+            return self.fe_ext(input)
+        if edge_features_1d is None:
+            return self.fe_ext(input, sp_indices)
+        node_features = self.fe_ext(input, sp_indices)
+        node_features, _ = self.node_conv1(node_features, edge_index, angles)
+        node_features = nn.functional.leaky_relu(node_features)
+        _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
+        edge_features = nn.functional.leaky_relu(edge_features)
+        node_features, _ = self.node_conv2(node_features, edge_index, angles)
+        node_features = nn.functional.leaky_relu(node_features)
+        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
+        edge_features = nn.functional.leaky_relu(edge_features)
+
+        # h, c = self.lstm(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1), h)  # h is (hidden state, cell state)
+
+        p = self.out_p1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
+        p = nn.functional.softmax(torch.sigmoid(self.out_p2(p)), -1).clamp(max=1 - 1e-20)  # Prevent 1s and hence NaNs
+
+        q = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
+        q = self.out_q2(q)
+
+        v = (q * p).sum(1, keepdim=True).squeeze()  # V is expectation of Q under π
+        return p, q, v
+
+
+class WrappedGcnEdgeAngle1dPQV(torch.nn.Module):
+    def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True):
+        super(WrappedGcnEdgeAngle1dPQV, self).__init__()
+        self.module = GcnEdgeAngle1dPQV(n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True)
+
+    def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None):
+        return self.module(state, sp_indices, edge_index, angles, edge_features_1d)

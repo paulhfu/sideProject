@@ -2,7 +2,7 @@ from mutex_watershed import compute_mws_segmentation_cstm
 from matplotlib import cm
 import numpy as np
 import torch
-from utils.utils import ind_flat_2_spat
+from utils.general import ind_flat_2_spat
 from math import inf
 from environments.mutex_wtsd_bc import MtxWtsdEnvBc
 
