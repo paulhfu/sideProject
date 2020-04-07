@@ -5,6 +5,7 @@ sys.path.insert(0, '/g/kreshuk/hilt/projects/fewShotLearning/mu-net')
 from models.sp_embed_unet import SpVecsUnet
 from agents.distribution_correction import DensityRatio
 from models.GCNNs.mc_glbl_edge_costs import GcnEdgeAngleConv1
+from models.sp_embed_unet import SpVecsUnet
 import torch
 import numpy as np
 import os
@@ -29,12 +30,11 @@ from collections import namedtuple
 from agents.exploitation_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 
 
-class AgentOffpac(object):
-    def __init__(self, args, shared_damped_model, global_count, global_writer_loss_count, global_writer_quality_count,
+class AgentOffpac2M(object):
+    def __init__(self, args, global_count, global_writer_loss_count, global_writer_quality_count,
                  global_win_event_count, save_dir):
-        super(AgentOffpac, self).__init__()
+        super(AgentOffpac2M, self).__init__()
         self.args = args
-        self.shared_damped_model = shared_damped_model
         self.global_count = global_count
         self.global_writer_loss_count = global_writer_loss_count
         self.global_writer_quality_count = global_writer_quality_count
@@ -98,11 +98,11 @@ class AgentOffpac(object):
         # Gradient L2 normalisation
         nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
-        if self.args.min_lr != 0:
-            # Linearly decay learning rate
-            new_lr = self.args.lr - (self.args.min_lr * (1 - max((self.args.T_max - self.global_count.value()) /
-                                                                 self.args.T_max, 1e-32)))
-            adjust_learning_rate(optimizer, new_lr)
+        # if self.args.min_lr != 0:
+        #     # Linearly decay learning rate
+        #     new_lr = self.args.lr - (self.args.min_lr * (1 - max((self.args.T_max - self.global_count.value()) /
+        #                                                          self.args.T_max, 1e-32)))
+        #     adjust_learning_rate(optimizer, new_lr)
 
 
     def warm_start(self, transition_data):
@@ -122,15 +122,15 @@ class AgentOffpac(object):
             param.grad.data.clamp_(-1, 1)
         self.policy.optimizer.step()
 
-    def agent_forward(self, env, model, state=None, grad=True):
+    def agent_forward(self, env, model, feat, state=None, grad=True):
         with torch.set_grad_enabled(grad):
             if state is None:
-                state = env.state
-            return model([obj.float().to(model.module.device) for obj in state + [env.raw]], sp_indices=env.sp_indices,
-                         edge_index=env.edge_ids.to(model.module.device), angles=env.edge_angles.to(model.module.device),
-                         edge_features_1d=env.edge_features.to(model.module.device))
+                state = env.state[0]
+            return model(node_features=feat, edge_features_1d=env.edge_features.to(model.device),
+                         edge_index=env.edge_ids.to(model.device), angles=env.edge_angles.to(model.device),
+                         edge_weights=state.to(model.device))
 
-    def get_action(self, action_probs, q, v, policy, device):
+    def get_action(self, action_probs, policy, device):
         if policy == 'off_sampled':
             behav_probs = action_probs.detach() + self.eps * (1 / self.args.n_actions - action_probs.detach())
             actions = torch.multinomial(behav_probs, 1).squeeze()
@@ -148,9 +148,6 @@ class AgentOffpac(object):
         elif policy == 'on':
             actions = action_probs.max(-1)[1].squeeze()
             behav_probs = action_probs.detach()
-        elif policy == 'q_val':
-            actions = q.max(-1)[1].squeeze()
-            behav_probs = action_probs.detach()
 
         # log_probs = torch.log(sel_behav_probs)
         # entropy = - (behav_probs * torch.log(behav_probs)).sum()
@@ -158,12 +155,12 @@ class AgentOffpac(object):
 
     def fe_extr_warm_start(self, sp_feature_ext, writer=None):
         dataloader = DataLoader(MultiDiscSpGraphDset(length=100), batch_size=10,
-                                           shuffle=True, pin_memory=True)
+                                shuffle=True, pin_memory=True)
         criterion = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
         optimizer = torch.optim.Adam(sp_feature_ext.parameters())
         for i, (data, gt) in enumerate(dataloader):
             data, gt = data.to(sp_feature_ext.device), gt.to(sp_feature_ext.device)
-            pred = sp_feature_ext(data)
+            pred = sp_feature_ext(data[:,0,:,:].unsqueeze(1))
             loss = criterion(pred, gt)
             optimizer.zero_grad()
             loss.backward()
@@ -172,9 +169,9 @@ class AgentOffpac(object):
                 writer.add_scalar("loss/fe_warm_start", loss.item(), self.writer_idx_warmup_loss)
                 self.writer_idx_warmup_loss += 1
 
-    def _step(self, memory, shared_model, env, optimizer, off_policy=True, writer=None):
+    def _step(self, memory, policy, q_eval, q_next, fe_extr, env, optimizer, off_policy=True, writer=None):
         if self.args.qnext_replace_cnt is not None and self.global_count.value() % self.args.qnext_replace_cnt == 0:
-            self.shared_damped_model.load_state_dict(shared_model.state_dict())
+            q_next.load_state_dict(q_eval.state_dict())
         # according to thm3 in https://arxiv.org/pdf/1606.02647.pdf
         c_loss, a_loss = 0, 0
         transition_data = memory.memory
@@ -187,9 +184,14 @@ class AgentOffpac(object):
         # self.opt_fe_extr = not self.train_a2c
         # self.dist_correction.update_density(transition_data, self.gamma)
         for i, t in enumerate(transition_data):
+            data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
+            feat = fe_extr(data, env.sp_indices)
             if not t.terminal:
-                _, q_, v_ = self.agent_forward(env, self.shared_damped_model, t.state_, False)
-            pvals, q, v = self.agent_forward(env, shared_model, t.state)
+                q_ = self.agent_forward(env, q_next, feat, t.state_, False)
+                pvals_ = nn.functional.softmax(q_, -1)
+                v_ = (q_ * pvals_).sum(-1)
+            q = self.agent_forward(env, q_eval, feat, t.state)
+            pvals = nn.functional.softmax(q, -1).detach()
             # pvals = nn.functional.softmax(qvals, -1).detach()  # this alternatively
             q_t = q.gather(-1, t.action.unsqueeze(-1)).squeeze()
             behav_policy_proba_t = t.behav_policy_proba.gather(-1, t.action.unsqueeze(-1)).squeeze()
@@ -197,11 +199,11 @@ class AgentOffpac(object):
 
             m = m + self.args.discount ** (t.time-current) * importance_weight
             importance_weight = importance_weight * self.args.lbd * \
-                                torch.min(torch.ones(t.action.shape).to(shared_model.module.device),
+                                torch.min(torch.ones(t.action.shape).to(policy.device),
                                           pvals_t / behav_policy_proba_t)
 
             if self.args.weight_l2_reg_params_weight != 0:
-                for W in list(shared_model.parameters()):
+                for W in list(policy.parameters()):
                     if l2_reg is None:
                         l2_reg = W.norm(2)
                     else:
@@ -227,7 +229,11 @@ class AgentOffpac(object):
             # w = self.dist_correction.density_ratio(t.state.unsqueeze(0).unsqueeze(0).to(self.dist_correction.density_ratio.device)).detach().squeeze()
             w = 1
             z += w
-            policy_proba, q, v = self.agent_forward(env, shared_model, t.state)
+            data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
+            feat = fe_extr(data, env.sp_indices)
+            q = self.agent_forward(env, q_eval, feat, t.state)
+            policy_proba = self.agent_forward(env, policy, feat, t.state)
+            v = (q * policy_proba).sum(-1)
 
             policy_proba_t = policy_proba.gather(-1, t.action.unsqueeze(-1)).squeeze()
             q_t = q.gather(-1, t.action.unsqueeze(-1)).squeeze().detach()
@@ -235,7 +241,7 @@ class AgentOffpac(object):
             behav_policy_proba_t = t.behav_policy_proba.gather(-1, t.action.unsqueeze(-1)).squeeze()
 
             if self.args.weight_l2_reg_params_weight != 0:
-                for W in list(shared_model.parameters()):
+                for W in list(policy.parameters()):
                     if l2_reg is None:
                         l2_reg = W.norm(2)
                     else:
@@ -256,13 +262,13 @@ class AgentOffpac(object):
             writer.add_scalar("loss/actor", a_loss.item(), self.global_writer_loss_count.value())
             self.global_writer_loss_count.increment()
 
-        self._update_networks(a_loss + c_loss, optimizer, shared_model)
+        self._update_networks(a_loss + c_loss, optimizer, policy)
         return
 
     # Acts and trains model
     def train(self, rank):
         device = self.setup(rank, self.args.num_processes)
-        writer = SummaryWriter(logdir=os.path.join(self.save_dir, 'logs1'))
+        writer = SummaryWriter(logdir=os.path.join(self.save_dir, 'logs'))
 
         transition = namedtuple('Transition', ('state', 'action', 'reward', 'state_','behav_policy_proba', 'time', 'terminal'))
         memory = TransitionData(capacity=self.args.t_max, storage_object=transition)
@@ -272,25 +278,28 @@ class AgentOffpac(object):
         dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
                              num_workers=0)
         # Create shared network
-        model = GcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
-                                  self.args.n_edge_features, self.args.n_actions, device)
-        model.cuda(device)
-        shared_model = DDP(model, device_ids=[model.device])
+        q_eval = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features, n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions, device=device, softmax=False)
+        q_next = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features, n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions, device=device, softmax=False)
+        policy = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features, n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions, device=device, softmax=True)
+        fe_extr = SpVecsUnet(n_channels=1, n_classes=self.args.n_embedding_features, device=device)
+        q_eval.cuda(device=q_eval.device)
+        q_next.cuda(device=q_next.device)
+        policy.cuda(device=policy.device)
+        fe_extr.cuda(device=fe_extr.device)
         # Create optimizer for shared network parameters with shared statistics
-        optimizer = CstmAdam(shared_model.parameters(), lr=self.args.lr, betas=self.args.Adam_betas,
-                             weight_decay=self.args.Adam_weight_decay)
+        optimizer = torch.optim.Adam(list(q_eval.parameters()) + list(policy.parameters()),
+                               lr=self.args.lr)
 
         if self.args.fe_extr_warmup and rank == 0:
-            fe_extr = SpVecsUnet(self.args.n_raw_channels, self.args.n_embedding_features, device)
+            fe_extr = SpVecsUnet(1, self.args.n_embedding_features, device)
             fe_extr.cuda(device)
             self.fe_extr_warm_start(fe_extr, writer=writer)
-            shared_model.module.fe_ext.load_state_dict(fe_extr.state_dict())
-            torch.save(shared_model.state_dict(), os.path.join(self.save_dir, self.args.model_name))
+            fe_extr.load_state_dict(fe_extr.state_dict())
+            torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model_feat_extr'))
         dist.barrier()
         if self.args.model_name != "":
-            shared_model.load_state_dict(torch.load(os.path.join(self.save_dir, self.args.model_name)))
+            fe_extr.load_state_dict(torch.load(os.path.join(self.save_dir, 'agent_model_feat_extr')))
 
-        self.shared_damped_model.load_state_dict(shared_model.state_dict())
         env.done = True  # Start new episode
         while self.global_count.value() <= self.args.T_max:
             if env.done:
@@ -303,7 +312,7 @@ class AgentOffpac(object):
                 env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes,
                                 angles, affinities, gt)
                 env.reset()
-                state = [env.state[0].clone(), env.state[1].clone()]
+                state = env.state[0].clone()
                 episode_length = 0
 
                 self.eps = self.eps_rule.apply(self.global_count.value())
@@ -313,7 +322,9 @@ class AgentOffpac(object):
 
             while not env.done:
                 # Calculate policy and values
-                policy_proba, q, v = self.agent_forward(env, shared_model, grad=False)
+                data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
+                feat = fe_extr(data, env.sp_indices)
+                policy_proba = self.agent_forward(env, policy, feat, grad=False)
                 # average_policy_proba, _, _ = self.agent_forward(env, self.shared_average_model)
                 # q_ret = v.detach()
 
@@ -321,18 +332,18 @@ class AgentOffpac(object):
                 # action = torch.multinomial(policy, 1)[0, 0]
 
                 # Step
-                action, behav_policy_proba = self.get_action(policy_proba, q, v, policy='off_uniform', device=device)
+                action, behav_policy_proba = self.get_action(policy_proba, policy='off_uniform', device=device)
                 state_, reward = env.execute_action(action, self.global_count.value())
 
-                memory.push(state, action, reward.to(shared_model.module.device), state_, behav_policy_proba, episode_length, env.done)
+                memory.push(state, action, reward.to(device), state_[0], behav_policy_proba, episode_length, env.done)
 
                 # Train the network
-                self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
+                self._step(memory, policy, q_eval, q_next, fe_extr, env, optimizer, off_policy=True, writer=writer)
 
                 # reward = self.args.reward_clip and min(max(reward, -1), 1) or reward  # Optionally clamp rewards
                 # done = done or episode_length >= self.args.max_episode_length  # Stop episodes at a max length
                 episode_length += 1  # Increase episode counter
-                state = state_
+                state = state_[0].clone()
 
 
             # Break graph for last values calculated (used for targets, not directly as model outputs)
@@ -340,10 +351,12 @@ class AgentOffpac(object):
             # Qret = 0 for terminal s
 
             while len(memory) > 0:
-                self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
+                self._step(memory, policy, q_eval, q_next, fe_extr, env, optimizer, off_policy=True, writer=writer)
                 memory.pop(0)
 
         dist.barrier()
         if rank == 0:
-            torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
+            torch.save(policy.state_dict(), os.path.join(self.save_dir, 'agent_model_p'))
+            torch.save(q_eval.state_dict(), os.path.join(self.save_dir, 'agent_model_q'))
+            torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model_feat_extr'))
         self.cleanup()

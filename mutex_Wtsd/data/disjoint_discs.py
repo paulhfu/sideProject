@@ -99,18 +99,19 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
                                                                                          self.sep_chnl,
                                                                                          self.shape)
         node_labeling = node_labeling - 1
-        rag = elf.segmentation.features.compute_rag(np.expand_dims(node_labeling, axis=0))
-        neighbors = rag.uvIds()
-        # i = 0
-        #
-        # node_labeling = gt * 5000 + node_labeling
-        # segs = np.unique(node_labeling)
-        #
-        # new_labeling = np.zeros_like(node_labeling)
-        # for seg in segs:
-        #     i += 1
-        #     new_labeling += (node_labeling == seg) * i
+        # rag = elf.segmentation.features.compute_rag(np.expand_dims(node_labeling, axis=0))
+        # neighbors = rag.uvIds()
+        i = 0
 
+        node_labeling = gt * 5000 + node_labeling
+        segs = np.unique(node_labeling)
+
+        new_labeling = np.zeros_like(node_labeling)
+        for seg in segs:
+            i += 1
+            new_labeling += (node_labeling == seg) * i
+
+        node_labeling = new_labeling - 1
 
         # gt_labeling, _, _, _ = compute_mws_segmentation_cstm(gt_affinities.ravel(),
         #                                                      valid_edges.ravel(),
@@ -124,16 +125,21 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         except:
             a = 1
 
-        gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
-        affs = np.expand_dims(affinities, axis=1)
-        boundary_input = np.mean(affs, axis=0)
-        gt = gutils.multicut_from_probas(node_labeling.astype(np.float32), neighbors.astype(np.float32),
-                                         gt_edge_weights.astype(np.float32), boundary_input.astype(np.float32))
-
-        gt = torch.from_numpy(gt.astype(np.float32)).squeeze().float()
         noisy_affinities = np.random.rand(*affinities.shape)
         noisy_affinities = noisy_affinities.clip(0, 1)
         edge_feat, neighbors = get_edge_features_1d(node_labeling, self.offsets, noisy_affinities)
+        gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
+        affs = np.expand_dims(affinities, axis=1)
+        boundary_input = np.mean(affs, axis=0)
+        gt1 = gutils.multicut_from_probas(node_labeling.astype(np.float32), neighbors.astype(np.float32),
+                                         gt_edge_weights.astype(np.float32), boundary_input.astype(np.float32))
+
+        # plt.imshow(node_labeling)
+        # plt.show()
+        # plt.imshow(gt1)
+        # plt.show()
+
+        gt = torch.from_numpy(gt.astype(np.float32)).squeeze().float()
 
         edges = torch.from_numpy(neighbors.astype(np.long))
         raw = torch.tensor(data).squeeze().float()

@@ -17,7 +17,6 @@ class SpGcnEnv(Environment):
         self.args = args
         self.device = device
         self.writer = writer
-        self.action_agression = 0.2
         self.writer_counter = writer_counter
         self.win_event_counter = win_event_counter
 
@@ -30,8 +29,8 @@ class SpGcnEnv(Environment):
 
     def execute_action(self, actions, episode=None):
         last_diff = (self.state[0] - self.gt_edge_weights).squeeze().abs()
-        mask = (actions == 2).float() * (self.state[0] + self.action_agression)
-        mask += (actions == 1).float() * (self.state[0] - self.action_agression)
+        mask = (actions == 2).float() * (self.state[0] + self.args.action_agression)
+        mask += (actions == 1).float() * (self.state[0] - self.args.action_agression)
         mask += (actions == 0).float() * self.state[0]
         self.state[0] = mask
 

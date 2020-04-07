@@ -154,10 +154,10 @@ class AgentAcerTrainer(object):
     def agent_forward(self, env, model, state=None, grad=True):
         with torch.set_grad_enabled(grad):
             if state is None:
-                state = env.state.to(model.module.device).contiguous()
-            return model(env.raw.to(model.module.device).unsqueeze(0).unsqueeze(0), sp_indices=env.sp_indices,
+                state = env.state
+            return model([obj.float().to(model.module.device) for obj in state + [env.raw]], sp_indices=env.sp_indices,
                          edge_index=env.edge_ids.to(model.module.device), angles=env.edge_angles.to(model.module.device),
-                         edge_features_1d=env.edge_features.to(model.module.device), edge_weights=state.to(model.module.device))
+                         edge_features_1d=env.edge_features.to(model.module.device))
 
     # Trains model
     def _step(self, memory, shared_model, env, optimizer, off_policy=True, writer=None):
@@ -173,7 +173,7 @@ class AgentAcerTrainer(object):
             average_policy_proba, _, _ = self.agent_forward(env, self.shared_average_model, state, grad=False)
             tr_loss, p_loss = 0, 0
             if done and t == len(memory):
-                q_ret_t = torch.zeros_like(env.state).to(shared_model.module.device)
+                q_ret_t = torch.zeros_like(env.state[0]).to(shared_model.module.device)
             elif t == len(memory):
                 q_ret_t = v.detach()
             # Importance sampling weights ρ ← π(∙|s_i) / µ(∙|s_i); 1 for on-policy
@@ -183,7 +183,7 @@ class AgentAcerTrainer(object):
                 rho = torch.ones(1, action_size)
 
             # Qret ← r_i + γQret
-            q_ret_t = reward + self.args.gamma * q_ret_t
+            q_ret_t = reward + self.args.discount * q_ret_t
             # Advantage A ← Qret - V(s_i; θ)
             adv = q.detach() - v.unsqueeze(-1).detach()
             adv_ret_t = q_ret_t.detach() - v.detach()
@@ -245,6 +245,7 @@ class AgentAcerTrainer(object):
     def train(self, rank):
 
         device = torch.device("cuda:" + str(rank))
+        print('Running on device: ', device)
         torch.cuda.set_device(device)
         torch.set_default_tensor_type(torch.FloatTensor)
 
@@ -253,7 +254,7 @@ class AgentAcerTrainer(object):
         transition = namedtuple('Transition', ('state', 'action', 'reward', 'behav_policy_proba', 'done'))
         memory = TransitionData(capacity=self.args.t_max, storage_object=transition)
 
-        env = SpGcnEnv(self.args, writer=writer, writer_counter=self.global_writer_quality_count,
+        env = SpGcnEnv(self.args, device, writer=writer, writer_counter=self.global_writer_quality_count,
                        win_event_counter=self.global_win_event_count)
         # Create shared network
         model = GcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
@@ -281,16 +282,16 @@ class AgentAcerTrainer(object):
 
         while self.global_count.value() <= self.args.T_max:
             if env.done:
-                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities = \
+                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
                     next(iter(dloader))
-                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities = \
+                edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
                     edges.squeeze().to(device), edge_feat.squeeze()[:, 0:self.args.n_edge_features].to(device), diff_to_gt.squeeze().to(device), \
                     gt_edge_weights.squeeze().to(device), node_labeling.squeeze().to(device), raw.squeeze().to(device), nodes.squeeze().to(device), \
-                    angles.squeeze().to(device), affinities.squeeze().numpy()
+                    angles.squeeze().to(device), affinities.squeeze().numpy(), gt.squeeze()
                 env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes,
-                                angles, affinities)
+                                angles, affinities, gt)
                 env.reset()
-                state = env.state.clone()
+                state = [env.state[0].clone(), env.state[1].clone()]
                 episode_length = 0
 
                 self.eps = self.eps_rule.apply(self.global_count.value())
@@ -324,8 +325,6 @@ class AgentAcerTrainer(object):
 
             # Break graph for last values calculated (used for targets, not directly as model outputs)
             self.global_count.increment()
-            # Qret = 0 for terminal s
-            q_ret = torch.zeros_like(env.state).to(device)
 
             while len(memory) > 0:
                 self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)

@@ -268,11 +268,11 @@ class GcnEdgeAngleConv1(torch.nn.Module):
         self.device = device
 
     def forward(self, node_features, edge_features_1d, edge_index, angles, edge_weights):
-        node_features, _ = self.node_conv1(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        node_features, _ = self.node_conv1(node_features, edge_index, angles)
         node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
         edge_features = nn.functional.leaky_relu(edge_features)
-        node_features, _ = self.node_conv2(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        node_features, _ = self.node_conv2(node_features, edge_index, angles)
         node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
         edge_features = nn.functional.leaky_relu(edge_features)
@@ -320,13 +320,16 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
 
         # h, c = self.lstm(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1), h)  # h is (hidden state, cell state)
 
-        p = self.out_p1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
+        #  might be better to not let policy gradient backprob through fe extraction
+
+        p = self.out_p1(torch.cat((edge_features.squeeze().detach(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
         p = nn.functional.softmax(torch.sigmoid(self.out_p2(p)), -1).clamp(max=1 - 1e-20)  # Prevent 1s and hence NaNs
 
         q = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
         q = self.out_q2(q)
 
-        v = (q * p).sum(1, keepdim=True).squeeze()  # V is expectation of Q under π
+        pvals = nn.functional.softmax(q, -1)  # this alternatively
+        v = (q * pvals.detach()).sum(1, keepdim=True).squeeze()  # V is expectation of Q under π
         return p, q, v
 
 
