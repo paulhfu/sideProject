@@ -294,7 +294,9 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
         self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels)
         self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels)
         self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, use_init_edge_feats=True, n_channels_in=n_embedding_channels)
+
         # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
+
         self.out_p1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
         self.out_p2 = nn.Linear(256, n_edge_classes)
         self.out_q1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
@@ -322,21 +324,21 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
 
         #  might be better to not let policy gradient backprob through fe extraction
 
-        p = self.out_p1(torch.cat((edge_features.squeeze().detach(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
+        p = self.out_p1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
         p = nn.functional.softmax(torch.sigmoid(self.out_p2(p)), -1).clamp(max=1 - 1e-20)  # Prevent 1s and hence NaNs
 
         q = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
         q = self.out_q2(q)
 
-        pvals = nn.functional.softmax(q, -1)  # this alternatively
-        v = (q * pvals.detach()).sum(1, keepdim=True).squeeze()  # V is expectation of Q under π
+        # p = nn.functional.softmax(q, -1)  # this alternatively
+        v = (q * p).sum(-1)  # V is expectation of Q under π
         return p, q, v
 
 
 class WrappedGcnEdgeAngle1dPQV(torch.nn.Module):
-    def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True):
+    def __init__(self, *args):
         super(WrappedGcnEdgeAngle1dPQV, self).__init__()
-        self.module = GcnEdgeAngle1dPQV(n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True)
+        self.module = GcnEdgeAngle1dPQV(*args)
 
     def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None):
         return self.module(state, sp_indices, edge_index, angles, edge_features_1d)

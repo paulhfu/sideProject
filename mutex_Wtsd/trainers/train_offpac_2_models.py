@@ -23,7 +23,7 @@ class TrainOffpac2M(object):
         self.eps = eps
         self.device = torch.device("cuda:0")
 
-    def train(self):
+    def train(self, time):
         # Creating directories.
         save_dir = os.path.join(self.args.base_dir, 'results/offpac2M', self.args.target_dir)
         log_dir = os.path.join(save_dir, 'logs')
@@ -61,14 +61,17 @@ class TrainOffpac2M(object):
         processes = []
         if not self.args.evaluate:
             # Start training agents
+            manager = mp.Manager()
+            return_dict = manager.dict()
             trainer = AgentOffpac2M(self.args, global_count, global_writer_loss_count,
                                   global_writer_quality_count, global_win_event_count, save_dir)
             for rank in range(0, self.args.num_processes):
-                p = mp.Process(target=trainer.train, args=(rank, ))
+                p = mp.Process(target=trainer.train, args=(rank, time, return_dict))
                 p.start()
                 processes.append(p)
 
         # Clean up
         for p in processes:
             p.join()
-
+        if self.args.cross_validate_hp:
+            return return_dict['test_score']

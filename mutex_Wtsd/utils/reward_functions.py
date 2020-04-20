@@ -9,9 +9,14 @@ class FullySupervisedReward(object):
 
     def get(self, diff=None, actions=None, res_seg=None):
         new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
-        reward = (new_diff > 0).float() * 1 - (new_diff < 0).float() * 2
-        reward -= (((self.env.state[0] - self.env.gt_edge_weights).abs() > 0.1) & (actions == 0)).float() * 2  # penalize 0 actions when edge still different from gt
+        reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
+        reward -= (((self.env.state[0] - self.env.gt_edge_weights).abs() > 0.2) & (actions == 0)).float() * 0.1  # penalize 0 actions when edge still different from gt
         return reward
+
+    # reward = (new_diff > 0).float() * 1 - (new_diff < 0).float() * 2
+    # reward -= (((self.env.state[0] - self.env.gt_edge_weights).abs() > 0.1) & (
+    #             actions == 0)).float() * 2  # penalize 0 actions when edge still different from gt
+
 
 class UnSupervisedReward(object):
 
@@ -56,5 +61,5 @@ class ObjectLevelReward(object):
 
             reward[edge_indices.squeeze()] = - rel_gt_overlap - rel_seg_overlap + diff_n_obj
 
-        return reward / 10
+        return reward
 

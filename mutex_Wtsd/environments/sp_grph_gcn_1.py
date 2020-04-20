@@ -54,6 +54,7 @@ class SpGcnEnv(Environment):
         if quality < self.stop_quality:
             reward += 5
             self.done = True
+            self.win = True
             self.iteration += 1
             self.win_event_counter.increment()
         if self.writer is not None and self.done:
@@ -115,6 +116,7 @@ class SpGcnEnv(Environment):
 
     def reset(self):
         self.done = False
+        self.win = False
         self.iteration = 0
         self.acc_reward = 0
         self.last_reward = -inf

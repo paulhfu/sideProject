@@ -8,9 +8,11 @@ import torch
 from utils.general import Counter
 from models.GCNNs.mc_glbl_edge_costs import GcnEdgeAngle1dPQV
 from models.GCNNs.mc_glbl_edge_costs import WrappedGcnEdgeAngle1dPQV
+from models.GCNNs.dueling_networks import WrappedGcnEdgeAngle1dPQA_dueling
 from optimizers.shared_rmsprob import SharedRMSprop
 from torch import multiprocessing as mp
 from agents.acer import AgentAcerTrainer
+from agents.acer_continuous import AgentAcerContinuousTrainer
 from mu_net.criteria.contrastive_loss import ContrastiveLoss
 from torch.utils.data import DataLoader
 from data.disjoint_discs import MultiDiscSpGraphDset
@@ -23,7 +25,7 @@ class TrainACER(object):
         self.eps = eps
         self.device = torch.device("cuda:0")
 
-    def train(self):
+    def train(self, time):
         # Creating directories.
         save_dir = os.path.join(self.args.base_dir, 'results/acer', self.args.target_dir)
         log_dir = os.path.join(save_dir, 'logs')
@@ -46,9 +48,16 @@ class TrainACER(object):
         global_win_event_count = Counter()  # Global shared counter
 
         # Create average network
-        shared_average_model = WrappedGcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
-                                                 self.args.n_edge_features, self.args.n_actions,
-                                                 self.device)
+        if self.args.algorithm == "acer":
+            shared_average_model = WrappedGcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
+                                                            self.args.n_edge_features, self.args.n_actions,
+                                                            self.device)
+        else:
+            shared_average_model = WrappedGcnEdgeAngle1dPQA_dueling(self.args.n_raw_channels,
+                                                                    self.args.n_embedding_features,
+                                                                    self.args.n_edge_features, 1, self.args.exp_steps,
+                                                                    self.args.p_sigma, self.device,
+                                                                    self.args.density_eval_range)
         shared_average_model.share_memory()
 
         for param in shared_average_model.parameters():
@@ -68,14 +77,28 @@ class TrainACER(object):
         # p.start()
         if not self.args.evaluate:
             # Start training agents
-            trainer = AgentAcerTrainer(self.args, shared_average_model, global_count, global_writer_loss_count,
-                                       global_writer_quality_count, global_win_event_count=global_win_event_count, save_dir=save_dir)
+            manager = mp.Manager()
+            return_dict = manager.dict()
+            if self.args.algorithm == "acer":
+                trainer = AgentAcerTrainer(self.args, shared_average_model, global_count, global_writer_loss_count,
+                                           global_writer_quality_count, global_win_event_count=global_win_event_count,
+                                           save_dir=save_dir)
+            else:
+                trainer = AgentAcerContinuousTrainer(self.args, shared_average_model, global_count,
+                                                     global_writer_loss_count,
+                                                     global_writer_quality_count,
+                                                     global_win_event_count=global_win_event_count,
+                                                     save_dir=save_dir)
             for rank in range(0, self.args.num_processes):
-                p = mp.Process(target=trainer.train, args=(rank, ))
+                p = mp.Process(target=trainer.train, args=(rank, time, return_dict))
                 p.start()
                 processes.append(p)
 
         # Clean up
         for p in processes:
             p.join()
+        if self.args.cross_validate_hp or self.args.test_score_only:
+            print('Score is: ', return_dict['test_score'])
+            print('Wins out of 20 trials')
+            return return_dict['test_score']
 

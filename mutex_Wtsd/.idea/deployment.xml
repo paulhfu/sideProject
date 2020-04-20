@@ -5,9 +5,9 @@
       <paths name="emblGpu">
         <serverdata>
           <mappings>
-            <mapping deploy="projects/fewShotLearning/mutexWtsd" local="$PROJECT_DIR$" />
-            <mapping deploy="projects/fewShotLearning/mu-net" local="$PROJECT_DIR$/../mu-net" />
-            <mapping deploy="projects/fewShotLearning/slurm" local="$PROJECT_DIR$/../scripts/slurm" />
+            <mapping deploy="/projects/fewShotLearning/mu-net" local="$PROJECT_DIR$/../mu-net" web="/" />
+            <mapping deploy="/projects/fewShotLearning/mutexWtsd" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/projects/fewShotLearning/slurm" local="$PROJECT_DIR$/../scripts/slurm" web="/" />
           </mappings>
         </serverdata>
       </paths>

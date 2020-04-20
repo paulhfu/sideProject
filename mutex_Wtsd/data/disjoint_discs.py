@@ -103,15 +103,15 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         # neighbors = rag.uvIds()
         i = 0
 
-        node_labeling = gt * 5000 + node_labeling
-        segs = np.unique(node_labeling)
-
-        new_labeling = np.zeros_like(node_labeling)
-        for seg in segs:
-            i += 1
-            new_labeling += (node_labeling == seg) * i
-
-        node_labeling = new_labeling - 1
+        # node_labeling = gt * 5000 + node_labeling
+        # segs = np.unique(node_labeling)
+        #
+        # new_labeling = np.zeros_like(node_labeling)
+        # for seg in segs:
+        #     i += 1
+        #     new_labeling += (node_labeling == seg) * i
+        #
+        # node_labeling = new_labeling - 1
 
         # gt_labeling, _, _, _ = compute_mws_segmentation_cstm(gt_affinities.ravel(),
         #                                                      valid_edges.ravel(),
@@ -169,12 +169,9 @@ def get_stacked_node_data(nodes, edges, segmentation, raw, size):
         #     a=1
         # raw_nodes[i] = torch.nn.functional.interpolate(masked_seg.unsqueeze(0).unsqueeze(0), size=size)
         idxs = torch.where(mask)
-        cms[i] = torch.tensor([torch.sum(idxs[0]), torch.sum(idxs[1])]) / mask.sum()
+        cms[n.long()] = torch.tensor([torch.sum(idxs[0]).long(), torch.sum(idxs[1]).long()]) / mask.sum()
     for i, e in enumerate(edges):
-        try:
-            vec = cms[e[1]] - cms[e[0]]
-        except:
-            a = 1
+        vec = cms[e[1]] - cms[e[0]]
         angle = abs(np.arctan(vec[0] / (vec[1] + np.finfo(float).eps)))
         if vec[0] <= 0 and vec[1] <= 0:
             angles[i] = np.pi + angle
@@ -206,7 +203,7 @@ def get_edge_features_1d(sp_seg, offsets, affinities):
     return edge_feat, rag.uvIds()
 
 
-# if __name__ == "__main__":
-#     set = MultiDiscSpGraphDset(no_suppix=False)
-#     ret = set.get(3)
-#     a=1
+if __name__ == "__main__":
+    set = MultiDiscSpGraphDset(no_suppix=False)
+    ret = set.get(3)
+    a=1

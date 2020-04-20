@@ -8,6 +8,7 @@ from models.GCNNs.mc_glbl_edge_costs import GcnEdgeAngleConv1
 from models.sp_embed_unet import SpVecsUnet
 import torch
 import numpy as np
+import time
 import os
 import torch.nn as nn
 from agents.qlagent import QlAgent1
@@ -40,7 +41,7 @@ class AgentOffpac2M(object):
         self.global_writer_quality_count = global_writer_quality_count
         self.global_win_event_count = global_win_event_count
         self.writer_idx_warmup_loss = 0
-        self.eps = self.args.init_epsilon
+        # self.eps = self.args.init_epsilon
         self.save_dir = save_dir
         if args.stop_qual_rule == 'naive':
             self.stop_qual_rule = NaiveDecay(initial_eps=args.init_stop_qual, episode_shrinkage=1,
@@ -55,7 +56,7 @@ class AgentOffpac2M(object):
         elif self.args.eps_rule == "sawtooth":
             self.eps_rule = ExpSawtoothEpsDecay()
         elif self.args.eps_rule == 'gaussian':
-            self.eps_rule = GaussianDecay(args.eps_final, 1, 0, args.T_max)
+            self.eps_rule = GaussianDecay(args.eps_final, args.eps_scaling, args.eps_offset, args.T_max)
         else:
             self.eps_rule = NaiveDecay(self.eps, 0.00005, 1000, 1)
 
@@ -68,7 +69,7 @@ class AgentOffpac2M(object):
         assert torch.cuda.device_count() == 1
         torch.set_default_tensor_type('torch.FloatTensor')
         # Detect if we have a GPU available
-        device = torch.device("cuda:" + str(rank))
+        device = torch.device("cuda:0")
         torch.cuda.set_device(device)
 
         os.environ['MASTER_ADDR'] = 'localhost'
@@ -81,13 +82,12 @@ class AgentOffpac2M(object):
         # Explicitly setting seed to make sure that models created in two processes
         # start from same random weights and biases.
         torch.manual_seed(self.args.seed)
-        return device
 
     def cleanup(self):
         dist.destroy_process_group()
 
     # Updates networks
-    def _update_networks(self, loss, optimizer, shared_model):
+    def _update_networks(self, loss, optimizer, shared_model, writer=None):
         # Zero shared and local grads
         optimizer.zero_grad()
         """
@@ -98,11 +98,14 @@ class AgentOffpac2M(object):
         # Gradient L2 normalisation
         nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
-        # if self.args.min_lr != 0:
-        #     # Linearly decay learning rate
-        #     new_lr = self.args.lr - (self.args.min_lr * (1 - max((self.args.T_max - self.global_count.value()) /
-        #                                                          self.args.T_max, 1e-32)))
-        #     adjust_learning_rate(optimizer, new_lr)
+        if self.args.min_lr != 0:
+            # Linearly decay learning rate
+            new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) *
+                                     (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
+            adjust_learning_rate(optimizer, new_lr)
+
+            if writer is not None:
+                writer.add_scalar("loss/learning_rate", new_lr, self.global_writer_loss_count.value())
 
 
     def warm_start(self, transition_data):
@@ -186,6 +189,8 @@ class AgentOffpac2M(object):
         for i, t in enumerate(transition_data):
             data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
             feat = fe_extr(data, env.sp_indices)
+            if not self.args.fe_extr_policy_opt:
+                feat = feat.detach()
             if not t.terminal:
                 q_ = self.agent_forward(env, q_next, feat, t.state_, False)
                 pvals_ = nn.functional.softmax(q_, -1)
@@ -231,6 +236,8 @@ class AgentOffpac2M(object):
             z += w
             data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
             feat = fe_extr(data, env.sp_indices)
+            if not self.args.fe_extr_policy_opt:
+                feat = feat.detach()
             q = self.agent_forward(env, q_eval, feat, t.state)
             policy_proba = self.agent_forward(env, policy, feat, t.state)
             v = (q * policy_proba).sum(-1)
@@ -262,14 +269,26 @@ class AgentOffpac2M(object):
             writer.add_scalar("loss/actor", a_loss.item(), self.global_writer_loss_count.value())
             self.global_writer_loss_count.increment()
 
-        self._update_networks(a_loss + c_loss, optimizer, policy)
+        self._update_networks(a_loss + c_loss, optimizer, policy, writer)
         return
 
     # Acts and trains model
-    def train(self, rank):
-        device = self.setup(rank, self.args.num_processes)
-        writer = SummaryWriter(logdir=os.path.join(self.save_dir, 'logs'))
+    def train(self, rank, start_time, return_dict):
+        device = torch.device("cuda:" + str(rank))
+        print('Running on device: ', device)
+        torch.cuda.set_device(device)
+        torch.set_default_tensor_type(torch.FloatTensor)
 
+        writer = None
+        if not self.args.cross_validate_hp:
+            writer = SummaryWriter(logdir=os.path.join(self.save_dir, 'logs'))
+            # posting parameters
+            param_string = ""
+            for k, v in vars(self.args).items():
+                param_string += ' ' * 10 + k + ': ' + str(v) + '\n'
+            writer.add_text("params", param_string)
+
+        self.setup(rank, self.args.num_processes)
         transition = namedtuple('Transition', ('state', 'action', 'reward', 'state_','behav_policy_proba', 'time', 'terminal'))
         memory = TransitionData(capacity=self.args.t_max, storage_object=transition)
 
@@ -278,9 +297,15 @@ class AgentOffpac2M(object):
         dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
                              num_workers=0)
         # Create shared network
-        q_eval = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features, n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions, device=device, softmax=False)
-        q_next = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features, n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions, device=device, softmax=False)
-        policy = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features, n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions, device=device, softmax=True)
+        q_eval = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features,
+                                   n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions,
+                                   device=device, softmax=False)
+        q_next = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features,
+                                   n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions,
+                                   device=device, softmax=False)
+        policy = GcnEdgeAngleConv1(n_node_channels_in=self.args.n_embedding_features,
+                                   n_edge_features_in=self.args.n_edge_features, n_edge_classes=self.args.n_actions,
+                                   device=device, softmax=True)
         fe_extr = SpVecsUnet(n_channels=1, n_classes=self.args.n_embedding_features, device=device)
         q_eval.cuda(device=q_eval.device)
         q_next.cuda(device=q_next.device)
@@ -295,9 +320,17 @@ class AgentOffpac2M(object):
             fe_extr.cuda(device)
             self.fe_extr_warm_start(fe_extr, writer=writer)
             fe_extr.load_state_dict(fe_extr.state_dict())
-            torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model_feat_extr'))
+            if self.args.model_name == "":
+                torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model_feat_extr'))
+            else:
+                torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, self.args.model_name + '_feat_extr'))
         dist.barrier()
         if self.args.model_name != "":
+            fe_extr.load_state_dict(torch.load(os.path.join(self.save_dir, self.args.model_name + '_feat_extr')))
+            q_eval.load_state_dict(torch.load(os.path.join(self.save_dir, self.args.model_name + '_value')))
+            policy.load_state_dict(torch.load(os.path.join(self.save_dir, self.args.model_name + '_policy')))
+        elif self.args.fe_extr_warmup:
+            print('loaded fe extractor')
             fe_extr.load_state_dict(torch.load(os.path.join(self.save_dir, 'agent_model_feat_extr')))
 
         env.done = True  # Start new episode
@@ -306,8 +339,10 @@ class AgentOffpac2M(object):
                 edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
                     next(iter(dloader))
                 edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
-                    edges.squeeze().to(device), edge_feat.squeeze()[:, 0:self.args.n_edge_features].to(device), diff_to_gt.squeeze().to(device), \
-                    gt_edge_weights.squeeze().to(device), node_labeling.squeeze().to(device), raw.squeeze().to(device), nodes.squeeze().to(device), \
+                    edges.squeeze().to(device), edge_feat.squeeze()[:, 0:self.args.n_edge_features].to(
+                        device), diff_to_gt.squeeze().to(device), \
+                    gt_edge_weights.squeeze().to(device), node_labeling.squeeze().to(device), raw.squeeze().to(
+                        device), nodes.squeeze().to(device), \
                     angles.squeeze().to(device), affinities.squeeze().numpy(), gt.squeeze()
                 env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes,
                                 angles, affinities, gt)
@@ -323,7 +358,7 @@ class AgentOffpac2M(object):
             while not env.done:
                 # Calculate policy and values
                 data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
-                feat = fe_extr(data, env.sp_indices)
+                feat = fe_extr(data, env.sp_indices).detach()
                 policy_proba = self.agent_forward(env, policy, feat, grad=False)
                 # average_policy_proba, _, _ = self.agent_forward(env, self.shared_average_model)
                 # q_ret = v.detach()
@@ -356,7 +391,32 @@ class AgentOffpac2M(object):
 
         dist.barrier()
         if rank == 0:
-            torch.save(policy.state_dict(), os.path.join(self.save_dir, 'agent_model_p'))
-            torch.save(q_eval.state_dict(), os.path.join(self.save_dir, 'agent_model_q'))
-            torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model_feat_extr'))
+            if not self.args.cross_validate_hp:
+                if self.args.model_name != "":
+                    torch.save(q_eval.state_dict(), os.path.join(self.save_dir, self.args.model_name + '_value'))
+                    torch.save(policy.state_dict(), os.path.join(self.save_dir, self.args.model_name + '_policy'))
+                    torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, self.args.model_name + '_feat_extr'))
+                else:
+                    torch.save(q_eval.state_dict(), os.path.join(self.save_dir, 'agent_model_value'))
+                    torch.save(policy.state_dict(), os.path.join(self.save_dir, 'agent_model_policy'))
+                    torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model_feat_extr'))
+            else:
+                test_score = 0
+                env.writer = None
+                for i in range(20):
+                    self.update_env_data(env, dloader, device)
+                    env.reset()
+                    self.eps = 0
+                    while not env.done:
+                        # Calculate policy and values
+                        data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
+                        feat = fe_extr(data, env.sp_indices)
+                        policy_proba = self.agent_forward(env, policy, feat, grad=False)
+                        action, behav_policy_proba = self.get_action(policy_proba, policy='off_uniform', device=device)
+                        _, _ = env.execute_action(action, self.global_count.value())
+                    if env.win:
+                        test_score += 1
+                return_dict['test_score'] = test_score
+                writer.add_text("time_needed", str((time.time() - start_time)))
+
         self.cleanup()

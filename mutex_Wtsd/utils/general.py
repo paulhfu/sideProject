@@ -19,6 +19,23 @@ class Counter():
     with self.lock:
       return self.val.value
 
+def get_all_arg_combos(grid, paths):
+    key = random.choice(list(grid))
+    new_paths = []
+    new_grid = grid.copy()
+    del new_grid[key]
+    for val in grid[key]:
+        if paths:
+            for path in paths:
+                path[key] = val
+                new_paths.append(path.copy())
+        else:
+            new_paths.append({key: val})
+    if new_grid:
+        return get_all_arg_combos(new_grid, new_paths)
+    return new_paths
+
+
 
 def calculate_naive_gt_edge_costs(edges, sp_gt):
     return (sp_gt.squeeze()[edges.astype(np.int)][:, 0] != sp_gt.squeeze()[edges.astype(np.int)][:, 1]).float()
