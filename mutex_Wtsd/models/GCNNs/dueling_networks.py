@@ -29,8 +29,10 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
 
         self.out_p1 = nn.Linear(n_embedding_channels + n_edge_features_in, 256)
         self.out_p2 = nn.Linear(256, n_edge_classes)
-        self.out_q1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
-        self.out_q2 = nn.Linear(256, n_edge_classes)
+        self.out_v1 = nn.Linear(n_embedding_channels + n_edge_features_in, 256)
+        self.out_v2 = nn.Linear(256, n_edge_classes)
+        self.out_a1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
+        self.out_a2 = nn.Linear(256, n_edge_classes)
         self.device = device
 
     def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None,
@@ -60,36 +62,36 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
         # want this between 0 and one therefore the normalozation, since we expect at least one edge to be 0 and at least one to be 1 in the gt
         p = torch.sigmoid(p)
 
-        p_dis = TruncNorm(loc=p.squeeze().detach(), scale=self.p_sigma, a=0, b=1, eval_range=self.density_eval_range)
+        p_dis = TruncNorm(loc=p.squeeze(), scale=self.p_sigma, a=0, b=1, eval_range=self.density_eval_range)
         if stats_only:
             return p.squeeze(), p_dis
 
-        v = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, action_behav.unsqueeze(-1)), dim=-1))
-        v = self.out_q2(v)
+        v = self.out_v1(torch.cat((edge_features.squeeze(), edge_features_1d), dim=-1))
+        v = self.out_v2(v)
 
-        a = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, action_behav.unsqueeze(-1)), dim=-1))
-        a = self.out_q2(a)
+        a = self.out_a1(torch.cat((edge_features.squeeze(), edge_features_1d, action_behav.unsqueeze(-1)), dim=-1))
+        a = self.out_a2(a)
 
-        action = p_dis.sample().unsqueeze(-1)
-        exp_adv = self.out_q2(self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, action), dim=-1)))
+        sampled_action = p_dis.sample().unsqueeze(-1)
+        exp_adv = self.out_a2(self.out_a1(torch.cat((edge_features.squeeze(), edge_features_1d, sampled_action), dim=-1)))
 
-        for i in range(self.exp_steps):
-            action = p_dis.sample().unsqueeze(-1)
-            exp_adv = exp_adv + self.out_q2(
-                self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, action), dim=-1)))
+        for i in range(self.exp_steps-1):
+            sampled_action = p_dis.sample().unsqueeze(-1)
+            exp_adv = exp_adv + self.out_a2(
+                self.out_a1(torch.cat((edge_features.squeeze(), edge_features_1d, sampled_action), dim=-1)))
 
-        exp_adv = exp_adv / (self.exp_steps + 1)
+        exp_adv = exp_adv / self.exp_steps
 
         q = v + a - exp_adv
 
         with torch.set_grad_enabled(False):
             sampled_action = p_dis.sample().unsqueeze(-1)
-            v_prime = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, sampled_action), dim=-1))
-            v_prime = self.out_q2(v_prime)
+            v_prime = self.out_v1(torch.cat((edge_features.squeeze(), edge_features_1d), dim=-1))
+            v_prime = self.out_v2(v_prime)
 
-            a_prime = self.out_q1(torch.cat((edge_features.squeeze(), edge_features_1d, sampled_action), dim=-1))
-            a_prime = self.out_q2(a_prime)
-            q_prime = v_prime + a_prime - exp_adv
+            a_prime = self.out_a1(torch.cat((edge_features.squeeze(), edge_features_1d, sampled_action), dim=-1))
+            a_prime = self.out_a2(a_prime)
+            q_prime = v_prime + a_prime - exp_adv.detach()
 
         return p.squeeze(), q.squeeze(), v.squeeze(), p_dis, sampled_action.squeeze(), q_prime.squeeze()
 

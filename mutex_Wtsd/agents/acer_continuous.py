@@ -139,6 +139,9 @@ class AgentAcerContinuousTrainer(object):
         actions = b_dis.sample()
         # test = torch.stack([torch.from_numpy(actions).float().to(device),
         #              torch.from_numpy(policy_means).float().to(device)]).cpu().numpy()
+
+        # print('sample sigma:', torch.sqrt(((actions - policy_means) ** 2).mean()).item())
+
         return actions, b_dis
 
     def fe_extr_warm_start(self, sp_feature_ext, writer=None):
@@ -178,6 +181,8 @@ class AgentAcerContinuousTrainer(object):
 
         # Calculate n-step returns in forward view, stepping backwards from the last state
         t = len(memory)
+        if t <= 1:
+            return
         for state, action, reward, b_dis, done in reversed(memory.memory):
             p, q, v, p_dis, sampled_action, q_prime = self.agent_forward(env, shared_model, action,
                                                                               state)
@@ -188,16 +193,19 @@ class AgentAcerContinuousTrainer(object):
 
             if done and t == len(memory):
                 q_ret = torch.zeros_like(env.state[0]).to(shared_model.module.device)
+                q_opc = q_ret.clone()
             elif t == len(memory):
                 q_ret = v.detach()
-            if t == len(memory):
                 q_opc = q_ret.clone()
+                t -= 1
+                continue  # here q_ret is for current step, need one more step for estimation
 
             if off_policy:
-                rho = (p_dis.prob(action)) \
-                      / (b_dis.prob(action))
-                rho_prime = (p_dis.prob(sampled_action)) \
-                            / (b_dis.prob(sampled_action))
+                rho = (p_dis.prob(action).detach()) \
+                      / (b_dis.prob(action).detach())
+                rho_prime = (p_dis.prob(sampled_action).detach()) \
+                            / (b_dis.prob(sampled_action).detach())
+                # c = rho.pow(1/action_size).clamp(max=1)
                 c = rho.clamp(max=1)
             else:
                 rho = torch.ones(1, action_size).to(shared_model.module.device)
@@ -207,9 +215,7 @@ class AgentAcerContinuousTrainer(object):
             q_ret = reward + self.args.discount * q_ret
             q_opc = reward + self.args.discount * q_opc
 
-            p_action = p_dis.prob(action)
-            p_s_action = p_dis.prob(sampled_action)
-            bias_weight = (1 - self.args.trace_max / rho_prime).clamp(min=0)
+            bias_weight = (1 - (self.args.trace_max / rho_prime)).clamp(min=0)
 
             # KL divergence k ← ∇θ0∙DKL[π(∙|s_i; θ_a) || π(∙|s_i; θ)]
             k = (p.detach() - average_p) / (self.args.p_sigma ** 4)
@@ -220,13 +226,15 @@ class AgentAcerContinuousTrainer(object):
             z_star = self._trust_region(g, k)
             tr_loss = (z_star * p * self.args.trust_region_weight).mean()
 
-            policy_loss = policy_loss - tr_loss
+            # policy_loss = policy_loss - tr_loss
+
+            # vanilla policy gradient with importance sampling
+            lp = p_dis.log_prob(action)
+            policy_loss = policy_loss - (rho * lp * q.detach()).mean()
 
             # Value update dθ ← dθ - ∇θ∙1/2∙(Qret - Q(s_i, a_i; θ))^2
-
-            value_loss = value_loss - ((q_ret - q.detach()) * q).mean()  # Least squares loss
-            value_loss = value_loss - (rho.clamp(max=1) * (q_ret - q.detach()) * v).mean()
-            value_loss = value_loss / 2
+            value_loss = value_loss + (-(q_ret - q.detach()) * q).mean()  # Least squares loss
+            value_loss = value_loss + (- (rho.clamp(max=1) * (q_ret - q.detach()) * v)).mean()
 
             # Qret ← ρ¯_a_i∙(Qret - Q(s_i, a_i; θ)) + V(s_i; θ)
             q_ret = c * (q_ret - q.detach()) + v.detach()
@@ -276,12 +284,16 @@ class AgentAcerContinuousTrainer(object):
         memory = TransitionData(capacity=self.args.t_max, storage_object=transition)
 
         env = SpGcnEnv(self.args, device, writer=writer, writer_counter=self.global_writer_quality_count,
-                       win_event_counter=self.global_win_event_count)
+                       win_event_counter=self.global_win_event_count, discrete_action_space=False)
         # Create shared network
         model = GcnEdgeAngle1dPQA_dueling(self.args.n_raw_channels,
                                           self.args.n_embedding_features,
                                           self.args.n_edge_features, 1, self.args.exp_steps, self.args.p_sigma,
                                           device, self.args.density_eval_range)
+        if self.args.no_fe_extr_optim:
+            for param in model.fe_ext.parameters():
+                param.requires_grad = False
+
         model.cuda(device)
         shared_model = DDP(model, device_ids=[model.device])
         dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
@@ -311,6 +323,8 @@ class AgentAcerContinuousTrainer(object):
 
         if not self.args.test_score_only:
             while self.global_count.value() <= self.args.T_max:
+                if self.global_count.value() == 18:
+                    a=1
                 self.update_env_data(env, dloader, device)
                 env.reset()
                 state = [env.state[0].clone(), env.state[1].clone()]

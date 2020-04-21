@@ -44,7 +44,7 @@ parser.add_argument('--base-dir', type=str, default='/g/kreshuk/hilt/projects/fe
 ## env and model defs
 parser.add_argument('--model-name', type=str, default="", metavar='PARAMS', help='Pretrained model (state dict)')
 parser.add_argument('--n-raw-channels', type=int, default=2, help='number of channels in raw data')
-parser.add_argument('--n-embedding-features', type=int, default=128, help='number of embedding feature channels')
+parser.add_argument('--n-embedding-features', type=int, default=32, help='number of embedding feature channels')
 parser.add_argument('--n-edge-features', type=int, default=10, help='number of initial edge features')
 parser.add_argument('--n-actions', type=int, default=3, help='number of actions on edge')
 parser.add_argument('--lstm-hidden-state-size', type=int, default=128, metavar='SIZE', help='Hidden size of LSTM cell')
@@ -52,10 +52,10 @@ parser.add_argument('--lstm-hidden-state-size', type=int, default=128, metavar='
 parser.add_argument('--fe-extr-warmup', action='store_true', help='pretrain the feature extractor with contrastive loss')
 parser.add_argument('--fe-warmup-iterations', type=int, default=100, metavar='SIZE', help='number of iterations of feature extrqactor warmup')
 parser.add_argument('--fe-warmup-batch-size', type=int, default=10, metavar='SIZE', help='batch size for feature extractor warmup')
-parser.add_argument('--fe-extr-policy-opt', action='store_true', help='optimize feature extractor with ril loss')
+parser.add_argument('--no-fe-extr-optim', action='store_true', help='optimize feature extractor with ril loss')
 ## main training (env, trainer)
 parser.add_argument('--T-max', type=int, default=50, metavar='STEPS', help='Number of training steps')
-parser.add_argument('--t-max', type=int, default=2, metavar='STEPS', help='Max number of forward steps before update')
+parser.add_argument('--t-max', type=int, default=3, metavar='STEPS', help='Max number of forward steps before update')
 parser.add_argument('--max-episode-length', type=int, default=10, metavar='LENGTH', help='Maximum episode length')
 parser.add_argument('--eps-rule', type=str, default='gaussian', help='epsilon rule')
 parser.add_argument('--eps-final', type=float, default=0.05, metavar='eps', help='final epsilon')
@@ -70,9 +70,9 @@ parser.add_argument('--action-agression', type=float, default=0.1, help='value b
 ## acer continuous
 parser.add_argument('--b-sigma-final', type=float, default=0.0001, metavar='var', help='final behavior std dev')
 parser.add_argument('--b-sigma-scaling', type=float, default=4, metavar='var', help='scaling behavior std dev')
-parser.add_argument('--p-sigma', type=float, default=0.001, metavar='var', help='policy std dev')
-parser.add_argument('--exp-steps', type=int, default=3, help='Number of samples drawn to estimate expectation in loss')
-parser.add_argument('--density-eval-range', type=float, default=0.005, help='pdf evaluation range (value +- range) for retrieving probas')
+parser.add_argument('--p-sigma', type=float, default=0.05, metavar='var', help='policy std dev')
+parser.add_argument('--exp-steps', type=int, default=5, help='Number of samples drawn to estimate expectation in loss')
+parser.add_argument('--density-eval-range', type=float, default=0.05, help='pdf evaluation range (value +- range) for retrieving probas')
 ## Training specifics (agent)
 # parser.add_argument('--trace-decay', type=float, default=1, metavar='λ', help='Eligibility trace decay factor')
 parser.add_argument('--trust-region', action='store_true', help='use trust region gradient')
@@ -90,7 +90,7 @@ parser.add_argument('--p-loss-weight', type=float, default=1, metavar='VALUE', h
 parser.add_argument('--v-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
 ## Optimization
 parser.add_argument('--min-lr', type=float, default=0.005, metavar='η', help='min Learning rate')
-parser.add_argument('--lr', type=float, default=0.01, metavar='η', help='Learning rate')
+parser.add_argument('--lr', type=float, default=0.1, metavar='η', help='Learning rate')
 parser.add_argument('--Adam-weight-decay', type=float, default=0, metavar='wdec', help='Adam weight decay')
 parser.add_argument('--Adam-betas', type=float, default=[0.9, 0.999], metavar='β', help='Adam decay factors')
 

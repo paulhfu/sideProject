@@ -58,6 +58,9 @@ class TrainACER(object):
                                                                     self.args.n_edge_features, 1, self.args.exp_steps,
                                                                     self.args.p_sigma, self.device,
                                                                     self.args.density_eval_range)
+        for param in shared_average_model.parameters():
+            param.requires_grad = False
+
         shared_average_model.share_memory()
 
         for param in shared_average_model.parameters():

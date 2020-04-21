@@ -61,7 +61,7 @@ class TruncNorm(Distribution):
         self._cap_z = _snorm_cdf(self._beta) - self._cap_psi_alpha
 
         # create variables for gradient computations
-        self._loc_with_grad = Variable(self._loc.clone(), requires_grad=True)
+        self._loc_with_grad = Variable(self._loc.detach().clone(), requires_grad=True)
         self._alpha_with_grad, self._beta_with_grad = (a - self._loc_with_grad) / self._scale, (b - self._loc_with_grad) / self._scale
         self._cap_z_with_grad = _snorm_cdf(self._beta_with_grad) - _snorm_cdf(self._alpha_with_grad)
 
@@ -175,7 +175,7 @@ class TruncNorm(Distribution):
             value1 (Tensor):
             value2 (Tensor):
         """
-        return torch.log(self.prob(value))
+        return torch.log(self.prob(value) + 1e-40)  # add number to prevent -inf values
 
     def cdf(self, value):
         """
@@ -192,7 +192,6 @@ class TruncNorm(Distribution):
         else:
             assert all(self._a <= value) and all(value <= self._b), "only values in support set are handled"
 
-        value = self._zeta(value)
         return (_snorm_cdf(value) - self._cap_psi_alpha) / self._cap_z
 
     def pdf(self, value):
@@ -211,7 +210,7 @@ class TruncNorm(Distribution):
             assert all(self._a <= value) and all(value <= self._b), "only values in support set are handled"
 
         value = self._zeta(value)
-        return _snorm_pdf(value) / (self._cap_z).detach()
+        return _snorm_pdf(value) / (self._cap_z * self._scale).detach()
 
     def grad_pdf_mu(self, value):
         """

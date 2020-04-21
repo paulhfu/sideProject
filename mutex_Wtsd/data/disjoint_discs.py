@@ -127,6 +127,7 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
 
         noisy_affinities = np.random.rand(*affinities.shape)
         noisy_affinities = noisy_affinities.clip(0, 1)
+        noisy_affinities = affinities
         edge_feat, neighbors = get_edge_features_1d(node_labeling, self.offsets, noisy_affinities)
         gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
         affs = np.expand_dims(affinities, axis=1)

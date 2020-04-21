@@ -9,7 +9,7 @@ from utils.reward_functions import FullySupervisedReward, ObjectLevelReward, UnS
 
 
 class SpGcnEnv(Environment):
-    def __init__(self, args, device, writer=None, writer_counter=None, win_event_counter=None):
+    def __init__(self, args, device, writer=None, writer_counter=None, win_event_counter=None, discrete_action_space=True):
         super(SpGcnEnv, self).__init__()
         self.stop_quality = 0
 
@@ -19,22 +19,26 @@ class SpGcnEnv(Environment):
         self.writer = writer
         self.writer_counter = writer_counter
         self.win_event_counter = win_event_counter
+        self.discrete_action_space = discrete_action_space
 
         if self.args.reward_function == 'fully_supervised':
             self.reward_function = FullySupervisedReward(env=self)
-        elif self.args.reward_function == 'object_level_reward':
+        elif self.args.reward_function == 'object_level':
             self.reward_function = ObjectLevelReward(env=self)
         else:
             self.reward_function = UnSupervisedReward(env=self)
 
     def execute_action(self, actions, episode=None):
         last_diff = (self.state[0] - self.gt_edge_weights).squeeze().abs()
-        mask = (actions == 2).float() * (self.state[0] + self.args.action_agression)
-        mask += (actions == 1).float() * (self.state[0] - self.args.action_agression)
-        mask += (actions == 0).float() * self.state[0]
-        self.state[0] = mask
+        if self.discrete_action_space:
+            mask = (actions == 2).float() * (self.state[0] + self.args.action_agression)
+            mask += (actions == 1).float() * (self.state[0] - self.args.action_agression)
+            mask += (actions == 0).float() * self.state[0]
+            self.state[0] = mask
+            self.state[0] = self.state[0].clamp(min=0, max=1)
+        else:
+            self.state[0] = actions.clone()
 
-        self.state[0] = self.state[0].clamp(min=0, max=1)
         reward = self.reward_function.get(last_diff, actions, self.get_current_soln()).to(self.device)
 
         self.data_changed = torch.sum(torch.abs(self.state[0] - self.edge_features[:, 0]))
@@ -90,20 +94,17 @@ class SpGcnEnv(Environment):
     def show_current_soln(self):
         affs = np.expand_dims(self.affinities, axis=1)
         boundary_input = np.mean(affs, axis=0)
-        mc_seg1 = general.multicut_from_probas(self.init_sp_seg, self.edge_ids.cpu().t().contiguous().numpy(),
+        mc_seg1 = general.multicut_from_probas(self.init_sp_seg.cpu(), self.edge_ids.cpu().t().contiguous().numpy(),
                                                self.initial_edge_weights.squeeze().cpu().numpy(), boundary_input)
-        mc_seg = general.multicut_from_probas(self.init_sp_seg, self.edge_ids.cpu().t().contiguous().numpy(),
-                                              self.state.squeeze().cpu().numpy(), boundary_input)
-        gt_mc_seg = general.multicut_from_probas(self.init_sp_seg, self.edge_ids.cpu().t().contiguous().numpy(),
+        mc_seg = general.multicut_from_probas(self.init_sp_seg.cpu(), self.edge_ids.cpu().t().contiguous().numpy(),
+                                              self.state[0].squeeze().cpu().numpy(), boundary_input)
+        gt_mc_seg = general.multicut_from_probas(self.init_sp_seg.cpu(), self.edge_ids.cpu().t().contiguous().numpy(),
                                                  self.gt_edge_weights.squeeze().cpu().numpy(), boundary_input)
         mc_seg = cm.prism(mc_seg / mc_seg.max())
         mc_seg1 = cm.prism(mc_seg1 / mc_seg1.max())
-        seg = cm.prism(self.init_sp_seg / self.init_sp_seg.max())
+        seg = cm.prism(self.init_sp_seg.cpu() / self.init_sp_seg.cpu().max())
         gt_mc_seg = cm.prism(gt_mc_seg / gt_mc_seg.max())
-        # plt.imshow(np.concatenate((np.concatenate((mc_seg1, mc_seg), 0), np.concatenate((gt_mc_seg, seg), 0)), 1));
-        plt.imshow(cm.prism(self.init_sp_seg/self.init_sp_seg.max()))
-        plt.show()
-        plt.imshow(gt_mc_seg)
+        plt.imshow(np.concatenate((np.concatenate((mc_seg1, mc_seg), 0), np.concatenate((gt_mc_seg, seg), 0)), 1));
         plt.show()
         a=1
 
