@@ -158,8 +158,9 @@ class TruncNorm(Distribution):
             raise ValueError('Input arguments must all be instances of numbers.Number or torch.tensor.')
         if isinstance(value, Number) or value.dim() == 0:
             assert self._a <= value <= self._b, "only values in support set are handled"
+            value = torch.tensor(value)
         else:
-            assert all(self._a <= value) and all(value <= self._b), "only values in support set are handled"
+            assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
 
         value1, value2 = (value - self._eval_range).clamp(max=self._b, min=self._a), \
                          (value + self._eval_range).clamp(max=self._b, min=self._a)
@@ -190,8 +191,8 @@ class TruncNorm(Distribution):
         if isinstance(value, Number) or value.dim() == 0:
             assert self._a <= value <= self._b, "only values in support set are handled"
         else:
-            assert all(self._a <= value) and all(value <= self._b), "only values in support set are handled"
-
+            assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
+        value = self._zeta(value)
         return (_snorm_cdf(value) - self._cap_psi_alpha) / self._cap_z
 
     def pdf(self, value):
@@ -207,7 +208,7 @@ class TruncNorm(Distribution):
         if isinstance(value, Number) or value.dim() == 0:
             assert self._a <= value <= self._b, "only values in support set are handled"
         else:
-            assert all(self._a <= value) and all(value <= self._b), "only values in support set are handled"
+            assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
 
         value = self._zeta(value)
         return _snorm_pdf(value) / (self._cap_z * self._scale).detach()
@@ -223,7 +224,7 @@ class TruncNorm(Distribution):
         if value.dim() == 0:
             assert self._a <= value <= self._b, "only values in support set are handled"
         else:
-            assert all(self._a <= value) and all(value <= self._b), "only values in support set are handled"
+            assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
 
         value = self._zeta_with_grad(value)
         f_val = _snorm_pdf(value) / (self._cap_z_with_grad)
@@ -241,6 +242,20 @@ class TruncNorm(Distribution):
             self._entrpy = torch.log(np.sqrt(2 * np.pi * np.e) * self._scale * self._cap_z) \
                   + (self._alpha * self._psi_alpha - self._beta*self._psi_alpha) / (2 * self._cap_z)
         raise self._entrpy
+
+    def plot_funcs(self, idx):
+        import matplotlib.pyplot as plt
+        range_list = torch.tensor(list(range(0, 100))).float().to(self._loc.device) / 100
+
+        vals = torch.stack([self.pdf(i).detach().cpu() for i in range_list], dim=-1)
+        plt.plot(range_list.cpu(), vals[idx], 'r-')
+        plt.ylabel('truncnorm pdf')
+        plt.show()
+
+        vals = torch.stack([self.cdf(i).detach().cpu() for i in range_list], dim=-1)
+        plt.plot(range_list.cpu(), vals[idx], 'r-')
+        plt.ylabel('truncnorm cdf')
+        plt.show()
 
 
 def _snorm_cdf(value):
@@ -261,16 +276,16 @@ if __name__ == "__main__":
     grad_erf = grad(erfval.sum(), x)
 
     range_list = x.detach()
-    plt.plot(range_list, erfval.detach(), 'r-')
-    plt.ylabel('erf(x)')
-    plt.show()
-    plt.plot(range_list, grad_erf[0], 'b-')
-    plt.ylabel('derf(x) / dx')
-    plt.show()
+    # plt.plot(range_list, erfval.detach(), 'r-')
+    # plt.ylabel('erf(x)')
+    # plt.show()
+    # plt.plot(range_list, grad_erf[0], 'b-')
+    # plt.ylabel('derf(x) / dx')
+    # plt.show()
 
-    means = torch.tensor(.5).float()
-    sigmas = torch.ones_like(means)
-    dis = TruncNorm(means, sigmas, 0, 1)
+    means = torch.tensor([.5, 0.64, 0.24]).float()
+    sigmas = torch.ones_like(means).float() / 10
+    dis = TruncNorm(means, sigmas, 0, 1, eval_range=0.05)
 
     grad1 = dis.grad_pdf_mu(0.5)
     grad2 = dis.grad_pdf_mu(0.2)
@@ -287,20 +302,27 @@ if __name__ == "__main__":
     logproba2 = dis.log_prob(.3)
     logproba3 = dis.log_prob(.3)
 
-    range_list = torch.tensor(list(range(0, 100))).float() / 100
-    plt.plot(range_list, dis.pdf(range_list), 'r-')
-    plt.ylabel('my truncnorm pdf')
-    plt.show()
-    plt.plot(range_list, dis._rvs.pdf(range_list), 'b-')
-    plt.ylabel('scipy truncnorm pdf')
-    plt.show()
+    range_list = torch.tensor(list(range(0, 100))).float().to(dis._loc.device) / 100
 
-    plt.plot(range_list, dis.cdf(range_list), 'r-')
-    plt.ylabel('my truncnorm cdf')
-    plt.show()
-    plt.plot(range_list, dis._rvs.cdf(range_list), 'b-')
-    plt.ylabel('scipy truncnorm cdf')
-    plt.show()
+    vals_pdf = torch.stack([dis.pdf(i).detach().cpu() for i in range_list], dim=-1)
+    vals_cdf = torch.stack([dis.cdf(i).detach().cpu() for i in range_list], dim=-1)
+    vals_pdf_scipy = torch.stack([torch.from_numpy(dis._rvs.pdf(i)) for i in range_list], dim=-1)
+    vals_cdf_scipy = torch.stack([torch.from_numpy(dis._rvs.cdf(i)) for i in range_list], dim=-1)
+
+    for pdf, cdf, pdf_scipy, cdf_scipy in zip(vals_pdf, vals_cdf, vals_pdf_scipy, vals_cdf_scipy):
+        plt.plot(range_list.detach().cpu(), pdf, 'r-')
+        plt.ylabel('my truncnorm pdf')
+        plt.show()
+        plt.plot(range_list.detach().cpu(), pdf_scipy, 'b-')
+        plt.ylabel('scipy truncnorm pdf')
+        plt.show()
+
+        plt.plot(range_list.detach().cpu(), cdf, 'r-')
+        plt.ylabel('my truncnorm cdf')
+        plt.show()
+        plt.plot(range_list.detach().cpu(), cdf_scipy, 'b-')
+        plt.ylabel('scipy truncnorm cdf')
+        plt.show()
 
     pdf_val1 = dis.pdf(.3)
     comp1 = np.abs((pdf_val1.numpy() - dis._rvs.pdf(.3))).max()

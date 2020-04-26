@@ -74,7 +74,7 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         # plt.imshow(data);plt.show()
         if self.no_suppix:
             raw = torch.from_numpy(data).float()
-            return torch.stack((raw, torch.rand_like(raw))), torch.from_numpy(gt.astype(np.long))
+            return torch.stack((torch.rand_like(raw), raw, torch.rand_like(raw))), torch.from_numpy(gt.astype(np.long))
 
         affinities = affutils.get_naive_affinities(data, self.offsets)
         gt_affinities, _ = compute_affinities(gt == 1, self.offsets)
@@ -123,17 +123,17 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         try:
             assert all(nodes == np.array(range(len(nodes)), dtype=np.float))
         except:
-            a = 1
+            Warning("node ids are off")
 
         noisy_affinities = np.random.rand(*affinities.shape)
         noisy_affinities = noisy_affinities.clip(0, 1)
         noisy_affinities = affinities
         edge_feat, neighbors = get_edge_features_1d(node_labeling, self.offsets, noisy_affinities)
         gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
-        affs = np.expand_dims(affinities, axis=1)
-        boundary_input = np.mean(affs, axis=0)
-        gt1 = gutils.multicut_from_probas(node_labeling.astype(np.float32), neighbors.astype(np.float32),
-                                         gt_edge_weights.astype(np.float32), boundary_input.astype(np.float32))
+        # affs = np.expand_dims(affinities, axis=1)
+        # boundary_input = np.mean(affs, axis=0)
+        # gt1 = gutils.multicut_from_probas(node_labeling.astype(np.float32), neighbors.astype(np.float32),
+        #                                  gt_edge_weights.astype(np.float32), boundary_input.astype(np.float32))
 
         # plt.imshow(node_labeling)
         # plt.show()
@@ -188,7 +188,7 @@ def get_stacked_node_data(nodes, edges, segmentation, raw, size):
             angles[i + len(edges)] = np.pi + angle
         else:
             assert False
-    if angles.max() > 2 * np.pi + 0.00000001 or angles.min() + 0.00000001 < 0:
+    if angles.max() > 2 * np.pi + 1e-20 or angles.min() + 1e-20 < 0:
         assert False
     angles = np.rint(angles / (2 * np.pi) * 63)
     return raw_nodes, angles.long()

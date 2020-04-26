@@ -9,14 +9,17 @@ class FullySupervisedReward(object):
 
     def get(self, diff=None, actions=None, res_seg=None):
         if self.env.discrete_action_space:
-            new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
+            new_diff = diff - (actions - self.env.gt_edge_weights).abs()
             reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
-            reward -= (((self.env.state[0] - self.env.gt_edge_weights).abs() > 0.2) & (actions == 0)).float() * 0.1  # penalize 0 actions when edge still different from gt
+            reward -= (((actions - self.env.gt_edge_weights).abs() > 0.2) & (actions == 0)).float() * 0.1  # penalize 0 actions when edge still different from gt
         else:
             # new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
             # reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
+            gt_diff = (actions - self.env.gt_edge_weights).abs()
+            pos_rew = (gt_diff < 0.2).float()
+            favor_separations = self.env.gt_edge_weights * actions
+            reward = 1-gt_diff
 
-            reward = - (self.env.state[0] - self.env.gt_edge_weights).abs() * 0.5
             # reward = - (self.env.state[0]).abs()
         return reward
 

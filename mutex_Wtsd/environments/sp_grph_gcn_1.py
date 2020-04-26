@@ -46,7 +46,7 @@ class SpGcnEnv(Environment):
         if self.data_changed > self.penalize_diff_thresh or self.counter > self.args.max_episode_length:
             # penalize_change = (self.penalize_diff_thresh - self.data_changed) / np.prod(self.state.size()) * 10
             self.done = True
-            reward -= 5
+            # reward -= 5
             self.iteration += 1
         reward += (penalize_change * (actions != 0).float())
 
@@ -55,6 +55,7 @@ class SpGcnEnv(Environment):
 
         # check if finished
         quality = (self.state[0] - self.gt_edge_weights).squeeze().abs().sum()
+        # print(quality)
         if quality < self.stop_quality:
             reward += 5
             self.done = True
@@ -107,6 +108,11 @@ class SpGcnEnv(Environment):
         plt.imshow(np.concatenate((np.concatenate((mc_seg1, mc_seg), 0), np.concatenate((gt_mc_seg, seg), 0)), 1));
         plt.show()
         a=1
+        ####################
+        # init mc # gt seg #
+        ####################
+        # curr mc # sp seg #
+        ####################
 
     def get_current_soln(self):
         affs = np.expand_dims(self.affinities, axis=1)

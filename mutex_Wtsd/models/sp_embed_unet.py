@@ -30,6 +30,8 @@ class SpVecsUnet(nn.Module):
     #     return sp_feat_vecs
 
     def forward(self, raw, sp_indices=None):
+        import matplotlib.pyplot as plt
+        # plt.imshow(raw[0, 0].cpu());plt.show()
         features = self.embed_model(raw)
         if sp_indices is None:
             return features

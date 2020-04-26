@@ -98,7 +98,7 @@ class AgentAcerContinuousTrainer(object):
         """
         loss.backward()
         # Gradient L2 normalisation
-        nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
+        # nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
         if self.args.min_lr != 0:
             # Linearly decay learning rate
@@ -145,7 +145,7 @@ class AgentAcerContinuousTrainer(object):
         return actions, b_dis
 
     def fe_extr_warm_start(self, sp_feature_ext, writer=None):
-        dataloader = DataLoader(MultiDiscSpGraphDset(length=100), batch_size=10,
+        dataloader = DataLoader(MultiDiscSpGraphDset(length=10 * self.args.fe_warmup_iterations), batch_size=10,
                                 shuffle=True, pin_memory=True)
         criterion = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
         optimizer = torch.optim.Adam(sp_feature_ext.parameters())
@@ -164,7 +164,8 @@ class AgentAcerContinuousTrainer(object):
         with torch.set_grad_enabled(grad):
             if state is None:
                 state = env.state
-            return model([obj.float().to(model.module.device) for obj in state + [env.raw]], action,
+            inp = [obj.float().to(model.module.device) for obj in state + [env.raw, env.init_sp_seg]]
+            return model(inp, action,
                          sp_indices=env.sp_indices,
                          edge_index=env.edge_ids.to(model.module.device),
                          angles=env.edge_angles.to(model.module.device),
@@ -184,7 +185,7 @@ class AgentAcerContinuousTrainer(object):
         if t <= 1:
             return
         for state, action, reward, b_dis, done in reversed(memory.memory):
-            p, q, v, p_dis, sampled_action, q_prime = self.agent_forward(env, shared_model, action,
+            p, q, v, a, p_dis, sampled_action, q_prime = self.agent_forward(env, shared_model, action,
                                                                               state)
             average_p, average_action_rvs = self.agent_forward(env, self.shared_average_model, action,
                                                                state,
@@ -201,12 +202,13 @@ class AgentAcerContinuousTrainer(object):
                 continue  # here q_ret is for current step, need one more step for estimation
 
             if off_policy:
+                # could also try relation of variances here
                 rho = (p_dis.prob(action).detach()) \
                       / (b_dis.prob(action).detach())
                 rho_prime = (p_dis.prob(sampled_action).detach()) \
                             / (b_dis.prob(sampled_action).detach())
-                # c = rho.pow(1/action_size).clamp(max=1)
-                c = rho.clamp(max=1)
+                c = rho.pow(1/action_size).clamp(max=1)
+                # c = rho.clamp(max=1)
             else:
                 rho = torch.ones(1, action_size).to(shared_model.module.device)
                 rho_prime = torch.ones(1, action_size).to(shared_model.module.device)
@@ -230,7 +232,7 @@ class AgentAcerContinuousTrainer(object):
 
             # vanilla policy gradient with importance sampling
             lp = p_dis.log_prob(action)
-            policy_loss = policy_loss - (rho * lp * q.detach()).mean()
+            policy_loss = policy_loss - (c * lp * q.detach()).mean()
 
             # Value update dθ ← dθ - ∇θ∙1/2∙(Qret - Q(s_i, a_i; θ))^2
             value_loss = value_loss + (-(q_ret - q.detach()) * q).mean()  # Least squares loss
@@ -299,8 +301,8 @@ class AgentAcerContinuousTrainer(object):
         dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
                              num_workers=0)
         # Create optimizer for shared network parameters with shared statistics
-        optimizer = CstmAdam(shared_model.parameters(), lr=self.args.lr, betas=self.args.Adam_betas,
-                             weight_decay=self.args.Adam_weight_decay)
+        optimizer = torch.optim.Adam(shared_model.parameters(), lr=self.args.lr, betas=self.args.Adam_betas,
+                                     weight_decay=self.args.Adam_weight_decay)
 
         if self.args.fe_extr_warmup and rank == 0 and not self.args.test_score_only:
             fe_extr = SpVecsUnet(self.args.n_raw_channels, self.args.n_embedding_features, device)
@@ -308,7 +310,7 @@ class AgentAcerContinuousTrainer(object):
             self.fe_extr_warm_start(fe_extr, writer=writer)
             shared_model.module.fe_ext.load_state_dict(fe_extr.state_dict())
             if self.args.model_name == "":
-                torch.save(fe_extr.state_dict(), os.path.join(self.save_dir, 'agent_model'))
+                torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
             else:
                 torch.save(shared_model.state_dict(), os.path.join(self.save_dir, self.args.model_name))
 
@@ -323,7 +325,7 @@ class AgentAcerContinuousTrainer(object):
 
         if not self.args.test_score_only:
             while self.global_count.value() <= self.args.T_max:
-                if self.global_count.value() == 18:
+                if self.global_count.value() == 990:
                     a=1
                 self.update_env_data(env, dloader, device)
                 env.reset()
@@ -345,7 +347,7 @@ class AgentAcerContinuousTrainer(object):
                     memory.push(state, action, reward, b_rvs, env.done)
 
                     # Train the network
-                    self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
+                    # self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
 
                     # reward = self.args.reward_clip and min(max(reward, -1), 1) or reward  # Optionally clamp rewards
                     # done = done or episode_length >= self.args.max_episode_length  # Stop episodes at a max length
@@ -354,9 +356,11 @@ class AgentAcerContinuousTrainer(object):
                 # Break graph for last values calculated (used for targets, not directly as model outputs)
                 self.global_count.increment()
 
-                while len(memory) > 0:
-                    self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
-                    memory.pop(0)
+                self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
+                memory.clear()
+                # while len(memory) > 0:
+                #     self._step(memory, shared_model, env, optimizer, off_policy=True, writer=writer)
+                #     memory.pop(0)
 
         dist.barrier()
         if rank == 0:
