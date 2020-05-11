@@ -293,18 +293,18 @@ class EdgeConv1(EdgeMessagePassing):
         hli = [torch.nn.Linear(1 + n_node_channels * 2, 1 + n_node_channels * 2)]
         for i in range(n_hidden_layer):
             hli.append(torch.nn.Linear(1 + n_node_channels * 2, 1 + n_node_channels * 2))
-            hli.append(torch.nn.ReLU())
+            hli.append(torch.nn.LeakyReLU())
         hli.append(torch.nn.Linear(1 + n_node_channels * 2, n_channels_interm))
-        hli.append(torch.nn.ReLU())
+        hli.append(torch.nn.LeakyReLU())
         self.lin_edges_inner = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hli)]))
 
         if use_init_edge_feats:
             hlo = [torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_init_edge_channels + n_channels_interm)]
             for i in range(n_hidden_layer):
                 hlo.append(torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_init_edge_channels + n_channels_interm))
-                hlo.append(torch.nn.ReLU())
+                hlo.append(torch.nn.LeakyReLU())
             hlo.append(torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_channels_out))
-            hlo.append(torch.nn.ReLU())
+            hlo.append(torch.nn.LeakyReLU())
             self.lin_edges_outer = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hlo)]))
 
     def forward(self, x, edge_index, edge_weights, edge_features=None):
@@ -331,9 +331,9 @@ class NodeConv1(EdgeMessagePassing):
         hli = [torch.nn.Linear(n_node_features_in * 2, n_node_features_in * 2)]
         for i in range(n_hidden_layer):
             hli.append(torch.nn.Linear(n_node_features_in * 2, n_node_features_in * 2))
-            hli.append(torch.nn.ReLU())
+            hli.append(torch.nn.LeakyReLU())
         hli.append(torch.nn.Linear(n_node_features_in * 2, n_node_features_in))
-        hli.append(torch.nn.ReLU())
+        hli.append(torch.nn.LeakyReLU())
         self.lin_edge_conv = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hli)]))
 
         hlo = [torch.nn.Linear(n_node_features_in * 2, n_node_features_in * 2)]

@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import torch
-from agents.exploitation_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
+from agents.exploration_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 
 class Reinforce(object):
 

@@ -28,7 +28,7 @@ import os
 from optimizers.adam import CstmAdam
 from utils.general import adjust_learning_rate
 from collections import namedtuple
-from agents.exploitation_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
+from agents.exploration_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 
 
 class AgentOffpac2M(object):
@@ -189,8 +189,6 @@ class AgentOffpac2M(object):
         for i, t in enumerate(transition_data):
             data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
             feat = fe_extr(data, env.sp_indices)
-            if not self.args.fe_extr_policy_opt:
-                feat = feat.detach()
             if not t.terminal:
                 q_ = self.agent_forward(env, q_next, feat, t.state_, False)
                 pvals_ = nn.functional.softmax(q_, -1)
@@ -207,7 +205,7 @@ class AgentOffpac2M(object):
                                 torch.min(torch.ones(t.action.shape).to(policy.device),
                                           pvals_t / behav_policy_proba_t)
 
-            if self.args.weight_l2_reg_params_weight != 0:
+            if self.args.l2_reg_params_weight != 0:
                 for W in list(policy.parameters()):
                     if l2_reg is None:
                         l2_reg = W.norm(2)
@@ -221,7 +219,7 @@ class AgentOffpac2M(object):
             else:
                 c_loss = c_loss + nn.functional.mse_loss((t.reward + self.args.discount * v_) * m, q_t * m)
 
-        c_loss = c_loss / len(transition_data) + l2_reg * self.args.weight_l2_reg_params_weight
+        c_loss = c_loss / len(transition_data) + l2_reg * self.args.l2_reg_params_weight
 
         # sample according to discounted state dis
         discount_distribution = [self.args.discount**i for i in range(len(transition_data))]
@@ -236,8 +234,6 @@ class AgentOffpac2M(object):
             z += w
             data = env.raw.to(fe_extr.device).unsqueeze(0).unsqueeze(0)
             feat = fe_extr(data, env.sp_indices)
-            if not self.args.fe_extr_policy_opt:
-                feat = feat.detach()
             q = self.agent_forward(env, q_eval, feat, t.state)
             policy_proba = self.agent_forward(env, policy, feat, t.state)
             v = (q * policy_proba).sum(-1)
@@ -247,7 +243,7 @@ class AgentOffpac2M(object):
             advantage_t = q_t - v
             behav_policy_proba_t = t.behav_policy_proba.gather(-1, t.action.unsqueeze(-1)).squeeze()
 
-            if self.args.weight_l2_reg_params_weight != 0:
+            if self.args.l2_reg_params_weight != 0:
                 for W in list(policy.parameters()):
                     if l2_reg is None:
                         l2_reg = W.norm(2)
@@ -262,7 +258,7 @@ class AgentOffpac2M(object):
         a_loss = a_loss / z
         a_loss = a_loss / len(batch_ind)
         a_loss = a_loss / len(t.state)
-        a_loss = torch.sum(a_loss) + l2_reg * self.args.weight_l2_reg_params_weight
+        a_loss = torch.sum(a_loss) + l2_reg * self.args.l2_reg_params_weight
 
         if writer is not None:
             writer.add_scalar("loss/critic", c_loss.item(), self.global_writer_loss_count.value())
@@ -311,6 +307,11 @@ class AgentOffpac2M(object):
         q_next.cuda(device=q_next.device)
         policy.cuda(device=policy.device)
         fe_extr.cuda(device=fe_extr.device)
+
+        if self.args.no_fe_extr_optim:
+            for param in fe_extr.parameters():
+                param.requires_grad = False
+
         # Create optimizer for shared network parameters with shared statistics
         optimizer = torch.optim.Adam(list(q_eval.parameters()) + list(policy.parameters()),
                                lr=self.args.lr)
@@ -335,6 +336,8 @@ class AgentOffpac2M(object):
 
         env.done = True  # Start new episode
         while self.global_count.value() <= self.args.T_max:
+            if self.global_count.value() == 48:
+                a = 1
             if env.done:
                 edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
                     next(iter(dloader))

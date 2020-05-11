@@ -49,7 +49,6 @@ def poisson(self, lmbd):
         p *= random.uniform(0, 1)
     return max(k - 1, 0)
 
-
 # Adjusts learning rate
 def adjust_learning_rate(optimizer, lr):
     for param_group in optimizer.param_groups:

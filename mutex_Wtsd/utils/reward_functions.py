@@ -9,9 +9,9 @@ class FullySupervisedReward(object):
 
     def get(self, diff=None, actions=None, res_seg=None):
         if self.env.discrete_action_space:
-            new_diff = diff - (actions - self.env.gt_edge_weights).abs()
-            reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
-            reward -= (((actions - self.env.gt_edge_weights).abs() > 0.2) & (actions == 0)).float() * 0.1  # penalize 0 actions when edge still different from gt
+            new_diff = diff - (self.env.state[0].float() - self.env.gt_edge_weights).abs()
+            reward = -(new_diff < -0.05).float() + (new_diff > 0.05).float() * 0.8
+            reward -= (((self.env.state[0].float() - self.env.gt_edge_weights).abs() > 0.1) & (actions == 0)).float()  # penalize 0 actions when edge still different from gt
         else:
             # new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
             # reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
@@ -73,3 +73,35 @@ class ObjectLevelReward(object):
 
         return reward
 
+
+class DiceReward(object):
+    # TODO
+    def __init__(self, env):
+        super(DiceReward, self).__init__()
+        self.env = env
+
+    def get(self, diff=None, actions=None, res_seg=None):
+        pass
+
+
+class GraphDiceReward(object):
+
+    def __init__(self, env):
+        super(GraphDiceReward, self).__init__()
+        self.epsilon = 1
+        self.env = env
+
+    def get(self, diff=None, actions=None, res_seg=None):
+        # compute per channel Dice Coefficient
+        input = torch.stack([1-self.env.state[0], self.env.state[0]], 0)
+        target = torch.stack([self.env.gt_edge_weights == 0, self.env.gt_edge_weights == 1], 0).float()
+        intersect = (input * target)
+
+        intersect = intersect.sum(-1)
+
+        # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)
+        denominator = (input * input).sum(-1) + (target * target).sum(-1)
+        dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
+
+        reward = (input * dice_score.unsqueeze(-1)).sum(0)
+        return reward - 0.5

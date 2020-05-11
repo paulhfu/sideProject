@@ -253,10 +253,11 @@ class GcnEdgeAngleConv1(torch.nn.Module):
     def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True, fe_params=None):
         super(GcnEdgeAngleConv1, self).__init__()
         self.softmax = softmax
-        self.node_conv1 = NodeConv1(n_node_channels_in, n_node_channels_in)
-        self.edge_conv1 = EdgeConv1(n_node_channels_in, n_node_channels_in)
-        self.node_conv2 = NodeConv1(n_node_channels_in, n_node_channels_in)
-        self.edge_conv2 = EdgeConv1(n_node_channels_in, n_node_channels_in, use_init_edge_feats=True, n_channels_in=n_node_channels_in)
+        self.node_conv1 = NodeConv1(n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
+        self.edge_conv1 = EdgeConv1(n_node_channels_in, n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
+        self.node_conv2 = NodeConv1(n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
+        self.edge_conv2 = EdgeConv1(n_node_channels_in, n_node_channels_in, n_node_channels_in,
+                                    use_init_edge_feats=True, n_init_edge_channels=n_node_channels_in, n_hidden_layer=5)
         self.out_lcf1 = nn.Linear(n_node_channels_in + n_edge_features_in + 1, 256)
         self.out_lcf2 = nn.Linear(256, n_edge_classes)
 
@@ -290,10 +291,11 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
         super(GcnEdgeAngle1dPQV, self).__init__()
         self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
         self.softmax = softmax
-        self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels)
-        self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels)
-        self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels)
-        self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, use_init_edge_feats=True, n_channels_in=n_embedding_channels)
+        self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels,
+                                    use_init_edge_feats=True, n_init_edge_channels=n_embedding_channels, n_hidden_layer=5)
 
         # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
 
@@ -305,7 +307,7 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
 
     def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None):
         edge_weights = state[0].to(self.device)
-        input = torch.stack((state[1], state[2])).unsqueeze(0).to(self.device)
+        input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
         if sp_indices is None:
             return self.fe_ext(input)
         if edge_features_1d is None:

@@ -14,6 +14,7 @@ from trainers.q_learning import Qlearning
 from trainers.reinforce import Reinforce
 from trainers.a2c import A2c
 from trainers.train_acer import TrainACER
+from trainers.train_dql import TrainDql
 from trainers.train_offpac import TrainOffpac
 from trainers.train_offpac_2_models import TrainOffpac2M
 import argparse
@@ -54,32 +55,34 @@ parser.add_argument('--fe-warmup-iterations', type=int, default=100, metavar='SI
 parser.add_argument('--fe-warmup-batch-size', type=int, default=10, metavar='SIZE', help='batch size for feature extractor warmup')
 parser.add_argument('--no-fe-extr-optim', action='store_true', help='optimize feature extractor with ril loss')
 ## main training (env, trainer)
-parser.add_argument('--T-max', type=int, default=1000, metavar='STEPS', help='Number of training steps')
-parser.add_argument('--t-max', type=int, default=11, metavar='STEPS', help='Max number of forward steps before update')
-parser.add_argument('--max-episode-length', type=int, default=10, metavar='LENGTH', help='Maximum episode length')
+parser.add_argument('--T-max', type=int, default=50, metavar='STEPS', help='Number of training steps')
+parser.add_argument('--t-max', type=int, default=5, metavar='STEPS', help='Max number of forward steps before update')
+parser.add_argument('--max-episode-length', type=int, default=15, metavar='LENGTH', help='Maximum episode length')
 parser.add_argument('--eps-rule', type=str, default='gaussian', help='epsilon rule')
-parser.add_argument('--eps-final', type=float, default=0.05, metavar='eps', help='final epsilon')
+parser.add_argument('--eps-final', type=float, default=0.005, metavar='eps', help='final epsilon')
 parser.add_argument('--eps-scaling', type=float, default=1, metavar='eps', help='final epsilon')
 parser.add_argument('--eps-offset', type=float, default=0, metavar='eps', help='final epsilon')
 parser.add_argument('--stop-qual-rule', type=str, default='gaussian', help='epsilon rule')
 parser.add_argument('--stop-qual-final', type=float, default=0.001, metavar='eps', help='final epsilon')
 parser.add_argument('--stop-qual-scaling', type=float, default=1, metavar='eps', help='final epsilon')
-parser.add_argument('--stop-qual-offset', type=float, default=0, metavar='eps', help='final epsilon')
+parser.add_argument('--stop-qual-offset', type=float, default=5, metavar='eps', help='final epsilon')
+parser.add_argument('--stop-qual-ra-bw', type=float, default=20, metavar='eps', help='running average bandwidth')
+parser.add_argument('--stop-qual-ra-off', type=float, default=-5, metavar='eps', help='running average offset')
 parser.add_argument('--reward-function', type=str, default='fully_supervised', help='Reward function')
 parser.add_argument('--action-agression', type=float, default=0.1, help='value by which one action changes state')
 ## acer continuous
 parser.add_argument('--b-sigma-final', type=float, default=0.0001, metavar='var', help='final behavior std dev')
 parser.add_argument('--b-sigma-scaling', type=float, default=4, metavar='var', help='scaling behavior std dev')
-parser.add_argument('--p-sigma', type=float, default=0.1, metavar='var', help='policy std dev')
+parser.add_argument('--p-sigma', type=float, default=0.03, metavar='var', help='policy std dev')
 parser.add_argument('--exp-steps', type=int, default=5, help='Number of samples drawn to estimate expectation in loss')
 parser.add_argument('--density-eval-range', type=float, default=0.05, help='pdf evaluation range (value +- range) for retrieving probas')
 ## Training specifics (agent)
 # parser.add_argument('--trace-decay', type=float, default=1, metavar='λ', help='Eligibility trace decay factor')
 parser.add_argument('--trust-region', action='store_true', help='use trust region gradient')
-parser.add_argument('--discount', type=float, default=0.5, metavar='γ', help='Discount factor')  # for acer this is 0.99
+parser.add_argument('--discount', type=float, default=0.7, metavar='γ', help='Discount factor')  # for acer this is 0.99
 parser.add_argument('--lbd', type=float, default=3, metavar='lambda', help='lambda elegibility trace parameter')
 parser.add_argument('--qnext-replace-cnt', type=int, default=10, help='number of learning steps after which qnext is updated')
-parser.add_argument('--trace-max', type=float, default=2, metavar='c', help='Importance weight truncation (max) value')
+parser.add_argument('--trace-max', type=float, default=1, metavar='c', help='Importance weight truncation (max) value')
 parser.add_argument('--trust-region-decay', type=float, default=0.01, metavar='α', help='Average model weight averaging rate')
 parser.add_argument('--trust-region-threshold', type=float, default=0.5, metavar='δ', help='Trust region threshold value')
 parser.add_argument('--trust-region-weight', type=float, default=2, metavar='lbd', help='Trust region regularization weight')
@@ -89,8 +92,8 @@ parser.add_argument('--l2-reg-params-weight', type=float, default=0, metavar='VA
 parser.add_argument('--p-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
 parser.add_argument('--v-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
 ## Optimization
-parser.add_argument('--min-lr', type=float, default=0.005, metavar='η', help='min Learning rate')
-parser.add_argument('--lr', type=float, default=0.1, metavar='η', help='Learning rate')
+parser.add_argument('--min-lr', type=float, default=0.0, metavar='η', help='min Learning rate')
+parser.add_argument('--lr', type=float, default=0.00001, metavar='η', help='Learning rate')
 parser.add_argument('--Adam-weight-decay', type=float, default=0, metavar='wdec', help='Adam weight decay')
 parser.add_argument('--Adam-betas', type=float, default=[0.9, 0.999], metavar='β', help='Adam decay factors')
 
@@ -137,6 +140,9 @@ if __name__ == '__main__':
         score = trainer.train(start_time)
     if args.algorithm == 'offpac2m':
         trainer = TrainOffpac2M(args)
+        score = trainer.train(start_time)
+    if args.algorithm == 'retrace':
+        trainer = TrainDql(args)
         score = trainer.train(start_time)
     if 'acer' in args.algorithm:
         if not args.cross_validate_hp:

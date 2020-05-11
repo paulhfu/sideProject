@@ -10,7 +10,7 @@ from agents.replayMemory import TransitionData
 from collections import namedtuple
 from mu_net.criteria.contrastive_loss import ContrastiveLoss
 from environments.sp_grph_gcn_1 import SpGcnEnv
-from models.GCNNs.mc_glbl_edge_costs import GcnEdgeAngle1dPQV
+from models.GCNNs.q_value_net import GcnEdgeAngle1dQ
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from tensorboardX import SummaryWriter
@@ -20,14 +20,13 @@ from agents.exploration_functions import ExponentialAverage, FollowLeadAvg, Foll
 import numpy as np
 from utils.general import adjust_learning_rate
 
-class AgentAcerTrainer(object):
+class AgentDqlTrainer(object):
 
-    def __init__(self, args, shared_average_model, global_count, global_writer_loss_count, global_writer_quality_count,
+    def __init__(self, args, global_count, global_writer_loss_count, global_writer_quality_count,
                  global_win_event_count, save_dir):
-        super(AgentAcerTrainer, self).__init__()
+        super(AgentDqlTrainer, self).__init__()
 
         self.args = args
-        self.shared_average_model = shared_average_model
         self.global_count = global_count
         self.global_writer_loss_count = global_writer_loss_count
         self.global_writer_quality_count = global_writer_quality_count
@@ -76,7 +75,7 @@ class AgentAcerTrainer(object):
         torch.cuda.set_device(device)
 
         os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12358'
+        os.environ['MASTER_PORT'] = '12355'
         # os.environ['GLOO_SOCKET_IFNAME'] = 'eno1'
 
         # initialize the process group
@@ -114,30 +113,17 @@ class AgentAcerTrainer(object):
         nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
         new_lr = self.args.lr
-        if self.args.min_lr != 0 and self.eps <= 0.25:
+        if self.args.min_lr != 0 and self.eps <= 0.6:
             # Linearly decay learning rate
-            new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) * (1 - (self.eps * 4))) # (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
-            adjust_learning_rate(optimizer, new_lr)
+            # new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) * (1 - (self.eps * 2))) # (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
+            new_lr = self.args.lr * 10 ** (-(0.6 - self.eps))
 
+        adjust_learning_rate(optimizer, new_lr)
         if writer is not None:
             writer.add_scalar("loss/learning_rate", new_lr, self.global_writer_loss_count.value())
 
-        # Update shared_average_model
-        for shared_param, shared_average_param in zip(shared_model.parameters(), self.shared_average_model.parameters()):
-            shared_average_param.data = self.args.trust_region_decay * shared_average_param.data + (
-                        1 - self.args.trust_region_decay) * shared_param.data
-
-    # Computes an "efficient trust region" loss (policy head only) based on an existing loss and two distributions
-    def _trust_region(self, g, k):
-        # Compute dot products of gradients
-        k_dot_g = (k * g).sum(0)
-        k_dot_k = (k ** 2).sum(0)
-        # Compute trust region update
-        trust_factor = ((k_dot_g - self.args.trust_region_threshold) / k_dot_k).clamp(min=0)
-        z = g - trust_factor * k
-        return z
-
-    def get_action(self, action_probs, q, v, policy, waff_dis, device):
+    def get_action(self, q, policy, waff_dis, device):
+        action_probs = torch.softmax(q, -1)
         if policy == 'off_sampled':
             behav_probs = action_probs.detach() + self.eps * (1 / self.args.n_actions - action_probs.detach())
             actions = torch.multinomial(behav_probs, 1).squeeze()
@@ -145,8 +131,8 @@ class AgentAcerTrainer(object):
             randm_draws = int(self.eps * len(action_probs))
             if randm_draws > 0:
                 actions = action_probs.max(-1)[1].squeeze()
-                # randm_indices = torch.multinomial(torch.ones(len(action_probs)) / len(action_probs), randm_draws)
-                randm_indices = torch.multinomial(waff_dis, randm_draws)
+                randm_indices = torch.multinomial(torch.ones(len(action_probs)) / len(action_probs), randm_draws)
+                # randm_indices = torch.multinomial(waff_dis, randm_draws)
                 actions[randm_indices] = torch.randint(0, self.args.n_actions, (randm_draws,)).to(device)
                 behav_probs = action_probs.detach()
                 behav_probs[randm_indices] = torch.Tensor([1/self.args.n_actions for i in range(self.args.n_actions)]).to(device)
@@ -166,7 +152,7 @@ class AgentAcerTrainer(object):
 
     def fe_extr_warm_start(self, sp_feature_ext, writer=None):
         dataloader = DataLoader(MultiDiscSpGraphDset(length=self.args.fe_warmup_iterations * 10), batch_size=10,
-                                           shuffle=True, pin_memory=True)
+                                shuffle=True, pin_memory=True)
         criterion = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
         optimizer = torch.optim.Adam(sp_feature_ext.parameters())
         for i, (data, gt) in enumerate(dataloader):
@@ -202,9 +188,9 @@ class AgentAcerTrainer(object):
         if t <= 1:
             return
         for state, action, reward, behav_policy_proba, done in reversed(memory.memory):
-            policy_proba, q, v = self.agent_forward(env, shared_model, state)
-            average_policy_proba, _, _ = self.agent_forward(env, self.shared_average_model, state, grad=False)
-            tr_loss, p_loss = 0, 0
+            q = self.agent_forward(env, shared_model, state)
+            policy_proba = torch.softmax(q, -1)
+            v = (q * policy_proba).sum(-1)
             if done and t == len(memory):
                 q_ret_t = torch.zeros_like(env.state[0]).to(shared_model.module.device)
             elif t == len(memory):
@@ -219,40 +205,12 @@ class AgentAcerTrainer(object):
 
             # Qret ← r_i + γQret
             q_ret_t = reward + self.args.discount * q_ret_t
-            # Advantage A ← Qret - V(s_i; θ)
-            adv = q.detach() - v.unsqueeze(-1).detach()
-            adv_ret_t = q_ret_t.detach() - v.detach()
 
-            policy_proba_t = policy_proba.gather(-1, action.unsqueeze(-1)).squeeze()
             rho_t = rho.gather(-1, action.unsqueeze(-1)).squeeze()
-            bias_weight = (1 - self.args.trace_max / rho).clamp(min=0)
-
-            # if not self.args.trust_region:
-            # g ← min(c, ρ_a_i)∙∇θ∙log(π(a_i|s_i; θ))∙A
-            p_loss = rho_t.clamp(max=self.args.trace_max) * policy_proba_t.log() * adv_ret_t
-            # Off-policy bias correction
-            if off_policy:
-                # g ← g + Σ_a [1 - c/ρ_a]_+∙π(a|s_i; θ)∙∇θ∙log(π(a|s_i; θ))∙(Q(s_i, a; θ) - V(s_i; θ)
-                p_loss = p_loss + ((bias_weight * policy_proba.log() * adv) * policy_proba.detach()).sum(-1)
-            # if self.args.trust_region:
-            #     # KL divergence k ← ∇θ0∙DKL[π(∙|s_i; θ_a) || π(∙|s_i; θ)]
-            #     k = (- average_policy_proba / (policy_proba.detach() + 1e-10)).sum(-1)
-            #     g = rho_t.clamp(max=self.args.trace_max) * adv_ret_t / policy_proba_t.detach()
-            #     if off_policy:
-            #         g = g + (bias_weight * adv).sum(-1)
-            #     # Policy update dθ ← dθ + ∂θ/∂θ∙z*
-            #     z_star = self._trust_region(g, k)
-            #     tr_loss = (z_star * policy_proba_t * self.args.trust_region_weight).mean()
-            #
-            # # Entropy regularisation dθ ← dθ + β∙∇θH(π(s_i; θ))
-            # entropy_loss = (-(self.args.entropy_weight * (policy_proba.log() * policy_proba).sum(-1))).mean()
-            # policy_loss = policy_loss - tr_loss - p_loss - entropy_loss
-
-            policy_loss = policy_loss - (loss_weight * p_loss).sum()
 
             # Value update dθ ← dθ - ∇θ∙1/2∙(Qret - Q(s_i, a_i; θ))^2
             q_t = q.gather(-1, action.unsqueeze(-1)).squeeze()
-            value_loss = value_loss + (loss_weight * ((q_ret_t - q_t) ** 2 / 2)).sum()  # Least squares loss
+            value_loss = value_loss + ((q_ret_t - q_t) ** 2 / 2).sum()  # Least squares loss
 
             # Qret ← ρ¯_a_i∙(Qret - Q(s_i, a_i; θ)) + V(s_i; θ)
             q_ret_t = rho_t.clamp(max=self.args.trace_max) * (q_ret_t - q_t.detach()) + v.detach()
@@ -268,13 +226,11 @@ class AgentAcerTrainer(object):
                 l2_reg = 0
 
         if writer is not None:
-            writer.add_scalar("loss/critic", value_loss.item(), self.global_writer_loss_count.value())
-            writer.add_scalar("loss/actor", policy_loss.item(), self.global_writer_loss_count.value())
+            writer.add_scalar("loss/ql", value_loss.item(), self.global_writer_loss_count.value())
             self.global_writer_loss_count.increment()
 
         # Update networks
-        loss = (self.args.p_loss_weight * policy_loss
-                + self.args.v_loss_weight * value_loss
+        loss = (self.args.v_loss_weight * value_loss
                 + l2_reg * self.args.l2_reg_params_weight) \
                / len(memory)
         torch.autograd.set_detect_anomaly(True)
@@ -304,7 +260,7 @@ class AgentAcerTrainer(object):
         env = SpGcnEnv(self.args, device, writer=writer, writer_counter=self.global_writer_quality_count,
                        win_event_counter=self.global_win_event_count)
         # Create shared network
-        model = GcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
+        model = GcnEdgeAngle1dQ(self.args.n_raw_channels, self.args.n_embedding_features,
                                   self.args.n_edge_features, self.args.n_actions, device)
 
         if self.args.no_fe_extr_optim:
@@ -338,8 +294,6 @@ class AgentAcerTrainer(object):
             print('loaded fe extractor')
             shared_model.load_state_dict(torch.load(os.path.join(self.save_dir, 'agent_model')))
 
-        self.shared_average_model.load_state_dict(shared_model.state_dict())
-
         if not self.args.test_score_only:
             quality = self.args.stop_qual_scaling + self.args.stop_qual_offset
             while self.global_count.value() <= self.args.T_max:
@@ -348,7 +302,7 @@ class AgentAcerTrainer(object):
                 self.update_env_data(env, dloader, device)
                 # waff_dis = torch.softmax(env.edge_features[:, 0].squeeze() + 1e-30, dim=0)
                 waff_dis = torch.softmax(env.gt_edge_weights + 0.1, dim=0)
-                loss_weight = torch.softmax(env.gt_edge_weights + 1, dim=0)
+                loss_weight = torch.softmax(env.gt_edge_weights + .1, dim=0)
                 env.reset()
                 state = [env.state[0].clone(), env.state[1].clone()]
 
@@ -359,10 +313,10 @@ class AgentAcerTrainer(object):
 
                 while not env.done:
                     # Calculate policy and values
-                    policy_proba, q, v = self.agent_forward(env, shared_model, grad=False)
+                    q = self.agent_forward(env, shared_model, grad=False)
 
                     # Step
-                    action, behav_policy_proba = self.get_action(policy_proba, q, v, 'off_uniform', waff_dis, device)
+                    action, behav_policy_proba = self.get_action(q, 'off_uniform', waff_dis, device)
                     state_, reward, quality = env.execute_action(action)
 
                     memory.push(state, action, reward, behav_policy_proba, env.done)

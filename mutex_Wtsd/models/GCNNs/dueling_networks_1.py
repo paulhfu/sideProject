@@ -11,21 +11,15 @@ from utils.truncated_normal import TruncNorm
 from torch_geometric.nn import GCNConv, GATConv
 
 
-class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
+class GcnEdgeAngle1dPQA_dueling_1(torch.nn.Module):
     def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, exp_steps, p_sigma,
                  device, density_eval_range):
-        super(GcnEdgeAngle1dPQA_dueling, self).__init__()
+        super(GcnEdgeAngle1dPQA_dueling_1, self).__init__()
         self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
         self.p_sigma = p_sigma
         self.density_eval_range = density_eval_range
         self.exp_steps = exp_steps
-        self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
         self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels,
-                                    use_init_edge_feats=True, n_init_edge_channels=n_embedding_channels, n_hidden_layer=5)
-
-        # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
 
         self.out_p1 = nn.Linear(n_embedding_channels + n_edge_features_in, 256)
         self.out_p2 = nn.Linear(256, n_edge_classes)
@@ -45,15 +39,7 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
         if edge_features_1d is None:
             return self.fe_ext(input, sp_indices)
         node_features = self.fe_ext(input, sp_indices)
-        node_features, _ = self.node_conv1(node_features, edge_index, angles)
-        node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
-        edge_features = nn.functional.leaky_relu(edge_features)
-        node_features, _ = self.node_conv2(node_features, edge_index, angles)
-        node_features = nn.functional.leaky_relu(node_features)
-        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0),
-                                           edge_features)
-        edge_features = nn.functional.leaky_relu(edge_features)
 
         # h, c = self.lstm(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1), h)  # h is (hidden state, cell state)
 
@@ -97,10 +83,10 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
         return p.squeeze(), q.squeeze(), v.squeeze(), a.squeeze(), p_dis, sampled_action.squeeze(), q_prime.squeeze()
 
 
-class WrappedGcnEdgeAngle1dPQA_dueling(torch.nn.Module):
+class WrappedGcnEdgeAngle1dPQA_dueling_1(torch.nn.Module):
     def __init__(self, *args):
-        super(WrappedGcnEdgeAngle1dPQA_dueling, self).__init__()
-        self.module = GcnEdgeAngle1dPQA_dueling(*args)
+        super(WrappedGcnEdgeAngle1dPQA_dueling_1, self).__init__()
+        self.module = GcnEdgeAngle1dPQA_dueling_1(*args)
 
     def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None, stats_only=False):
         return self.module(state, action_behav, sp_indices, edge_index, angles, edge_features_1d, stats_only)

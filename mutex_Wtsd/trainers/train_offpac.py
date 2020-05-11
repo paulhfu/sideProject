@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import numpy as np
-from agents.exploitation_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
+from agents.exploration_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 import os
 import shutil
 

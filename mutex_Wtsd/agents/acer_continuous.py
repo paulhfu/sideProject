@@ -10,6 +10,7 @@ from collections import namedtuple
 from mu_net.criteria.contrastive_loss import ContrastiveLoss
 from environments.sp_grph_gcn_1 import SpGcnEnv
 from models.GCNNs.dueling_networks import GcnEdgeAngle1dPQA_dueling
+from models.GCNNs.dueling_networks_1 import GcnEdgeAngle1dPQA_dueling_1
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from tensorboardX import SummaryWriter
@@ -17,7 +18,7 @@ import os
 from optimizers.adam import CstmAdam
 from scipy.stats import truncnorm
 from utils.truncated_normal import TruncNorm
-from agents.exploitation_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
+from agents.exploration_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 import numpy as np
 from utils.general import adjust_learning_rate
 from torch.autograd import grad
@@ -232,7 +233,7 @@ class AgentAcerContinuousTrainer(object):
 
             # vanilla policy gradient with importance sampling
             lp = p_dis.log_prob(action)
-            policy_loss = policy_loss - (c * lp * q.detach()).mean()
+            policy_loss = policy_loss - (rho.clamp(max=self.args.trace_max) * lp * (q.detach() - v.detach())).mean()
 
             # Value update dθ ← dθ - ∇θ∙1/2∙(Qret - Q(s_i, a_i; θ))^2
             value_loss = value_loss + (-(q_ret - q.detach()) * q).mean()  # Least squares loss
@@ -288,7 +289,7 @@ class AgentAcerContinuousTrainer(object):
         env = SpGcnEnv(self.args, device, writer=writer, writer_counter=self.global_writer_quality_count,
                        win_event_counter=self.global_win_event_count, discrete_action_space=False)
         # Create shared network
-        model = GcnEdgeAngle1dPQA_dueling(self.args.n_raw_channels,
+        model = GcnEdgeAngle1dPQA_dueling_1(self.args.n_raw_channels,
                                           self.args.n_embedding_features,
                                           self.args.n_edge_features, 1, self.args.exp_steps, self.args.p_sigma,
                                           device, self.args.density_eval_range)
@@ -325,7 +326,7 @@ class AgentAcerContinuousTrainer(object):
 
         if not self.args.test_score_only:
             while self.global_count.value() <= self.args.T_max:
-                if self.global_count.value() == 990:
+                if self.global_count.value() == 190:
                     a=1
                 self.update_env_data(env, dloader, device)
                 env.reset()

@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import numpy as np
-from agents.exploitation_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
+from agents.exploration_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 import os
 import shutil
 
@@ -46,9 +46,9 @@ class TrainOffpac2M(object):
         global_win_event_count = Counter()  # Global shared counter
 
         # Create average network
-        shared_damped_model = WrappedGcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
-                                                       self.args.n_edge_features, self.args.n_actions,
-                                                       self.device)
+        # shared_damped_model = WrappedGcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
+        #                                                self.args.n_edge_features, self.args.n_actions,
+        #                                                self.device)
         # shared_damped_model.share_memory()
         #
         # for param in shared_damped_model.parameters():

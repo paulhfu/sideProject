@@ -46,14 +46,10 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
             return self.fe_ext(input, sp_indices)
         node_features = self.fe_ext(input, sp_indices)
         node_features, _ = self.node_conv1(node_features, edge_index, angles)
-        node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
-        edge_features = nn.functional.leaky_relu(edge_features)
         node_features, _ = self.node_conv2(node_features, edge_index, angles)
-        node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0),
                                            edge_features)
-        edge_features = nn.functional.leaky_relu(edge_features)
 
         # h, c = self.lstm(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1), h)  # h is (hidden state, cell state)
 

@@ -1,0 +1,64 @@
+import os
+import torch
+from utils.general import Counter
+from torch import multiprocessing as mp
+from agents.dql import AgentDqlTrainer
+
+class TrainDql(object):
+
+    def __init__(self, args, eps=0.9):
+        super(TrainDql, self).__init__()
+        self.args = args
+        self.eps = eps
+        self.device = torch.device("cuda:0")
+
+    def train(self, time):
+        # Creating directories.
+        save_dir = os.path.join(self.args.base_dir, 'results/acer', self.args.target_dir)
+        log_dir = os.path.join(save_dir, 'logs')
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        print(' ' * 26 + 'Options')
+
+        # Saving parameters
+        with open(os.path.join(save_dir, 'params.txt'), 'w') as f:
+            for k, v in vars(self.args).items():
+                print(' ' * 26 + k + ': ' + str(v))
+                f.write(k + ' : ' + str(v) + '\n')
+
+        torch.manual_seed(self.args.seed)
+        global_count = Counter()  # Global shared counter
+        global_writer_loss_count = Counter()  # Global shared counter
+        global_writer_quality_count = Counter()  # Global shared counter
+        global_win_event_count = Counter()  # Global shared counter
+
+        # Start validation agent
+        processes = []
+
+        # ctx = mp.get_context('spawn')
+        # q = ctx.Queue()
+        # e = ctx.Event()
+        # p = ctx.Process(target=send_and_delete_tensors, args=(q, e, torch.cuda.IntTensor, 5))
+        # p.start()
+        if not self.args.evaluate:
+            # Start training agents
+            manager = mp.Manager()
+            return_dict = manager.dict()
+            trainer = AgentDqlTrainer(self.args, global_count, global_writer_loss_count,
+                                      global_writer_quality_count, global_win_event_count=global_win_event_count,
+                                      save_dir=save_dir)
+            for rank in range(0, self.args.num_processes):
+                p = mp.Process(target=trainer.train, args=(rank, time, return_dict))
+                p.start()
+                processes.append(p)
+
+        # Clean up
+        for p in processes:
+            p.join()
+        if self.args.cross_validate_hp or self.args.test_score_only:
+            print('Score is: ', return_dict['test_score'])
+            print('Wins out of 20 trials')
+            return return_dict['test_score']
+

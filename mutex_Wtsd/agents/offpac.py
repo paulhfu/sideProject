@@ -28,7 +28,7 @@ import os
 from optimizers.adam import CstmAdam
 from utils.general import adjust_learning_rate
 from collections import namedtuple
-from agents.exploitation_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
+from agents.exploration_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 
 
 class AgentOffpac(object):

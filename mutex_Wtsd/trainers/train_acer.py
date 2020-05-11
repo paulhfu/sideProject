@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import numpy as np
-from agents.exploitation_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
+from agents.exploration_functions import NaiveDecay, ActionPathTreeNodes, ExpSawtoothEpsDecay
 import os
 import shutil
 
@@ -9,6 +9,7 @@ from utils.general import Counter
 from models.GCNNs.mc_glbl_edge_costs import GcnEdgeAngle1dPQV
 from models.GCNNs.mc_glbl_edge_costs import WrappedGcnEdgeAngle1dPQV
 from models.GCNNs.dueling_networks import WrappedGcnEdgeAngle1dPQA_dueling
+from models.GCNNs.dueling_networks_1 import WrappedGcnEdgeAngle1dPQA_dueling_1
 from optimizers.shared_rmsprob import SharedRMSprop
 from torch import multiprocessing as mp
 from agents.acer import AgentAcerTrainer
@@ -53,7 +54,7 @@ class TrainACER(object):
                                                             self.args.n_edge_features, self.args.n_actions,
                                                             self.device)
         else:
-            shared_average_model = WrappedGcnEdgeAngle1dPQA_dueling(self.args.n_raw_channels,
+            shared_average_model = WrappedGcnEdgeAngle1dPQA_dueling_1(self.args.n_raw_channels,
                                                                     self.args.n_embedding_features,
                                                                     self.args.n_edge_features, 1, self.args.exp_steps,
                                                                     self.args.p_sigma, self.device,
@@ -63,8 +64,6 @@ class TrainACER(object):
 
         shared_average_model.share_memory()
 
-        for param in shared_average_model.parameters():
-            param.requires_grad = False
         # Create optimiser for shared network parameters with shared statistics
         # optimizer = SharedAdam(shared_model.parameters(), lr=self.args.Adam_lr, betas=self.args.Adam_betas,
         #                        weight_decay=self.args.Adam_weight_decay)

@@ -9,7 +9,7 @@ class NaiveDecay(object):
         self.limiting_epsiode = limiting_epsiode
         self.change_after_n_episodes = change_after_n_episodes
 
-    def apply(self, episode):
+    def apply(self, episode, _):
         if episode >= self.limiting_epsiode:
             return 0
         eps = self.initial_eps-(self.episode_shrinkage * (episode//self.change_after_n_episodes))
@@ -21,7 +21,7 @@ class Constant(object):
     def __init__(self, value):
         self.value = value
 
-    def apply(self, episode):
+    def apply(self, *args):
         return self.value
 
 
@@ -33,7 +33,7 @@ class GaussianDecay(object):
         self.offset = offset
         self.weight = math.sqrt(-math.log(final)) / max_steps
 
-    def apply(self, episode):
+    def apply(self, episode, _):
         return math.exp(-(self.weight * episode) ** 2) * self.scaling + self.offset
 
 
@@ -46,13 +46,89 @@ class ExpSawtoothEpsDecay(object):
         self.limiting_epsiode = limiting_epsiode
         self.change_after_n_episodes = change_after_n_episodes
 
-    def apply(self, episode):
+    def apply(self, episode, _):
         if episode >= self.limiting_epsiode:
             return 0
         eps = np.exp(-(0.0025 * episode) ** 2)
         # eps = eps + (self.step_increase * step / (episode+1))
         eps = min(max(eps, 0), 1)
         return eps
+
+
+class RunningAverage(object):
+    def __init__(self, band_width, init_val, offset):
+        super(RunningAverage, self).__init__()
+        self.band_width = band_width
+        self.init_val = init_val
+        self._mem = [init_val]
+        self.offset = offset
+
+    def reset(self):
+        self._mem = [self.init_val]
+
+    def apply(self, _, el):
+        if len(self._mem) == self.band_width:
+            self._mem.pop(0)
+        self._mem.append(el)
+        return self.avg
+
+    @property
+    def avg(self):
+        return max(0, (sum(self._mem) / len(self._mem)) + self.offset)
+
+
+class ExponentialAverage(object):
+    def __init__(self, base, weight, init_val):
+        super(ExponentialAverage, self).__init__()
+        self._weight = weight
+        self._init_val = init_val
+        self._state = init_val
+        self._base = base
+
+    def reset(self):
+        self._state = self._init_val
+
+    def apply(self, _, el):
+        el = min(1, (el / self._base))
+        self._state = self._weight * self._state + (1 - self._weight) * el
+        return self._state
+
+class FollowLeadAvg(object):
+    def __init__(self, base_val, band_width, init_val):
+        super(FollowLeadAvg, self).__init__()
+        self.base = base_val
+        self.band_width = band_width
+        self.init_val = init_val
+        self._mem = [init_val]
+
+    def reset(self):
+        self._mem = [self.init_val]
+
+    def apply(self, _, el):
+        if len(self._mem) == self.band_width:
+            self._mem.pop(0)
+        self._mem.append(min(1, (el / self.base)))
+        return self.avg
+
+    @property
+    def avg(self):
+        return sum(self._mem) / len(self._mem)
+
+
+class FollowLeadMin(object):
+    def __init__(self, base_val, init_val):
+        super(FollowLeadMin, self).__init__()
+        self._base = base_val
+        self._init_val = init_val
+        self._current = np.inf
+
+    def reset(self):
+        self._current = np.inf
+
+    def apply(self, _, el):
+        if el < self._current:
+            self._current = el
+        return min(1, (self._current / self._base))
 
 
 class ActionPathTreeNodes(object):
