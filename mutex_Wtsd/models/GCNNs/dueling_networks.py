@@ -16,6 +16,7 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
                  device, density_eval_range):
         super(GcnEdgeAngle1dPQA_dueling, self).__init__()
         self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
+        n_embedding_channels += 1
         self.p_sigma = p_sigma
         self.density_eval_range = density_eval_range
         self.exp_steps = exp_steps
@@ -36,15 +37,18 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
         self.device = device
 
     def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None,
-                stats_only=False):
+                stats_only=False, round_n=None):
         edge_weights = state[0].to(self.device)
-        input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
+        input = state[2].unsqueeze(0).unsqueeze(0).to(self.device)
+        # input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
         # input = state[1]
         if sp_indices is None:
             return self.fe_ext(input)
         if edge_features_1d is None:
             return self.fe_ext(input, sp_indices)
         node_features = self.fe_ext(input, sp_indices)
+        node_features = torch.cat([node_features, torch.ones([node_features.shape[0], 1], device=node_features.device) * round_n], -1)
+
         node_features, _ = self.node_conv1(node_features, edge_index, angles)
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
         node_features, _ = self.node_conv2(node_features, edge_index, angles)
@@ -98,5 +102,5 @@ class WrappedGcnEdgeAngle1dPQA_dueling(torch.nn.Module):
         super(WrappedGcnEdgeAngle1dPQA_dueling, self).__init__()
         self.module = GcnEdgeAngle1dPQA_dueling(*args)
 
-    def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None, stats_only=False):
-        return self.module(state, action_behav, sp_indices, edge_index, angles, edge_features_1d, stats_only)
+    def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None, stats_only=False, round_n=None):
+        return self.module(state, action_behav, sp_indices, edge_index, angles, edge_features_1d, stats_only, round_n=round_n)

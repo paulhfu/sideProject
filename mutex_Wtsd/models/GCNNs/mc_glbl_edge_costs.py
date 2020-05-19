@@ -1,6 +1,7 @@
 import torch
 from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
-from models.GCNNs.cstm_message_passing import GcnEdgeConv, EdgeConv, NodeConv, EdgeConvNoEdge, SpatEdgeConv, SpatNodeConv
+from models.GCNNs.cstm_message_passing import GcnEdgeConv, EdgeConv, NodeConv, EdgeConvNoEdge, SpatEdgeConv, \
+    SpatNodeConv
 from torch_geometric.utils import degree
 import torch.nn.functional as F
 import torch.nn as nn
@@ -237,10 +238,13 @@ class GcnEdgeAngleConv2(torch.nn.Module):
         self.device = device
 
     def forward(self, node_features, edge_features_1d, edge_index, angles, edge_weights):
-        node_features, _ = self.node_conv1(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
+        node_features, _ = self.node_conv1(node_features, edge_index, angles,
+                                           torch.cat((edge_weights, edge_weights), dim=0))
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
-        node_features, _ = self.node_conv2(node_features, edge_index, angles, torch.cat((edge_weights, edge_weights), dim=0))
-        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
+        node_features, _ = self.node_conv2(node_features, edge_index, angles,
+                                           torch.cat((edge_weights, edge_weights), dim=0))
+        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0),
+                                           edge_features)
 
         pooled_features = self.global_pool(edge_features)
         e = self.out_lcf1(torch.cat((pooled_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), 1))
@@ -248,6 +252,7 @@ class GcnEdgeAngleConv2(torch.nn.Module):
         if self.softmax:
             return nn.functional.softmax(e, -1)
         return e
+
 
 class GcnEdgeAngleConv1(torch.nn.Module):
     def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True, fe_params=None):
@@ -275,7 +280,8 @@ class GcnEdgeAngleConv1(torch.nn.Module):
         edge_features = nn.functional.leaky_relu(edge_features)
         node_features, _ = self.node_conv2(node_features, edge_index, angles)
         node_features = nn.functional.leaky_relu(node_features)
-        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
+        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0),
+                                           edge_features)
         edge_features = nn.functional.leaky_relu(edge_features)
 
         e = self.out_lcf1(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1))
@@ -287,15 +293,19 @@ class GcnEdgeAngleConv1(torch.nn.Module):
 
 
 class GcnEdgeAngle1dPQV(torch.nn.Module):
-    def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True):
+    def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, device, softmax=True,
+                 writer=None):
         super(GcnEdgeAngle1dPQV, self).__init__()
+        self.writer = writer
         self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
+        n_embedding_channels += 1
         self.softmax = softmax
         self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
         self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
         self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
         self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels,
-                                    use_init_edge_feats=True, n_init_edge_channels=n_embedding_channels, n_hidden_layer=5)
+                                    use_init_edge_feats=True, n_init_edge_channels=n_embedding_channels,
+                                    n_hidden_layer=5)
 
         # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
 
@@ -304,22 +314,36 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
         self.out_q1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
         self.out_q2 = nn.Linear(256, n_edge_classes)
         self.device = device
+        self.writer_counter = 0
 
-    def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None):
+    def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None, round_n=None,
+                post_input=False):
         edge_weights = state[0].to(self.device)
-        input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
+        input = state[2].unsqueeze(0).unsqueeze(0).to(self.device)
+
+        if self.writer is not None and post_input:
+            self.writer.add_image("image/state1", state[1].unsqueeze(0).cpu(), self.writer_counter)
+            self.writer.add_image("image/state2", state[2].unsqueeze(0).cpu(), self.writer_counter)
+            self.writer.add_image("image/state3", state[3].unsqueeze(0).cpu(), self.writer_counter)
+            self.writer_counter += 1
+
+        # input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
         if sp_indices is None:
             return self.fe_ext(input)
         if edge_features_1d is None:
             return self.fe_ext(input, sp_indices)
         node_features = self.fe_ext(input, sp_indices)
+        node_features = torch.cat(
+            [node_features, torch.ones([node_features.shape[0], 1], device=node_features.device) * round_n], -1)
+
         node_features, _ = self.node_conv1(node_features, edge_index, angles)
         node_features = nn.functional.leaky_relu(node_features)
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
         edge_features = nn.functional.leaky_relu(edge_features)
         node_features, _ = self.node_conv2(node_features, edge_index, angles)
         node_features = nn.functional.leaky_relu(node_features)
-        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0), edge_features)
+        _, edge_features = self.edge_conv2(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0),
+                                           edge_features)
         edge_features = nn.functional.leaky_relu(edge_features)
 
         # h, c = self.lstm(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1), h)  # h is (hidden state, cell state)
@@ -342,5 +366,6 @@ class WrappedGcnEdgeAngle1dPQV(torch.nn.Module):
         super(WrappedGcnEdgeAngle1dPQV, self).__init__()
         self.module = GcnEdgeAngle1dPQV(*args)
 
-    def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None):
-        return self.module(state, sp_indices, edge_index, angles, edge_features_1d)
+    def forward(self, state, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None, round_n=None,
+                post_input=False):
+        return self.module(state, sp_indices, edge_index, angles, edge_features_1d, round_n=round_n, post_input=post_input)

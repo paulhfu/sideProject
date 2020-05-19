@@ -18,8 +18,10 @@ import os
 from optimizers.adam import CstmAdam
 from scipy.stats import truncnorm
 from utils.truncated_normal import TruncNorm
-from agents.exploration_functions import ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
+from agents.exploration_functions import ExponentialAverage, FollowLeadAvg, FollowLeadMin, RunningAverage, \
+    ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 import numpy as np
+import yaml
 from utils.general import adjust_learning_rate
 from torch.autograd import grad
 from torch.autograd import Variable
@@ -46,10 +48,29 @@ class AgentAcerContinuousTrainer(object):
         elif args.stop_qual_rule == 'gaussian':
             self.stop_qual_rule = GaussianDecay(args.stop_qual_final, args.stop_qual_scaling, args.stop_qual_offset,
                                                 args.T_max)
+        elif args.stop_qual_rule == 'running_average':
+            self.stop_qual_rule = RunningAverage(args.stop_qual_ra_bw, args.stop_qual_scaling + args.stop_qual_offset,
+                                                 args.stop_qual_ra_off)
         else:
             self.stop_qual_rule = NaiveDecay(args.init_stop_qual)
 
-        self.b_sigma_rule = GaussianDecay(args.b_sigma_final, args.b_sigma_scaling, args.p_sigma, args.T_max)
+        if self.args.eps_rule == "treesearch":
+            self.b_sigma_rule = ActionPathTreeNodes()
+        elif self.args.eps_rule == "sawtooth":
+            self.b_sigma_rule = ExpSawtoothEpsDecay()
+        elif self.args.eps_rule == 'gaussian':
+            self.b_sigma_rule = GaussianDecay(args.b_sigma_final, args.b_sigma_scaling, args.p_sigma, args.T_max)
+        elif self.args.eps_rule == "self_reg_min":
+            self.args.T_max = np.inf
+            self.b_sigma_rule = FollowLeadMin((args.stop_qual_scaling + args.stop_qual_offset), 1)
+        elif self.args.eps_rule == "self_reg_avg":
+            self.args.T_max = np.inf
+            self.b_sigma_rule = FollowLeadAvg((args.stop_qual_scaling + args.stop_qual_offset) / 4, 2, 1)
+        elif self.args.eps_rule == "self_reg_exp_avg":
+            self.args.T_max = np.inf
+            self.b_sigma_rule = ExponentialAverage((args.stop_qual_scaling + args.stop_qual_offset) / 4, 0.9, 1)
+        else:
+            self.b_sigma_rule = NaiveDecay(self.eps, 0.00005, 1000, 1)
 
     def setup(self, rank, world_size):
         # BLAS setup
@@ -64,7 +85,7 @@ class AgentAcerContinuousTrainer(object):
         torch.cuda.set_device(device)
 
         os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12355'
+        os.environ['MASTER_PORT'] = '12356'
         # os.environ['GLOO_SOCKET_IFNAME'] = 'eno1'
 
         # initialize the process group
@@ -101,14 +122,25 @@ class AgentAcerContinuousTrainer(object):
         # Gradient L2 normalisation
         # nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
-        if self.args.min_lr != 0:
-            # Linearly decay learning rate
-            new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) *
-                                     (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
-            adjust_learning_rate(optimizer, new_lr)
 
-            if writer is not None:
-                writer.add_scalar("loss/learning_rate", new_lr, self.global_writer_loss_count.value())
+        with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+            args_dict = yaml.full_load(info)
+            if args_dict is not None:
+                if 'lr' in args_dict:
+                    if self.args.lr != args_dict['lr']:
+                        print("lr changed from ", self.args.lr, " to ", args_dict['lr'], " at loss step ",
+                              self.global_writer_loss_count.value())
+                        self.args.lr = args_dict['lr']
+        self.args.lr = args_dict['lr']
+        new_lr = self.args.lr
+        if self.args.min_lr != 0 and self.eps <= 0.6:
+            # Linearly decay learning rate
+            # new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) * (1 - (self.eps * 2))) # (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
+            new_lr = self.args.lr * 10 ** (-(0.6 - self.eps))
+
+        adjust_learning_rate(optimizer, new_lr)
+        if writer is not None:
+            writer.add_scalar("loss/learning_rate", new_lr, self.global_writer_loss_count.value())
 
         # Update shared_average_model
         for shared_param, shared_average_param in zip(shared_model.parameters(),
@@ -161,7 +193,7 @@ class AgentAcerContinuousTrainer(object):
                 writer.add_scalar("loss/fe_warm_start", loss.item(), self.writer_idx_warmup_loss)
                 self.writer_idx_warmup_loss += 1
 
-    def agent_forward(self, env, model, action=None, state=None, grad=True, stats_only=False):
+    def agent_forward(self, env, model, action=None, state=None, grad=True, stats_only=False, post_input=False):
         with torch.set_grad_enabled(grad):
             if state is None:
                 state = env.state
@@ -171,7 +203,9 @@ class AgentAcerContinuousTrainer(object):
                          edge_index=env.edge_ids.to(model.module.device),
                          angles=env.edge_angles.to(model.module.device),
                          edge_features_1d=env.edge_features.to(model.module.device),
-                         stats_only=stats_only)
+                         stats_only=stats_only,
+                         round_n=env.counter,
+                         post_input=post_input)
 
     # Trains model
     def _step(self, memory, shared_model, env, optimizer, off_policy=True, writer=None):
@@ -187,7 +221,7 @@ class AgentAcerContinuousTrainer(object):
             return
         for state, action, reward, b_dis, done in reversed(memory.memory):
             p, q, v, a, p_dis, sampled_action, q_prime = self.agent_forward(env, shared_model, action,
-                                                                              state)
+                                                                            state)
             average_p, average_action_rvs = self.agent_forward(env, self.shared_average_model, action,
                                                                state,
                                                                grad=False,
@@ -208,7 +242,7 @@ class AgentAcerContinuousTrainer(object):
                       / (b_dis.prob(action).detach())
                 rho_prime = (p_dis.prob(sampled_action).detach()) \
                             / (b_dis.prob(sampled_action).detach())
-                c = rho.pow(1/action_size).clamp(max=1)
+                c = rho.pow(1 / action_size).clamp(max=1)
                 # c = rho.clamp(max=1)
             else:
                 rho = torch.ones(1, action_size).to(shared_model.module.device)
@@ -290,9 +324,9 @@ class AgentAcerContinuousTrainer(object):
                        win_event_counter=self.global_win_event_count, discrete_action_space=False)
         # Create shared network
         model = GcnEdgeAngle1dPQA_dueling_1(self.args.n_raw_channels,
-                                          self.args.n_embedding_features,
-                                          self.args.n_edge_features, 1, self.args.exp_steps, self.args.p_sigma,
-                                          device, self.args.density_eval_range)
+                                            self.args.n_embedding_features,
+                                            self.args.n_edge_features, 1, self.args.exp_steps, self.args.p_sigma,
+                                            device, self.args.density_eval_range, writer=writer)
         if self.args.no_fe_extr_optim:
             for param in model.fe_ext.parameters():
                 param.requires_grad = False
@@ -325,25 +359,53 @@ class AgentAcerContinuousTrainer(object):
         self.shared_average_model.load_state_dict(shared_model.state_dict())
 
         if not self.args.test_score_only:
+            quality = self.args.stop_qual_scaling + self.args.stop_qual_offset
             while self.global_count.value() <= self.args.T_max:
                 if self.global_count.value() == 190:
-                    a=1
+                    a = 1
                 self.update_env_data(env, dloader, device)
                 env.reset()
                 state = [env.state[0].clone(), env.state[1].clone()]
 
-                self.b_sigma = self.b_sigma_rule.apply(self.global_count.value())
-                env.stop_quality = self.stop_qual_rule.apply(self.global_count.value())
+                self.b_sigma = self.b_sigma_rule.apply(self.global_count.value(), quality)
+                env.stop_quality = self.stop_qual_rule.apply(self.global_count.value(), quality)
+
+                with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+                    args_dict = yaml.full_load(info)
+                    if args_dict is not None:
+                        if 'eps' in args_dict:
+                            if self.args.eps != args_dict['eps']:
+                                self.eps = args_dict['eps']
+                        if 'safe_model' in args_dict:
+                            self.args.safe_model = args_dict['safe_model']
+                        if 'add_noise' in args_dict:
+                            self.args.add_noise = args_dict['add_noise']
+
                 if writer is not None:
                     writer.add_scalar("step/b_variance", self.b_sigma, env.writer_counter.value())
 
+                if self.args.safe_model:
+                    if rank == 0:
+                        if self.args.model_name_dest != "":
+                            torch.save(shared_model.state_dict(),
+                                       os.path.join(self.save_dir, self.args.model_name_dest))
+                        else:
+                            torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
+
                 while not env.done:
+                    post_input = True if self.global_count.value() % 50 and env.counter == 0 else False
                     # Calculate policy and values
-                    policy_means, p_dis = self.agent_forward(env, shared_model, grad=False, stats_only=True)
+                    policy_means, p_dis = self.agent_forward(env, shared_model, grad=False, stats_only=True,
+                                                             post_input=post_input)
 
                     # Step
                     action, b_rvs = self.get_action(policy_means, p_dis, device)
-                    state_, reward = env.execute_action(action, self.global_count.value())
+                    state_, reward, quality = env.execute_action(action)
+
+                    if self.args.add_noise:
+                        if self.global_count.value() > 110 and self.global_count.value() % 5:
+                            noise = torch.randn_like(reward) * 0.8
+                            reward = reward + noise
 
                     memory.push(state, action, reward, b_rvs, env.done)
 

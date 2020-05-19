@@ -16,6 +16,7 @@ from agents.acer import AgentAcerTrainer
 from agents.acer_continuous import AgentAcerContinuousTrainer
 from mu_net.criteria.contrastive_loss import ContrastiveLoss
 from torch.utils.data import DataLoader
+import yaml
 from data.disjoint_discs import MultiDiscSpGraphDset
 
 class TrainACER(object):
@@ -34,6 +35,8 @@ class TrainACER(object):
             os.makedirs(save_dir)
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
+        if os.path.exists(os.path.join(save_dir, 'config.yaml')):
+            os.remove(os.path.join(save_dir, 'config.yaml'))
         print(' ' * 26 + 'Options')
 
         # Saving parameters
@@ -41,6 +44,9 @@ class TrainACER(object):
             for k, v in vars(self.args).items():
                 print(' ' * 26 + k + ': ' + str(v))
                 f.write(k + ' : ' + str(v) + '\n')
+
+        with open(os.path.join(save_dir, 'config.yaml'), "w") as info:
+            documents = yaml.dump(vars(self.args), info)
 
         torch.manual_seed(self.args.seed)
         global_count = Counter()  # Global shared counter
@@ -52,13 +58,13 @@ class TrainACER(object):
         if self.args.algorithm == "acer":
             shared_average_model = WrappedGcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
                                                             self.args.n_edge_features, self.args.n_actions,
-                                                            self.device)
+                                                            self.device, None)
         else:
             shared_average_model = WrappedGcnEdgeAngle1dPQA_dueling_1(self.args.n_raw_channels,
                                                                     self.args.n_embedding_features,
                                                                     self.args.n_edge_features, 1, self.args.exp_steps,
                                                                     self.args.p_sigma, self.device,
-                                                                    self.args.density_eval_range)
+                                                                    self.args.density_eval_range, None)
         for param in shared_average_model.parameters():
             param.requires_grad = False
 

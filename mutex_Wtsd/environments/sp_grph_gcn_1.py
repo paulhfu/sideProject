@@ -5,7 +5,7 @@ from utils import general
 from math import inf
 import matplotlib.pyplot as plt
 from environments.environment_bc import Environment
-from utils.reward_functions import FullySupervisedReward, ObjectLevelReward, UnSupervisedReward, GraphDiceReward
+from utils.reward_functions import FocalReward, FullySupervisedReward, ObjectLevelReward, UnSupervisedReward, GraphDiceReward
 
 
 class SpGcnEnv(Environment):
@@ -27,6 +27,8 @@ class SpGcnEnv(Environment):
             self.reward_function = ObjectLevelReward(env=self)
         elif self.args.reward_function == 'graph_dice':
             self.reward_function = GraphDiceReward(env=self)
+        elif self.args.reward_function == 'focal':
+            self.reward_function = FocalReward(env=self)
         else:
             self.reward_function = UnSupervisedReward(env=self)
 
@@ -50,7 +52,7 @@ class SpGcnEnv(Environment):
         if self.data_changed > self.penalize_diff_thresh or self.counter > self.args.max_episode_length:
             # penalize_change = (self.penalize_diff_thresh - self.data_changed) / np.prod(self.state.size()) * 10
             self.done = True
-            reward -= 5
+            # reward -= 5
             self.iteration += 1
         reward += (penalize_change * (actions != 0).float())
 
@@ -60,12 +62,12 @@ class SpGcnEnv(Environment):
         # check if finished
         quality = (self.state[0] - self.gt_edge_weights).squeeze().abs().sum().item()
         # print(quality)
-        if quality < self.stop_quality:
-            reward += 5
-            self.done = True
-            self.win = True
-            self.iteration += 1
-            self.win_event_counter.increment()
+        # if quality < self.stop_quality:
+        #     # reward += 5
+        #     self.done = True
+        #     self.win = True
+        #     self.iteration += 1
+        #     self.win_event_counter.increment()
         if self.writer is not None and self.done:
             self.writer.add_scalar("step/quality", quality, self.writer_counter.value())
             self.writer.add_scalar("step/stop_quality", self.stop_quality, self.writer_counter.value())

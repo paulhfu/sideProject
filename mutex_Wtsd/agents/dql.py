@@ -16,14 +16,17 @@ import torch.distributed as dist
 from tensorboardX import SummaryWriter
 import os
 from optimizers.adam import CstmAdam
-from agents.exploration_functions import ExponentialAverage, FollowLeadAvg, FollowLeadMin, RunningAverage, ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
+from agents.exploration_functions import ExponentialAverage, FollowLeadAvg, FollowLeadMin, RunningAverage, \
+    ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 import numpy as np
 from utils.general import adjust_learning_rate
+import yaml
+
 
 class AgentDqlTrainer(object):
 
     def __init__(self, args, global_count, global_writer_loss_count, global_writer_quality_count,
-                 global_win_event_count, save_dir):
+                 global_win_event_count, action_stats_count, save_dir):
         super(AgentDqlTrainer, self).__init__()
 
         self.args = args
@@ -31,6 +34,7 @@ class AgentDqlTrainer(object):
         self.global_writer_loss_count = global_writer_loss_count
         self.global_writer_quality_count = global_writer_quality_count
         self.global_win_event_count = global_win_event_count
+        self.action_stats_count = action_stats_count
         self.writer_idx_warmup_loss = 0
         # self.eps = self.args.init_epsilon
         self.save_dir = save_dir
@@ -38,9 +42,11 @@ class AgentDqlTrainer(object):
             self.stop_qual_rule = NaiveDecay(initial_eps=args.init_stop_qual, episode_shrinkage=1,
                                              change_after_n_episodes=5)
         elif args.stop_qual_rule == 'gaussian':
-            self.stop_qual_rule = GaussianDecay(args.stop_qual_final, args.stop_qual_scaling, args.stop_qual_offset, args.T_max)
+            self.stop_qual_rule = GaussianDecay(args.stop_qual_final, args.stop_qual_scaling, args.stop_qual_offset,
+                                                args.T_max)
         elif args.stop_qual_rule == 'running_average':
-            self.stop_qual_rule = RunningAverage(args.stop_qual_ra_bw, args.stop_qual_scaling + args.stop_qual_offset, args.stop_qual_ra_off)
+            self.stop_qual_rule = RunningAverage(args.stop_qual_ra_bw, args.stop_qual_scaling + args.stop_qual_offset,
+                                                 args.stop_qual_ra_off)
         else:
             self.stop_qual_rule = NaiveDecay(args.init_stop_qual)
 
@@ -55,10 +61,10 @@ class AgentDqlTrainer(object):
             self.eps_rule = FollowLeadMin((args.stop_qual_scaling + args.stop_qual_offset), 1)
         elif self.args.eps_rule == "self_reg_avg":
             self.args.T_max = np.inf
-            self.eps_rule = FollowLeadAvg(1.5*(args.stop_qual_scaling + args.stop_qual_offset), 2, 1)
+            self.eps_rule = FollowLeadAvg(1.5 * (args.stop_qual_scaling + args.stop_qual_offset), 2, 1)
         elif self.args.eps_rule == "self_reg_exp_avg":
             self.args.T_max = np.inf
-            self.eps_rule = ExponentialAverage(1.5*(args.stop_qual_scaling + args.stop_qual_offset), 0.9, 1)
+            self.eps_rule = ExponentialAverage(1.5 * (args.stop_qual_scaling + args.stop_qual_offset), 0.9, 1)
         else:
             self.eps_rule = NaiveDecay(self.eps, 0.00005, 1000, 1)
 
@@ -112,6 +118,15 @@ class AgentDqlTrainer(object):
         # Gradient L2 normalisation
         nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
+        with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+            args_dict = yaml.full_load(info)
+            if args_dict is not None:
+                if 'lr' in args_dict:
+                    if self.args.lr != args_dict['lr']:
+                        print("lr changed from ", self.args.lr, " to ", args_dict['lr'], " at loss step ",
+                              self.global_writer_loss_count.value())
+                        self.args.lr = args_dict['lr']
+        self.args.lr = args_dict['lr']
         new_lr = self.args.lr
         if self.args.min_lr != 0 and self.eps <= 0.6:
             # Linearly decay learning rate
@@ -122,30 +137,40 @@ class AgentDqlTrainer(object):
         if writer is not None:
             writer.add_scalar("loss/learning_rate", new_lr, self.global_writer_loss_count.value())
 
-    def get_action(self, q, policy, waff_dis, device):
+    def get_action(self, q, policy, waff_dis, device, writer=None):
+
         action_probs = torch.softmax(q, -1)
         if policy == 'off_sampled':
+            action_loc = action_probs.float().mean()
             behav_probs = action_probs.detach() + self.eps * (1 / self.args.n_actions - action_probs.detach())
             actions = torch.multinomial(behav_probs, 1).squeeze()
         elif policy == 'off_uniform':
             randm_draws = int(self.eps * len(action_probs))
             if randm_draws > 0:
                 actions = action_probs.max(-1)[1].squeeze()
-                randm_indices = torch.multinomial(torch.ones(len(action_probs)) / len(action_probs), randm_draws)
-                # randm_indices = torch.multinomial(waff_dis, randm_draws)
+                action_loc = actions.float().mean()
+                # randm_indices = torch.multinomial(torch.ones(len(action_probs)) / len(action_probs), randm_draws)
+                randm_indices = torch.multinomial(waff_dis, randm_draws)
                 actions[randm_indices] = torch.randint(0, self.args.n_actions, (randm_draws,)).to(device)
                 behav_probs = action_probs.detach()
-                behav_probs[randm_indices] = torch.Tensor([1/self.args.n_actions for i in range(self.args.n_actions)]).to(device)
+                behav_probs[randm_indices] = torch.Tensor(
+                    [1 / self.args.n_actions for i in range(self.args.n_actions)]).to(device)
             else:
                 actions = action_probs.max(-1)[1].squeeze()
+                action_loc = actions.float().mean()
                 behav_probs = action_probs.detach()
         elif policy == 'on':
             actions = action_probs.max(-1)[1].squeeze()
+            action_loc = actions.float().mean()
             behav_probs = action_probs.detach()
         elif policy == 'q_val':
             actions = q.max(-1)[1].squeeze()
+            action_loc = actions.float().mean()
             behav_probs = action_probs.detach()
 
+        if writer is not None:
+            writer.add_scalar("action/loc", action_loc, self.action_stats_count.value())
+            self.action_stats_count.increment()
         # log_probs = torch.log(sel_behav_probs)
         # entropy = - (behav_probs * torch.log(behav_probs)).sum()
         return actions, behav_probs
@@ -166,15 +191,16 @@ class AgentDqlTrainer(object):
                 writer.add_scalar("loss/fe_warm_start", loss.item(), self.writer_idx_warmup_loss)
                 self.writer_idx_warmup_loss += 1
 
-    def agent_forward(self, env, model, state=None, grad=True):
+    def agent_forward(self, env, model, state=None, grad=True, post_input=False):
         with torch.set_grad_enabled(grad):
             if state is None:
                 state = env.state
-            inp = [obj.float().to(model.module.device) for obj in state + [env.raw, env.init_sp_seg]]
+            inp = [obj.float().to(model.module.device) for obj in state + [env.raw + env.gt_seg, env.init_sp_seg]]
             return model(inp, sp_indices=env.sp_indices,
                          edge_index=env.edge_ids.to(model.module.device),
                          angles=env.edge_angles.to(model.module.device),
-                         edge_features_1d=env.edge_features.to(model.module.device))
+                         edge_features_1d=env.edge_features.to(model.module.device),
+                         round_n=env.counter, post_input=post_input)
 
     # Trains model
     def _step(self, memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=None):
@@ -210,7 +236,7 @@ class AgentDqlTrainer(object):
 
             # Value update dθ ← dθ - ∇θ∙1/2∙(Qret - Q(s_i, a_i; θ))^2
             q_t = q.gather(-1, action.unsqueeze(-1)).squeeze()
-            value_loss = value_loss + ((q_ret_t - q_t) ** 2 / 2).sum()  # Least squares loss
+            value_loss = value_loss + ((q_ret_t.sum() - q_t.sum()) ** 2 / 2).sum()  # Least squares loss
 
             # Qret ← ρ¯_a_i∙(Qret - Q(s_i, a_i; θ)) + V(s_i; θ)
             q_ret_t = rho_t.clamp(max=self.args.trace_max) * (q_ret_t - q_t.detach()) + v.detach()
@@ -261,7 +287,7 @@ class AgentDqlTrainer(object):
                        win_event_counter=self.global_win_event_count)
         # Create shared network
         model = GcnEdgeAngle1dQ(self.args.n_raw_channels, self.args.n_embedding_features,
-                                  self.args.n_edge_features, self.args.n_actions, device)
+                                self.args.n_edge_features, self.args.n_actions, device, writer=writer)
 
         if self.args.no_fe_extr_optim:
             for param in model.fe_ext.parameters():
@@ -298,31 +324,57 @@ class AgentDqlTrainer(object):
             quality = self.args.stop_qual_scaling + self.args.stop_qual_offset
             while self.global_count.value() <= self.args.T_max:
                 if self.global_count.value() == 78:
-                    a=1
+                    a = 1
                 self.update_env_data(env, dloader, device)
                 # waff_dis = torch.softmax(env.edge_features[:, 0].squeeze() + 1e-30, dim=0)
-                waff_dis = torch.softmax(env.gt_edge_weights + 0.1, dim=0)
+                # waff_dis = torch.softmax(env.gt_edge_weights + 0.5, dim=0)
+                waff_dis = torch.softmax(torch.ones_like(env.gt_edge_weights), dim=0)
                 loss_weight = torch.softmax(env.gt_edge_weights + .1, dim=0)
                 env.reset()
                 state = [env.state[0].clone(), env.state[1].clone()]
 
                 self.eps = self.eps_rule.apply(self.global_count.value(), quality)
                 env.stop_quality = self.stop_qual_rule.apply(self.global_count.value(), quality)
+
+                with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+                    args_dict = yaml.full_load(info)
+                    if args_dict is not None:
+                        if 'eps' in args_dict:
+                            if self.args.eps != args_dict['eps']:
+                                self.eps = args_dict['eps']
+                        if 'safe_model' in args_dict:
+                            self.args.safe_model = args_dict['safe_model']
+                        if 'add_noise' in args_dict:
+                            self.args.add_noise = args_dict['add_noise']
+
                 if writer is not None:
                     writer.add_scalar("step/epsilon", self.eps, env.writer_counter.value())
 
+                if self.args.safe_model:
+                    if rank == 0:
+                        if self.args.model_name_dest != "":
+                            torch.save(shared_model.state_dict(),
+                                       os.path.join(self.save_dir, self.args.model_name_dest))
+                        else:
+                            torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
+
                 while not env.done:
                     # Calculate policy and values
-                    q = self.agent_forward(env, shared_model, grad=False)
-
+                    post_input = True if self.global_count.value() % 50 and env.counter == 0 else False
+                    q = self.agent_forward(env, shared_model, grad=False, post_input=post_input)
                     # Step
-                    action, behav_policy_proba = self.get_action(q, 'off_uniform', waff_dis, device)
+                    action, behav_policy_proba = self.get_action(q, 'off_uniform', waff_dis, device, writer)
                     state_, reward, quality = env.execute_action(action)
+
+                    if self.args.add_noise:
+                        if self.global_count.value() > 110 and self.global_count.value() % 5:
+                            noise = torch.randn_like(reward) * 0.8
+                            reward = reward + noise
 
                     memory.push(state, action, reward, behav_policy_proba, env.done)
 
                     # Train the network
-                    self._step(memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=writer)
+                    # self._step(memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=writer)
 
                     # reward = self.args.reward_clip and min(max(reward, -1), 1) or reward  # Optionally clamp rewards
                     # done = done or episode_length >= self.args.max_episode_length  # Stop episodes at a max length
@@ -334,14 +386,14 @@ class AgentDqlTrainer(object):
 
                 while len(memory) > 0:
                     self._step(memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=writer)
-                    memory.pop(0)
+                    memory.clear()
 
         dist.barrier()
         if rank == 0:
             if not self.args.cross_validate_hp and not self.args.test_score_only and not self.args.no_save:
                 # pass
-                if self.args.model_name != "":
-                    torch.save(shared_model.state_dict(), os.path.join(self.save_dir, self.args.model_name))
+                if self.args.model_name_dest != "":
+                    torch.save(shared_model.state_dict(), os.path.join(self.save_dir, self.args.model_name_dest))
                     print('saved')
                 else:
                     torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
@@ -357,7 +409,7 @@ class AgentDqlTrainer(object):
                         # Calculate policy and values
                         policy_proba, q, v = self.agent_forward(env, shared_model, grad=False)
                         action, behav_policy_proba = self.get_action(policy_proba, q, v, policy='off_uniform',
-                                                                     device=device)
+                                                                     device=device, writer=writer)
                         _, _ = env.execute_action(action, self.global_count.value())
 
                     # import matplotlib.pyplot as plt;
@@ -369,4 +421,3 @@ class AgentDqlTrainer(object):
                 writer.add_text("time_needed", str((time.time() - start_time)))
 
         self.cleanup()
-

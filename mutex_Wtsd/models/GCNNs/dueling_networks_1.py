@@ -13,9 +13,11 @@ from torch_geometric.nn import GCNConv, GATConv
 
 class GcnEdgeAngle1dPQA_dueling_1(torch.nn.Module):
     def __init__(self, n_raw_channels, n_embedding_channels, n_edge_features_in, n_edge_classes, exp_steps, p_sigma,
-                 device, density_eval_range):
+                 device, density_eval_range, writer):
         super(GcnEdgeAngle1dPQA_dueling_1, self).__init__()
+        self.writer = writer
         self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
+        n_embedding_channels += 1
         self.p_sigma = p_sigma
         self.density_eval_range = density_eval_range
         self.exp_steps = exp_steps
@@ -28,17 +30,28 @@ class GcnEdgeAngle1dPQA_dueling_1(torch.nn.Module):
         self.out_a1 = nn.Linear(n_embedding_channels + n_edge_features_in + 1, 256)
         self.out_a2 = nn.Linear(256, n_edge_classes)
         self.device = device
+        self.writer_counter = 0
 
     def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None,
-                stats_only=False):
+                stats_only=False, round_n=None, post_input=False):
         edge_weights = state[0].to(self.device)
-        input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
+        input = state[2].unsqueeze(0).unsqueeze(0).to(self.device)
+
+        if self.writer is not None and post_input:
+            self.writer.add_image("image/state1", state[1].unsqueeze(0).cpu(), self.writer_counter)
+            self.writer.add_image("image/state2", state[2].unsqueeze(0).cpu(), self.writer_counter)
+            self.writer.add_image("image/state3", state[3].unsqueeze(0).cpu(), self.writer_counter)
+            self.writer_counter += 1
+
+
+        # input = torch.stack((state[1], state[2], state[3])).unsqueeze(0).to(self.device)
         # input = state[1]
         if sp_indices is None:
             return self.fe_ext(input)
         if edge_features_1d is None:
             return self.fe_ext(input, sp_indices)
         node_features = self.fe_ext(input, sp_indices)
+        node_features = torch.cat([node_features, torch.ones([node_features.shape[0], 1], device=node_features.device) * round_n], -1)
         _, edge_features = self.edge_conv1(node_features, edge_index, torch.cat((edge_weights, edge_weights), dim=0))
 
         # h, c = self.lstm(torch.cat((edge_features.squeeze(), edge_features_1d, edge_weights.unsqueeze(-1)), dim=-1), h)  # h is (hidden state, cell state)
@@ -88,5 +101,7 @@ class WrappedGcnEdgeAngle1dPQA_dueling_1(torch.nn.Module):
         super(WrappedGcnEdgeAngle1dPQA_dueling_1, self).__init__()
         self.module = GcnEdgeAngle1dPQA_dueling_1(*args)
 
-    def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None, stats_only=False):
-        return self.module(state, action_behav, sp_indices, edge_index, angles, edge_features_1d, stats_only)
+    def forward(self, state, action_behav, sp_indices=None, edge_index=None, angles=None, edge_features_1d=None,
+                stats_only=False, round_n=None, post_input=False):
+        return self.module(state, action_behav, sp_indices, edge_index, angles, edge_features_1d, stats_only,
+                           round_n=round_n, post_input=post_input)

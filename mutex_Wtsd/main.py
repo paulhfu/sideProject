@@ -44,12 +44,13 @@ parser.add_argument('--target-dir', type=str, default='test1', help='Save folder
 parser.add_argument('--base-dir', type=str, default='/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd', help='Save folder')
 ## env and model defs
 parser.add_argument('--model-name', type=str, default="", metavar='PARAMS', help='Pretrained model (state dict)')
+parser.add_argument('--model-name-dest', type=str, default="agent_model", metavar='PARAMS', help='(state dict) is safed to')
 parser.add_argument('--n-edge-features', type=int, default=10, help='number of initial edge features')
 parser.add_argument('--n-actions', type=int, default=3, help='number of actions on edge')
 parser.add_argument('--lstm-hidden-state-size', type=int, default=128, metavar='SIZE', help='Hidden size of LSTM cell')
 ## feature extractor
 parser.add_argument('--n-embedding-features', type=int, default=64, help='number of embedding feature channels')
-parser.add_argument('--n-raw-channels', type=int, default=3, help='number of channels in raw data')
+parser.add_argument('--n-raw-channels', type=int, default=1, help='number of channels in raw data')
 parser.add_argument('--fe-extr-warmup', action='store_true', help='pretrain the feature extractor with contrastive loss')
 parser.add_argument('--fe-warmup-iterations', type=int, default=100, metavar='SIZE', help='number of iterations of feature extrqactor warmup')
 parser.add_argument('--fe-warmup-batch-size', type=int, default=10, metavar='SIZE', help='batch size for feature extractor warmup')
@@ -79,10 +80,10 @@ parser.add_argument('--density-eval-range', type=float, default=0.05, help='pdf 
 ## Training specifics (agent)
 # parser.add_argument('--trace-decay', type=float, default=1, metavar='λ', help='Eligibility trace decay factor')
 parser.add_argument('--trust-region', action='store_true', help='use trust region gradient')
-parser.add_argument('--discount', type=float, default=0.7, metavar='γ', help='Discount factor')  # for acer this is 0.99
+parser.add_argument('--discount', type=float, default=0.5, metavar='γ', help='Discount factor')  # for acer this is 0.99
 parser.add_argument('--lbd', type=float, default=3, metavar='lambda', help='lambda elegibility trace parameter')
 parser.add_argument('--qnext-replace-cnt', type=int, default=10, help='number of learning steps after which qnext is updated')
-parser.add_argument('--trace-max', type=float, default=1, metavar='c', help='Importance weight truncation (max) value')
+parser.add_argument('--trace-max', type=float, default=1.5, metavar='c', help='Importance weight truncation (max) value')
 parser.add_argument('--trust-region-decay', type=float, default=0.01, metavar='α', help='Average model weight averaging rate')
 parser.add_argument('--trust-region-threshold', type=float, default=0.5, metavar='δ', help='Trust region threshold value')
 parser.add_argument('--trust-region-weight', type=float, default=2, metavar='lbd', help='Trust region regularization weight')
@@ -96,6 +97,12 @@ parser.add_argument('--min-lr', type=float, default=0.0, metavar='η', help='min
 parser.add_argument('--lr', type=float, default=0.00001, metavar='η', help='Learning rate')
 parser.add_argument('--Adam-weight-decay', type=float, default=0, metavar='wdec', help='Adam weight decay')
 parser.add_argument('--Adam-betas', type=float, default=[0.9, 0.999], metavar='β', help='Adam decay factors')
+## runtime ctl
+parser.add_argument('--eps', type=float, default=1.0, metavar='eps', help='epsilon for manual config during runtime')
+parser.add_argument('--safe-model', action='store_true', help='the model is saved')
+parser.add_argument('--add-noise', action='store_true', help='noise is added to the rewards')
+
+
 
 if __name__ == '__main__':
     start_time = time.time()

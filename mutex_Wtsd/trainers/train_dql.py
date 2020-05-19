@@ -3,6 +3,7 @@ import torch
 from utils.general import Counter
 from torch import multiprocessing as mp
 from agents.dql import AgentDqlTrainer
+import yaml
 
 class TrainDql(object):
 
@@ -14,12 +15,14 @@ class TrainDql(object):
 
     def train(self, time):
         # Creating directories.
-        save_dir = os.path.join(self.args.base_dir, 'results/acer', self.args.target_dir)
+        save_dir = os.path.join(self.args.base_dir, 'results/retrace', self.args.target_dir)
         log_dir = os.path.join(save_dir, 'logs')
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
+        if os.path.exists(os.path.join(save_dir, 'config.yaml')):
+            os.remove(os.path.join(save_dir, 'config.yaml'))
         print(' ' * 26 + 'Options')
 
         # Saving parameters
@@ -28,11 +31,15 @@ class TrainDql(object):
                 print(' ' * 26 + k + ': ' + str(v))
                 f.write(k + ' : ' + str(v) + '\n')
 
+        with open(os.path.join(save_dir, 'config.yaml'), "w") as info:
+            documents = yaml.dump(vars(self.args), info)
+
         torch.manual_seed(self.args.seed)
         global_count = Counter()  # Global shared counter
         global_writer_loss_count = Counter()  # Global shared counter
         global_writer_quality_count = Counter()  # Global shared counter
         global_win_event_count = Counter()  # Global shared counter
+        action_stats_count = Counter()
 
         # Start validation agent
         processes = []
@@ -48,6 +55,7 @@ class TrainDql(object):
             return_dict = manager.dict()
             trainer = AgentDqlTrainer(self.args, global_count, global_writer_loss_count,
                                       global_writer_quality_count, global_win_event_count=global_win_event_count,
+                                      action_stats_count=action_stats_count,
                                       save_dir=save_dir)
             for rank in range(0, self.args.num_processes):
                 p = mp.Process(target=trainer.train, args=(rank, time, return_dict))

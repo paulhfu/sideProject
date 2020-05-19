@@ -1,6 +1,8 @@
+import torch
+import matplotlib.pyplot as plt
+
 import torch.utils.data as torch_data
 import elf
-import torch
 import numpy as np
 from affogato.affinities import compute_affinities
 import torchvision.transforms as transforms
@@ -9,7 +11,6 @@ import torch_geometric as tg
 import elf.segmentation.features as feats
 from affogato.segmentation.mws import get_valid_edges
 from mutex_watershed import compute_mws_segmentation_cstm
-import matplotlib.pyplot as plt
 from matplotlib import cm
 import utils.general as gutils
 import utils.affinities as affutils
@@ -30,15 +31,10 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         self.offsets = [[0, -1], [-1, 0],
                         [-3, 0], [0, -3]]
         self.sep_chnl = 2
-        return
 
-    def __len__(self):
-        return self.length
-
-    def get(self, idx):
-        n_disc = np.random.randint(8, 10)
-        rads = []
-        mps = []
+        n_disc = 10
+        self.rads = []
+        self.mps = []
         for disc in range(n_disc):
             radius = np.random.randint(max(self.shape) // 15, max(self.shape) // 10)
             touching = True
@@ -46,14 +42,40 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
                 mp = np.array([np.random.randint(0 + radius, self.shape[0] - radius),
                                np.random.randint(0 + radius, self.shape[1] - radius)])
                 touching = False
-                for other_rad, other_mp in zip(rads, mps):
+                for other_rad, other_mp in zip(self.rads, self.mps):
                     diff = mp - other_mp
                     if (diff ** 2).sum() ** .5 <= radius + other_rad + 2:
                         touching = True
-            rads.append(radius)
-            mps.append(mp)
+            self.rads.append(radius)
+            self.mps.append(mp)
 
-        # mp = self.mp
+        return
+
+    def __len__(self):
+        return self.length
+
+    def get(self, idx):
+        # n_disc = np.random.randint(8, 10)
+        # rads = []
+        # mps = []
+        # for disc in range(n_disc):
+        #     radius = np.random.randint(max(self.shape) // 15, max(self.shape) // 10)
+        #     touching = True
+        #     while touching:
+        #         mp = np.array([np.random.randint(0 + radius, self.shape[0] - radius),
+        #                        np.random.randint(0 + radius, self.shape[1] - radius)])
+        #         touching = False
+        #         for other_rad, other_mp in zip(rads, mps):
+        #             diff = mp - other_mp
+        #             if (diff ** 2).sum() ** .5 <= radius + other_rad + 2:
+        #                 touching = True
+        #     rads.append(radius)
+        #     mps.append(mp)
+
+        # take static image
+        rads = self.rads
+        mps = self.mps
+
         data = np.zeros(shape=self.shape, dtype=np.float)
         gt = np.zeros(shape=self.shape, dtype=np.float)
         for y in range(self.shape[0]):
@@ -74,7 +96,8 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         # plt.imshow(data);plt.show()
         if self.no_suppix:
             raw = torch.from_numpy(data).float()
-            return torch.stack((torch.rand_like(raw), raw, torch.rand_like(raw))), torch.from_numpy(gt.astype(np.long))
+            return raw.unsqueeze(0), torch.from_numpy(gt.astype(np.long))
+            # return torch.stack((torch.rand_like(raw), raw, torch.rand_like(raw))), torch.from_numpy(gt.astype(np.long))
 
         affinities = affutils.get_naive_affinities(data, self.offsets)
         gt_affinities, _ = compute_affinities(gt == 1, self.offsets)

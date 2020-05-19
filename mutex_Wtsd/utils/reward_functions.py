@@ -90,18 +90,41 @@ class GraphDiceReward(object):
         super(GraphDiceReward, self).__init__()
         self.epsilon = 1
         self.env = env
+        self.class_weights = torch.tensor([1.0, 1.0])
+        self.reward_offset = torch.tensor([[-0.7], [-0.7]])
 
     def get(self, diff=None, actions=None, res_seg=None):
         # compute per channel Dice Coefficient
         input = torch.stack([1-self.env.state[0], self.env.state[0]], 0)
         target = torch.stack([self.env.gt_edge_weights == 0, self.env.gt_edge_weights == 1], 0).float()
-        intersect = (input * target)
-
-        intersect = intersect.sum(-1)
+        intersect = (input * target).sum(-1)
 
         # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)
         denominator = (input * input).sum(-1) + (target * target).sum(-1)
         dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
+        dice_score = dice_score * self.class_weights.to(dice_score.device)
 
-        reward = (input * dice_score.unsqueeze(-1)).sum(0)
-        return reward - 0.5
+        reward = ((torch.ones_like(input) * dice_score.unsqueeze(-1)) + self.reward_offset.to(dice_score.device)).sum(0)
+        return reward
+
+
+class FocalReward(object):
+    #  https://arxiv.org/pdf/1708.02002.pdf
+    def __init__(self, env):
+        super(FocalReward, self).__init__()
+        self.epsilon = 1
+        self.env = env
+        self.alpha = 0.75
+        self.gamma = 4
+        self.offset = 10
+        self.eps = 1e-10
+
+    def get(self, diff=None, actions=None, res_seg=None):
+        # compute per channel Dice Coefficient
+        target = torch.stack([self.env.gt_edge_weights == 0, self.env.gt_edge_weights == 1], 0).float()
+
+        p_t = (1-self.env.state[0]) * target[0] + self.env.state[0] * target[1]
+        fl = self.alpha * (1 - p_t) ** self.gamma * (torch.log(p_t + self.eps))
+
+        reward = fl + self.offset
+        return reward

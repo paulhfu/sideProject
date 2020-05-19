@@ -15,6 +15,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from tensorboardX import SummaryWriter
 import os
+import yaml
 from optimizers.adam import CstmAdam
 from agents.exploration_functions import ExponentialAverage, FollowLeadAvg, FollowLeadMin, RunningAverage, ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 import numpy as np
@@ -69,14 +70,14 @@ class AgentAcerTrainer(object):
         os.environ['MKL_NUM_THREADS'] = '1'
 
         # os.environ["CUDA_VISIBLE_DEVICES"] = "6"
-        assert torch.cuda.device_count() == 1
+        # assert torch.cuda.device_count() == 1
         torch.set_default_tensor_type('torch.FloatTensor')
         # Detect if we have a GPU available
         device = torch.device("cuda:0")
         torch.cuda.set_device(device)
 
         os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12358'
+        os.environ['MASTER_PORT'] = '12354'
         # os.environ['GLOO_SOCKET_IFNAME'] = 'eno1'
 
         # initialize the process group
@@ -113,12 +114,22 @@ class AgentAcerTrainer(object):
         # Gradient L2 normalisation
         nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
+        with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+            args_dict = yaml.full_load(info)
+            if args_dict is not None:
+                if 'lr' in args_dict:
+                    if self.args.lr != args_dict['lr']:
+                        print("lr changed from ", self.args.lr, " to ", args_dict['lr'], " at loss step ",
+                              self.global_writer_loss_count.value())
+                        self.args.lr = args_dict['lr']
+        self.args.lr = args_dict['lr']
         new_lr = self.args.lr
-        if self.args.min_lr != 0 and self.eps <= 0.25:
+        if self.args.min_lr != 0 and self.eps <= 0.6:
             # Linearly decay learning rate
-            new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) * (1 - (self.eps * 4))) # (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
-            adjust_learning_rate(optimizer, new_lr)
+            # new_lr = self.args.lr - ((self.args.lr - self.args.min_lr) * (1 - (self.eps * 2))) # (1 - max((self.args.T_max - self.global_count.value()) / self.args.T_max, 1e-32)))
+            new_lr = self.args.lr * 10 ** (-(0.6 - self.eps))
 
+        adjust_learning_rate(optimizer, new_lr)
         if writer is not None:
             writer.add_scalar("loss/learning_rate", new_lr, self.global_writer_loss_count.value())
 
@@ -180,7 +191,7 @@ class AgentAcerTrainer(object):
                 writer.add_scalar("loss/fe_warm_start", loss.item(), self.writer_idx_warmup_loss)
                 self.writer_idx_warmup_loss += 1
 
-    def agent_forward(self, env, model, state=None, grad=True):
+    def agent_forward(self, env, model, state=None, grad=True, post_input=False):
         with torch.set_grad_enabled(grad):
             if state is None:
                 state = env.state
@@ -188,7 +199,8 @@ class AgentAcerTrainer(object):
             return model(inp, sp_indices=env.sp_indices,
                          edge_index=env.edge_ids.to(model.module.device),
                          angles=env.edge_angles.to(model.module.device),
-                         edge_features_1d=env.edge_features.to(model.module.device))
+                         edge_features_1d=env.edge_features.to(model.module.device),
+                         round_n=env.counter, post_input=post_input)
 
     # Trains model
     def _step(self, memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=None):
@@ -305,7 +317,7 @@ class AgentAcerTrainer(object):
                        win_event_counter=self.global_win_event_count)
         # Create shared network
         model = GcnEdgeAngle1dPQV(self.args.n_raw_channels, self.args.n_embedding_features,
-                                  self.args.n_edge_features, self.args.n_actions, device)
+                                  self.args.n_edge_features, self.args.n_actions, device, writer=writer)
 
         if self.args.no_fe_extr_optim:
             for param in model.fe_ext.parameters():
@@ -354,21 +366,47 @@ class AgentAcerTrainer(object):
 
                 self.eps = self.eps_rule.apply(self.global_count.value(), quality)
                 env.stop_quality = self.stop_qual_rule.apply(self.global_count.value(), quality)
+
+                with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+                    args_dict = yaml.full_load(info)
+                    if args_dict is not None:
+                        if 'eps' in args_dict:
+                            if self.args.eps != args_dict['eps']:
+                                self.eps = args_dict['eps']
+                        if 'safe_model' in args_dict:
+                            self.args.safe_model = args_dict['safe_model']
+                        if 'add_noise' in args_dict:
+                            self.args.add_noise = args_dict['add_noise']
+
                 if writer is not None:
                     writer.add_scalar("step/epsilon", self.eps, env.writer_counter.value())
 
+                if self.args.safe_model:
+                    if rank == 0:
+                        if self.args.model_name_dest != "":
+                            torch.save(shared_model.state_dict(), os.path.join(self.save_dir, self.args.model_name_dest))
+                        else:
+                            torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
+
+
                 while not env.done:
+                    post_input = True if self.global_count.value() % 50 and env.counter == 0 else False
                     # Calculate policy and values
-                    policy_proba, q, v = self.agent_forward(env, shared_model, grad=False)
+                    policy_proba, q, v = self.agent_forward(env, shared_model, grad=False, post_input=post_input)
 
                     # Step
                     action, behav_policy_proba = self.get_action(policy_proba, q, v, 'off_uniform', waff_dis, device)
                     state_, reward, quality = env.execute_action(action)
 
+                    if self.args.add_noise:
+                        if self.global_count.value() > 110 and self.global_count.value() % 5:
+                            noise = torch.randn_like(reward) * 0.8
+                            reward = reward + noise
+
                     memory.push(state, action, reward, behav_policy_proba, env.done)
 
                     # Train the network
-                    self._step(memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=writer)
+                    # self._step(memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=writer)
 
                     # reward = self.args.reward_clip and min(max(reward, -1), 1) or reward  # Optionally clamp rewards
                     # done = done or episode_length >= self.args.max_episode_length  # Stop episodes at a max length
@@ -380,7 +418,7 @@ class AgentAcerTrainer(object):
 
                 while len(memory) > 0:
                     self._step(memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=writer)
-                    memory.pop(0)
+                    memory.clear()
 
         dist.barrier()
         if rank == 0:
