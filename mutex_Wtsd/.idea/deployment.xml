@@ -11,6 +11,24 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="emblGpu (1)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$/../mu-net" web="/" />
+            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping local="$PROJECT_DIR$/../scripts/slurm" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="emblGpu (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/projects/fewShotLearning/mu-net" local="$PROJECT_DIR$/../mu-net" web="/" />
+            <mapping deploy="/projects/fewShotLearning/mutexWtsd" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/projects/fewShotLearning/slurm" local="$PROJECT_DIR$/../scripts/slurm" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>

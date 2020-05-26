@@ -2,6 +2,7 @@ from models.simple_unet import UNet, MediumUNet
 import torch.nn as nn
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
 
 class SpVecsUnet(nn.Module):
@@ -38,7 +39,8 @@ class SpVecsUnet(nn.Module):
         sp_feat_vecs = torch.empty((len(sp_indices), features.shape[1])).to(self.device).float()
         for i, sp in enumerate(sp_indices):
             mass = len(sp)
+            assert mass > 0
             ival = torch.index_select(features.squeeze(), 1, sp[:, 0].long())
             sp_features = torch.gather(ival, 2, torch.stack([sp[:, 1].long() for i in range(ival.shape[0])], dim=0).unsqueeze(-1)).squeeze()
             sp_feat_vecs[i] = sp_features.sum(-1) / mass
-        return sp_feat_vecs
+        return sp_feat_vecs, features

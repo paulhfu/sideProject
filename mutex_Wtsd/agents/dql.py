@@ -1,4 +1,5 @@
 from data.disjoint_discs import MultiDiscSpGraphDset
+from data.disjoint_discs_balanced_graph import MultiDiscSpGraphDsetBalanced
 import torch
 from torch.optim import Adam
 import time
@@ -20,6 +21,7 @@ from agents.exploration_functions import ExponentialAverage, FollowLeadAvg, Foll
     ActionPathTreeNodes, ExpSawtoothEpsDecay, NaiveDecay, GaussianDecay, Constant
 import numpy as np
 from utils.general import adjust_learning_rate
+import matplotlib.pyplot as plt
 import yaml
 
 
@@ -81,7 +83,7 @@ class AgentDqlTrainer(object):
         torch.cuda.set_device(device)
 
         os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12355'
+        os.environ['MASTER_PORT'] = self.args.master_port
         # os.environ['GLOO_SOCKET_IFNAME'] = 'eno1'
 
         # initialize the process group
@@ -95,14 +97,14 @@ class AgentDqlTrainer(object):
         dist.destroy_process_group()
 
     def update_env_data(self, env, dloader, device):
-        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
+        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, affinities, gt = \
             next(iter(dloader))
-        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
-            edges.squeeze().to(device), edge_feat.squeeze()[:, 0:self.args.n_edge_features].to(
-                device), diff_to_gt.squeeze().to(device), \
+        angles = None
+        edges, edge_feat, gt_edge_weights, node_labeling, raw, nodes, affinities, gt = \
+            edges.squeeze().to(device), edge_feat.squeeze()[:, 0:self.args.n_edge_features].to(device), \
             gt_edge_weights.squeeze().to(device), node_labeling.squeeze().to(device), raw.squeeze().to(
                 device), nodes.squeeze().to(device), \
-            angles.squeeze().to(device), affinities.squeeze().numpy(), gt.squeeze()
+            affinities.squeeze().numpy(), gt.squeeze()
         env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes,
                         angles, affinities, gt)
 
@@ -176,14 +178,27 @@ class AgentDqlTrainer(object):
         return actions, behav_probs
 
     def fe_extr_warm_start(self, sp_feature_ext, writer=None):
-        dataloader = DataLoader(MultiDiscSpGraphDset(length=self.args.fe_warmup_iterations * 10), batch_size=10,
-                                shuffle=True, pin_memory=True)
+        dloader = DataLoader(MultiDiscSpGraphDsetBalanced(length=self.args.fe_warmup_iterations * 10), batch_size=10,
+                             shuffle=True, pin_memory=True)
+        # dloader = DataLoader(MultiDiscSpGraphDset(length=self.args.fe_warmup_iterations * 10), batch_size=10,
+        #                         shuffle=True, pin_memory=True)
         criterion = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
-        optimizer = torch.optim.Adam(sp_feature_ext.parameters())
-        for i, (data, gt) in enumerate(dataloader):
+        optimizer = torch.optim.Adam(sp_feature_ext.parameters(), lr=1e-3)
+        for i, (data, gt) in enumerate(dloader):
             data, gt = data.to(sp_feature_ext.device), gt.to(sp_feature_ext.device)
             pred = sp_feature_ext(data)
-            loss = criterion(pred, gt)
+
+            l2_reg = None
+            if self.args.l2_reg_params_weight != 0:
+                for W in list(sp_feature_ext.parameters()):
+                    if l2_reg is None:
+                        l2_reg = W.norm(2)
+                    else:
+                        l2_reg = l2_reg + W.norm(2)
+            if l2_reg is None:
+                l2_reg = 0
+
+            loss = criterion(pred, gt) + l2_reg * self.args.l2_reg_params_weight
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -191,22 +206,23 @@ class AgentDqlTrainer(object):
                 writer.add_scalar("loss/fe_warm_start", loss.item(), self.writer_idx_warmup_loss)
                 self.writer_idx_warmup_loss += 1
 
-    def agent_forward(self, env, model, state=None, grad=True, post_input=False):
+    def agent_forward(self, env, model, round_n, state=None, grad=True, post_input=False):
         with torch.set_grad_enabled(grad):
             if state is None:
                 state = env.state
-            inp = [obj.float().to(model.module.device) for obj in state + [env.raw + env.gt_seg, env.init_sp_seg]]
+            inp = [obj.float().to(model.module.device) for obj in state + [env.raw + env.gt_seg.to(env.raw.device), 
+                                                                           env.init_sp_seg]]
             return model(inp, sp_indices=env.sp_indices,
                          edge_index=env.edge_ids.to(model.module.device),
-                         angles=env.edge_angles.to(model.module.device),
+                         angles=env.edge_angles,
                          edge_features_1d=env.edge_features.to(model.module.device),
-                         round_n=env.counter, post_input=post_input)
+                         round_n=round_n, post_input=post_input)
 
     # Trains model
     def _step(self, memory, shared_model, env, optimizer, loss_weight, off_policy=True, writer=None):
         # starter code from https://github.com/Kaixhin/ACER/
         action_size = memory.memory[0].action.size(0)
-        policy_loss, value_loss = 0, 0
+        policy_loss, value_loss, cum_side_loss = 0, 0, 0
         l2_reg = None
 
         # Calculate n-step returns in forward view, stepping backwards from the last state
@@ -214,12 +230,13 @@ class AgentDqlTrainer(object):
         if t <= 1:
             return
         for state, action, reward, behav_policy_proba, done in reversed(memory.memory):
-            q = self.agent_forward(env, shared_model, state)
+            t -= 1
+            q, side_loss = self.agent_forward(env, shared_model, t, state)
             policy_proba = torch.softmax(q, -1)
             v = (q * policy_proba).sum(-1)
-            if done and t == len(memory):
+            if done and t == len(memory) - 1:
                 q_ret_t = torch.zeros_like(env.state[0]).to(shared_model.module.device)
-            elif t == len(memory):
+            elif t == len(memory) - 1:
                 q_ret_t = v.detach()
                 t -= 1
                 continue  # here q_ret is for current step, need one more step for estimation
@@ -236,11 +253,11 @@ class AgentDqlTrainer(object):
 
             # Value update dθ ← dθ - ∇θ∙1/2∙(Qret - Q(s_i, a_i; θ))^2
             q_t = q.gather(-1, action.unsqueeze(-1)).squeeze()
-            value_loss = value_loss + ((q_ret_t.sum() - q_t.sum()) ** 2 / 2).sum()  # Least squares loss
+            value_loss = value_loss + ((q_ret_t - q_t) ** 2 / 2).mean()  # Least squares loss
+            cum_side_loss = cum_side_loss + side_loss
 
             # Qret ← ρ¯_a_i∙(Qret - Q(s_i, a_i; θ)) + V(s_i; θ)
             q_ret_t = rho_t.clamp(max=self.args.trace_max) * (q_ret_t - q_t.detach()) + v.detach()
-            t -= 1
 
             if self.args.l2_reg_params_weight != 0:
                 for W in list(shared_model.parameters()):
@@ -258,7 +275,7 @@ class AgentDqlTrainer(object):
         # Update networks
         loss = (self.args.v_loss_weight * value_loss
                 + l2_reg * self.args.l2_reg_params_weight) \
-               / len(memory)
+               / len(memory) + cum_side_loss * 5
         torch.autograd.set_detect_anomaly(True)
         self._update_networks(loss, optimizer, shared_model, writer)
 
@@ -295,8 +312,12 @@ class AgentDqlTrainer(object):
 
         model.cuda(device)
         shared_model = DDP(model, device_ids=[model.device])
-        dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
+
+
+        dloader = DataLoader(MultiDiscSpGraphDsetBalanced(no_suppix=False, create=False), batch_size=1, shuffle=True, pin_memory=True,
                              num_workers=0)
+        # dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
+        #                      num_workers=0)
         # Create optimizer for shared network parameters with shared statistics
         # optimizer = CstmAdam(shared_model.parameters(), lr=self.args.lr, betas=self.args.Adam_betas,
         #                      weight_decay=self.args.Adam_weight_decay)
@@ -329,7 +350,7 @@ class AgentDqlTrainer(object):
                 # waff_dis = torch.softmax(env.edge_features[:, 0].squeeze() + 1e-30, dim=0)
                 # waff_dis = torch.softmax(env.gt_edge_weights + 0.5, dim=0)
                 waff_dis = torch.softmax(torch.ones_like(env.gt_edge_weights), dim=0)
-                loss_weight = torch.softmax(env.gt_edge_weights + .1, dim=0)
+                loss_weight = torch.softmax(env.gt_edge_weights + 1, dim=0)
                 env.reset()
                 state = [env.state[0].clone(), env.state[1].clone()]
 
@@ -360,8 +381,8 @@ class AgentDqlTrainer(object):
 
                 while not env.done:
                     # Calculate policy and values
-                    post_input = True if self.global_count.value() % 50 and env.counter == 0 else False
-                    q = self.agent_forward(env, shared_model, grad=False, post_input=post_input)
+                    post_input = True if (self.global_count.value() + 1) % 10 == 0 and env.counter == 0 else False
+                    q, _ = self.agent_forward(env, shared_model, env.counter, grad=False, post_input=post_input)
                     # Step
                     action, behav_policy_proba = self.get_action(q, 'off_uniform', waff_dis, device, writer)
                     state_, reward, quality = env.execute_action(action)
@@ -381,7 +402,7 @@ class AgentDqlTrainer(object):
                     state = state_
 
                 self.global_count.increment()
-                if self.args.eps_rule == "self_regulating" and quality <= 0:
+                if "self_reg" in self.args.eps_rule and quality <= 2:
                     break
 
                 while len(memory) > 0:
@@ -407,7 +428,7 @@ class AgentDqlTrainer(object):
                     env.stop_quality = 40
                     while not env.done:
                         # Calculate policy and values
-                        policy_proba, q, v = self.agent_forward(env, shared_model, grad=False)
+                        q, _ = self.agent_forward(env, shared_model, env.counter, grad=False)
                         action, behav_policy_proba = self.get_action(policy_proba, q, v, policy='off_uniform',
                                                                      device=device, writer=writer)
                         _, _ = env.execute_action(action, self.global_count.value())

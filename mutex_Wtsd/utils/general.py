@@ -4,6 +4,8 @@ import elf
 from torch import multiprocessing as mp
 import math
 import random
+from sklearn.decomposition import PCA
+
 
 # Global counter
 class Counter():
@@ -18,6 +20,7 @@ class Counter():
   def value(self):
     with self.lock:
       return self.val.value
+
 
 def get_all_arg_combos(grid, paths):
     key = random.choice(list(grid))
@@ -175,3 +178,20 @@ def collate_graphs(node_features, edge_features, edges, shuffle=False):
     for i in len(node_features):
         edges[i] += i
     return torch.stack(node_features), torch.stack(edges), torch.stack(edge_features)
+
+
+def _pca_project(embeddings):
+    assert embeddings.ndim == 3
+    # reshape (C, H, W) -> (C, H * W) and transpose
+    flattened_embeddings = embeddings.reshape(embeddings.shape[0], -1).transpose()
+    # init PCA with 3 principal components: one for each RGB channel
+    pca = PCA(n_components=3)
+    # fit the model with embeddings and apply the dimensionality reduction
+    flattened_embeddings = pca.fit_transform(flattened_embeddings)
+    # reshape back to original
+    shape = list(embeddings.shape)
+    shape[0] = 3
+    img = flattened_embeddings.transpose().reshape(shape)
+    # normalize to [0, 255]
+    img = 255 * (img - np.min(img)) / np.ptp(img)
+    return np.moveaxis(img.astype('uint8'), 0, -1)

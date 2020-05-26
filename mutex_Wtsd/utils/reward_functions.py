@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 
 class FullySupervisedReward(object):
@@ -104,7 +105,7 @@ class GraphDiceReward(object):
         dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
         dice_score = dice_score * self.class_weights.to(dice_score.device)
 
-        reward = ((torch.ones_like(input) * dice_score.unsqueeze(-1)) + self.reward_offset.to(dice_score.device)).sum(0)
+        reward = ((torch.ones_like(target) * dice_score.sum()) + self.reward_offset.to(dice_score.device)).sum(0)
         return reward
 
 
@@ -120,7 +121,6 @@ class FocalReward(object):
         self.eps = 1e-10
 
     def get(self, diff=None, actions=None, res_seg=None):
-        # compute per channel Dice Coefficient
         target = torch.stack([self.env.gt_edge_weights == 0, self.env.gt_edge_weights == 1], 0).float()
 
         p_t = (1-self.env.state[0]) * target[0] + self.env.state[0] * target[1]
@@ -128,3 +128,23 @@ class FocalReward(object):
 
         reward = fl + self.offset
         return reward
+
+
+class GraphDiceLoss(nn.Module):
+
+    def __init__(self):
+        super(GraphDiceLoss, self).__init__()
+        self.epsilon = 1
+        self.class_weights = torch.tensor([0.5, 0.5])
+
+    def forward(self, pred, tgt):
+        # compute per channel Dice Coefficient
+        input = torch.stack([1-pred, pred], 0)
+        target = torch.stack([tgt == 0, tgt == 1], 0).float()
+        intersect = (input * target).sum(-1)
+
+        # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)
+        denominator = (input * input).sum(-1) + (target * target).sum(-1)
+        dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
+        dice_score = (dice_score * self.class_weights.to(dice_score.device)).sum()
+        return 1 - dice_score

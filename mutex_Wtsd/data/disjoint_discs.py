@@ -55,26 +55,26 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         return self.length
 
     def get(self, idx):
-        # n_disc = np.random.randint(8, 10)
-        # rads = []
-        # mps = []
-        # for disc in range(n_disc):
-        #     radius = np.random.randint(max(self.shape) // 15, max(self.shape) // 10)
-        #     touching = True
-        #     while touching:
-        #         mp = np.array([np.random.randint(0 + radius, self.shape[0] - radius),
-        #                        np.random.randint(0 + radius, self.shape[1] - radius)])
-        #         touching = False
-        #         for other_rad, other_mp in zip(rads, mps):
-        #             diff = mp - other_mp
-        #             if (diff ** 2).sum() ** .5 <= radius + other_rad + 2:
-        #                 touching = True
-        #     rads.append(radius)
-        #     mps.append(mp)
+        n_disc = np.random.randint(25, 30)
+        rads = []
+        mps = []
+        for disc in range(n_disc):
+            radius = np.random.randint(max(self.shape) // 25, max(self.shape) // 20)
+            touching = True
+            while touching:
+                mp = np.array([np.random.randint(0 + radius, self.shape[0] - radius),
+                               np.random.randint(0 + radius, self.shape[1] - radius)])
+                touching = False
+                for other_rad, other_mp in zip(rads, mps):
+                    diff = mp - other_mp
+                    if (diff ** 2).sum() ** .5 <= radius + other_rad + 2:
+                        touching = True
+            rads.append(radius)
+            mps.append(mp)
 
         # take static image
-        rads = self.rads
-        mps = self.mps
+        # rads = self.rads
+        # mps = self.mps
 
         data = np.zeros(shape=self.shape, dtype=np.float)
         gt = np.zeros(shape=self.shape, dtype=np.float)
@@ -106,7 +106,7 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         affinities[self.sep_chnl:] *= -1
         affinities[self.sep_chnl:] += +1
         # affinities[:self.sep_chnl] /= 1.1
-        affinities[self.sep_chnl:] *= 1.007
+        affinities[self.sep_chnl:] *= 1.01
         affinities = (affinities - (affinities * gt_affinities)) + gt_affinities
 
         # affinities[self.sep_chnl:] *= -1
@@ -151,8 +151,10 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         noisy_affinities = np.random.rand(*affinities.shape)
         noisy_affinities = noisy_affinities.clip(0, 1)
         noisy_affinities = affinities
+
         edge_feat, neighbors = get_edge_features_1d(node_labeling, self.offsets, noisy_affinities)
         gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
+
         # affs = np.expand_dims(affinities, axis=1)
         # boundary_input = np.mean(affs, axis=0)
         # gt1 = gutils.multicut_from_probas(node_labeling.astype(np.float32), neighbors.astype(np.float32),
@@ -172,11 +174,12 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         nodes = torch.from_numpy(nodes.astype(np.float32))
         node_labeling = torch.from_numpy(node_labeling.astype(np.float32))
         gt_edge_weights = torch.from_numpy(gt_edge_weights.astype(np.float32))
-        diff_to_gt = (edge_feat[:, 0] - gt_edge_weights).abs().sum()
-        node_features, angles = get_stacked_node_data(nodes, edges, node_labeling, raw, size=[32, 32])
+        diff_to_gt = (edge_feat[:, 0] - gt_edge_weights).abs().sum().item()
+        # node_features, angles = get_stacked_node_data(nodes, edges, node_labeling, raw, size=[32, 32])
         edges = edges.t().contiguous()
         edges = torch.cat((edges, torch.stack((edges[1], edges[0]))), dim=1)
-        return edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, noisy_affinities, gt
+
+        return edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, noisy_affinities, gt
 
 
 def get_stacked_node_data(nodes, edges, segmentation, raw, size):

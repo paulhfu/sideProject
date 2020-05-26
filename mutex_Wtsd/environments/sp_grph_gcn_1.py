@@ -47,12 +47,12 @@ class SpGcnEnv(Environment):
 
         # self.get_rag_and_edge_feats(reward, self.state[0])
 
-        self.data_changed = torch.sum(torch.abs(self.state[0] - self.edge_features[:, 0]))
+        self.data_changed = torch.sum(torch.abs(self.state[0] - self.edge_features[:, 0])).cpu().item()
         penalize_change = 0
         if self.data_changed > self.penalize_diff_thresh or self.counter > self.args.max_episode_length:
             # penalize_change = (self.penalize_diff_thresh - self.data_changed) / np.prod(self.state.size()) * 10
             self.done = True
-            # reward -= 5
+            reward -= 1
             self.iteration += 1
         reward += (penalize_change * (actions != 0).float())
 
@@ -62,12 +62,12 @@ class SpGcnEnv(Environment):
         # check if finished
         quality = (self.state[0] - self.gt_edge_weights).squeeze().abs().sum().item()
         # print(quality)
-        # if quality < self.stop_quality:
-        #     # reward += 5
-        #     self.done = True
-        #     self.win = True
-        #     self.iteration += 1
-        #     self.win_event_counter.increment()
+        if quality < self.stop_quality:
+            reward += 5
+            self.done = True
+            self.win = True
+            self.iteration += 1
+            self.win_event_counter.increment()
         if self.writer is not None and self.done:
             self.writer.add_scalar("step/quality", quality, self.writer_counter.value())
             self.writer.add_scalar("step/stop_quality", self.stop_quality, self.writer_counter.value())

@@ -1,9 +1,7 @@
 import os
-from tensorboardX import SummaryWriter
 # os.environ["PYTHONUNBUFFERED"] = "1"
 # os.environ["MKL_NUM_THREADS"] = "1"
-# os.environ["OMP_NUM_THREADS"] = "1"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["OMP_NUM_THREADS"] = "1"
 import sys
 import time
 import copy
@@ -17,6 +15,7 @@ from trainers.train_acer import TrainACER
 from trainers.train_dql import TrainDql
 from trainers.train_offpac import TrainOffpac
 from trainers.train_offpac_2_models import TrainOffpac2M
+from trainers.train_naive_gcn import TrainNaiveGcn
 import argparse
 from argparse import Namespace
 from agents.tr_opposd_agent_gcn import OPPOSDAgentUnet
@@ -33,6 +32,7 @@ print(torch.__version__)
 parser = argparse.ArgumentParser(description='ACER')
 ## general
 parser.add_argument('--algorithm', type=str, default='offpac', help='Algorithm used for training')
+parser.add_argument('--master-port', type=str, default='12355', help='port num on localhost for icp')
 parser.add_argument('--cross-validate-hp', action='store_true', help='make gridsearch cv of hp')
 parser.add_argument('--no-save', action='store_true', help='dont save models')
 parser.add_argument('--test-score-only', action='store_true', help='no learning only validation')
@@ -57,8 +57,8 @@ parser.add_argument('--fe-warmup-batch-size', type=int, default=10, metavar='SIZ
 parser.add_argument('--no-fe-extr-optim', action='store_true', help='optimize feature extractor with ril loss')
 ## main training (env, trainer)
 parser.add_argument('--T-max', type=int, default=50, metavar='STEPS', help='Number of training steps')
-parser.add_argument('--t-max', type=int, default=5, metavar='STEPS', help='Max number of forward steps before update')
-parser.add_argument('--max-episode-length', type=int, default=15, metavar='LENGTH', help='Maximum episode length')
+parser.add_argument('--t-max', type=int, default=20, metavar='STEPS', help='Max number of forward steps before update')
+parser.add_argument('--max-episode-length', type=int, default=12, metavar='LENGTH', help='Maximum episode length')
 parser.add_argument('--eps-rule', type=str, default='gaussian', help='epsilon rule')
 parser.add_argument('--eps-final', type=float, default=0.005, metavar='eps', help='final epsilon')
 parser.add_argument('--eps-scaling', type=float, default=1, metavar='eps', help='final epsilon')
@@ -68,7 +68,7 @@ parser.add_argument('--stop-qual-final', type=float, default=0.001, metavar='eps
 parser.add_argument('--stop-qual-scaling', type=float, default=1, metavar='eps', help='final epsilon')
 parser.add_argument('--stop-qual-offset', type=float, default=5, metavar='eps', help='final epsilon')
 parser.add_argument('--stop-qual-ra-bw', type=float, default=20, metavar='eps', help='running average bandwidth')
-parser.add_argument('--stop-qual-ra-off', type=float, default=-5, metavar='eps', help='running average offset')
+parser.add_argument('--stop-qual-ra-off', type=float, default=-15, metavar='eps', help='running average offset')
 parser.add_argument('--reward-function', type=str, default='fully_supervised', help='Reward function')
 parser.add_argument('--action-agression', type=float, default=0.1, help='value by which one action changes state')
 ## acer continuous
@@ -89,7 +89,8 @@ parser.add_argument('--trust-region-threshold', type=float, default=0.5, metavar
 parser.add_argument('--trust-region-weight', type=float, default=2, metavar='lbd', help='Trust region regularization weight')
 parser.add_argument('--entropy-weight', type=float, default=1, metavar='entropy', help='Entropy regularisation weight')
 parser.add_argument('--max-gradient-norm', type=float, default=1000, metavar='VALUE', help='Gradient L2 norm clipping')
-parser.add_argument('--l2-reg-params-weight', type=float, default=0, metavar='VALUE', help='Gradient L2 weight')
+parser.add_argument('--l2-reg-params-weight', type=float, default=0.0
+                    , metavar='VALUE', help='Gradient L2 weight')
 parser.add_argument('--p-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
 parser.add_argument('--v-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
 ## Optimization
@@ -103,8 +104,7 @@ parser.add_argument('--safe-model', action='store_true', help='the model is save
 parser.add_argument('--add-noise', action='store_true', help='noise is added to the rewards')
 
 
-
-if __name__ == '__main__':
+def main():
     start_time = time.time()
     # test_model()
     # sp_fe_ae.main()
@@ -145,13 +145,16 @@ if __name__ == '__main__':
     if args.algorithm == 'offpac':
         trainer = TrainOffpac(args)
         score = trainer.train(start_time)
-    if args.algorithm == 'offpac2m':
+    elif args.algorithm == 'offpac2m':
         trainer = TrainOffpac2M(args)
         score = trainer.train(start_time)
-    if args.algorithm == 'retrace':
+    elif args.algorithm == 'retrace':
         trainer = TrainDql(args)
         score = trainer.train(start_time)
-    if 'acer' in args.algorithm:
+    elif args.algorithm == 'naive_gcn':
+        trainer = TrainNaiveGcn(args)
+        score = trainer.train()
+    elif 'acer' in args.algorithm:
         if not args.cross_validate_hp:
             trainer = TrainACER(args)
             score = trainer.train(start_time)
@@ -200,3 +203,9 @@ if __name__ == '__main__':
                     for k, v in best_params.items():
                         print(' ' * 26 + k + ': ' + str(v))
                         f.write(k + ' : ' + str(v) + '\n')
+    else:
+        assert False, "Unknown algorithm: " + args.algorithm
+
+
+if __name__ == '__main__':
+    main()

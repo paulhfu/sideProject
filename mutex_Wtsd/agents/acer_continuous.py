@@ -99,14 +99,15 @@ class AgentAcerContinuousTrainer(object):
         dist.destroy_process_group()
 
     def update_env_data(self, env, dloader, device):
-        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
+        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, affinities, gt = \
             next(iter(dloader))
-        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, angles, affinities, gt = \
+        angles = None
+        edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, affinities, gt = \
             edges.squeeze().to(device), edge_feat.squeeze()[:, 0:self.args.n_edge_features].to(
                 device), diff_to_gt.squeeze().to(device), \
             gt_edge_weights.squeeze().to(device), node_labeling.squeeze().to(device), raw.squeeze().to(
                 device), nodes.squeeze().to(device), \
-            angles.squeeze().to(device), affinities.squeeze().numpy(), gt.squeeze()
+            affinities.squeeze().numpy(), gt.squeeze()
         env.update_data(edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes,
                         angles, affinities, gt)
 
@@ -201,7 +202,7 @@ class AgentAcerContinuousTrainer(object):
             return model(inp, action,
                          sp_indices=env.sp_indices,
                          edge_index=env.edge_ids.to(model.module.device),
-                         angles=env.edge_angles.to(model.module.device),
+                         angles=env.edge_angles,
                          edge_features_1d=env.edge_features.to(model.module.device),
                          stats_only=stats_only,
                          round_n=env.counter,
