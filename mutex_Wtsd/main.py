@@ -11,6 +11,7 @@ from torch import multiprocessing as mp
 from trainers.q_learning import Qlearning
 from trainers.reinforce import Reinforce
 from trainers.a2c import A2c
+from trainers.train_sac import TrainSAC
 from trainers.train_acer import TrainACER
 from trainers.train_dql import TrainDql
 from trainers.train_offpac import TrainOffpac
@@ -27,84 +28,85 @@ from environments.mtxwtsd_unet import MtxWtsdEnvUnet
 from environments.mtxwtsd_mnm import MtxWtsdEnvMNM
 from utils.general import get_all_arg_combos
 import torch
+import hydra
 print(torch.__version__)
 
-parser = argparse.ArgumentParser(description='ACER')
-## general
-parser.add_argument('--algorithm', type=str, default='offpac', help='Algorithm used for training')
-parser.add_argument('--master-port', type=str, default='12355', help='port num on localhost for icp')
-parser.add_argument('--cross-validate-hp', action='store_true', help='make gridsearch cv of hp')
-parser.add_argument('--no-save', action='store_true', help='dont save models')
-parser.add_argument('--test-score-only', action='store_true', help='no learning only validation')
-parser.add_argument('--num-processes', type=int, default=1, metavar='N', help='Number of training async agents')
-parser.add_argument('--n-gpu-per-proc', type=int, default=1, metavar='STEPS', help='Number of gpus per process')
-parser.add_argument('--evaluate', action='store_true', help='evaluate existing model')
-parser.add_argument('--seed', type=int, default=123, help='Random seed')
-parser.add_argument('--target-dir', type=str, default='test1', help='Save folder')
-parser.add_argument('--base-dir', type=str, default='/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd', help='Save folder')
-## env and model defs
-parser.add_argument('--model-name', type=str, default="", metavar='PARAMS', help='Pretrained model (state dict)')
-parser.add_argument('--model-name-dest', type=str, default="agent_model", metavar='PARAMS', help='(state dict) is safed to')
-parser.add_argument('--n-edge-features', type=int, default=10, help='number of initial edge features')
-parser.add_argument('--n-actions', type=int, default=3, help='number of actions on edge')
-parser.add_argument('--lstm-hidden-state-size', type=int, default=128, metavar='SIZE', help='Hidden size of LSTM cell')
-## feature extractor
-parser.add_argument('--n-embedding-features', type=int, default=64, help='number of embedding feature channels')
-parser.add_argument('--n-raw-channels', type=int, default=1, help='number of channels in raw data')
-parser.add_argument('--fe-extr-warmup', action='store_true', help='pretrain the feature extractor with contrastive loss')
-parser.add_argument('--fe-warmup-iterations', type=int, default=100, metavar='SIZE', help='number of iterations of feature extrqactor warmup')
-parser.add_argument('--fe-warmup-batch-size', type=int, default=10, metavar='SIZE', help='batch size for feature extractor warmup')
-parser.add_argument('--no-fe-extr-optim', action='store_true', help='optimize feature extractor with ril loss')
-## main training (env, trainer)
-parser.add_argument('--T-max', type=int, default=50, metavar='STEPS', help='Number of training steps')
-parser.add_argument('--t-max', type=int, default=20, metavar='STEPS', help='Max number of forward steps before update')
-parser.add_argument('--max-episode-length', type=int, default=12, metavar='LENGTH', help='Maximum episode length')
-parser.add_argument('--eps-rule', type=str, default='gaussian', help='epsilon rule')
-parser.add_argument('--eps-final', type=float, default=0.005, metavar='eps', help='final epsilon')
-parser.add_argument('--eps-scaling', type=float, default=1, metavar='eps', help='final epsilon')
-parser.add_argument('--eps-offset', type=float, default=0, metavar='eps', help='final epsilon')
-parser.add_argument('--stop-qual-rule', type=str, default='gaussian', help='epsilon rule')
-parser.add_argument('--stop-qual-final', type=float, default=0.001, metavar='eps', help='final epsilon')
-parser.add_argument('--stop-qual-scaling', type=float, default=1, metavar='eps', help='final epsilon')
-parser.add_argument('--stop-qual-offset', type=float, default=5, metavar='eps', help='final epsilon')
-parser.add_argument('--stop-qual-ra-bw', type=float, default=20, metavar='eps', help='running average bandwidth')
-parser.add_argument('--stop-qual-ra-off', type=float, default=-15, metavar='eps', help='running average offset')
-parser.add_argument('--reward-function', type=str, default='fully_supervised', help='Reward function')
-parser.add_argument('--action-agression', type=float, default=0.1, help='value by which one action changes state')
-## acer continuous
-parser.add_argument('--b-sigma-final', type=float, default=0.0001, metavar='var', help='final behavior std dev')
-parser.add_argument('--b-sigma-scaling', type=float, default=4, metavar='var', help='scaling behavior std dev')
-parser.add_argument('--p-sigma', type=float, default=0.03, metavar='var', help='policy std dev')
-parser.add_argument('--exp-steps', type=int, default=5, help='Number of samples drawn to estimate expectation in loss')
-parser.add_argument('--density-eval-range', type=float, default=0.05, help='pdf evaluation range (value +- range) for retrieving probas')
-## Training specifics (agent)
-# parser.add_argument('--trace-decay', type=float, default=1, metavar='λ', help='Eligibility trace decay factor')
-parser.add_argument('--trust-region', action='store_true', help='use trust region gradient')
-parser.add_argument('--discount', type=float, default=0.5, metavar='γ', help='Discount factor')  # for acer this is 0.99
-parser.add_argument('--lbd', type=float, default=3, metavar='lambda', help='lambda elegibility trace parameter')
-parser.add_argument('--qnext-replace-cnt', type=int, default=10, help='number of learning steps after which qnext is updated')
-parser.add_argument('--trace-max', type=float, default=1.5, metavar='c', help='Importance weight truncation (max) value')
-parser.add_argument('--trust-region-decay', type=float, default=0.01, metavar='α', help='Average model weight averaging rate')
-parser.add_argument('--trust-region-threshold', type=float, default=0.5, metavar='δ', help='Trust region threshold value')
-parser.add_argument('--trust-region-weight', type=float, default=2, metavar='lbd', help='Trust region regularization weight')
-parser.add_argument('--entropy-weight', type=float, default=1, metavar='entropy', help='Entropy regularisation weight')
-parser.add_argument('--max-gradient-norm', type=float, default=1000, metavar='VALUE', help='Gradient L2 norm clipping')
-parser.add_argument('--l2-reg-params-weight', type=float, default=0.0
-                    , metavar='VALUE', help='Gradient L2 weight')
-parser.add_argument('--p-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
-parser.add_argument('--v-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
-## Optimization
-parser.add_argument('--min-lr', type=float, default=0.0, metavar='η', help='min Learning rate')
-parser.add_argument('--lr', type=float, default=0.00001, metavar='η', help='Learning rate')
-parser.add_argument('--Adam-weight-decay', type=float, default=0, metavar='wdec', help='Adam weight decay')
-parser.add_argument('--Adam-betas', type=float, default=[0.9, 0.999], metavar='β', help='Adam decay factors')
-## runtime ctl
-parser.add_argument('--eps', type=float, default=1.0, metavar='eps', help='epsilon for manual config during runtime')
-parser.add_argument('--safe-model', action='store_true', help='the model is saved')
-parser.add_argument('--add-noise', action='store_true', help='noise is added to the rewards')
+# parser = argparse.ArgumentParser(description='ACER')
+# ## general
+# parser.add_argument('--algorithm', type=str, default='offpac', help='Algorithm used for training')
+# parser.add_argument('--master-port', type=str, default='12355', help='port num on localhost for icp')
+# parser.add_argument('--cross-validate-hp', action='store_true', help='make gridsearch cv of hp')
+# parser.add_argument('--no-save', action='store_true', help='dont save models')
+# parser.add_argument('--test-score-only', action='store_true', help='no learning only validation')
+# parser.add_argument('--num-processes', type=int, default=1, metavar='N', help='Number of training async agents')
+# parser.add_argument('--n-gpu-per-proc', type=int, default=1, metavar='STEPS', help='Number of gpus per process')
+# parser.add_argument('--evaluate', action='store_true', help='evaluate existing model')
+# parser.add_argument('--seed', type=int, default=123, help='Random seed')
+# parser.add_argument('--target-dir', type=str, default='test1', help='Save folder')
+# parser.add_argument('--base-dir', type=str, default='/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd', help='Save folder')
+# ## env and model defs
+# parser.add_argument('--model-name', type=str, default="", metavar='PARAMS', help='Pretrained model (state dict)')
+# parser.add_argument('--model-name-dest', type=str, default="agent_model", metavar='PARAMS', help='(state dict) is safed to')
+# parser.add_argument('--n-edge-features', type=int, default=10, help='number of initial edge features')
+# parser.add_argument('--n-actions', type=int, default=3, help='number of actions on edge')
+# parser.add_argument('--lstm-hidden-state-size', type=int, default=128, metavar='SIZE', help='Hidden size of LSTM cell')
+# ## feature extractor
+# parser.add_argument('--n-embedding-features', type=int, default=16, help='number of embedding feature channels')
+# parser.add_argument('--n-raw-channels', type=int, default=1, help='number of channels in raw data')
+# parser.add_argument('--fe-extr-warmup', action='store_true', help='pretrain the feature extractor with contrastive loss')
+# parser.add_argument('--fe-warmup-iterations', type=int, default=100, metavar='SIZE', help='number of iterations of feature extrqactor warmup')
+# parser.add_argument('--fe-warmup-batch-size', type=int, default=10, metavar='SIZE', help='batch size for feature extractor warmup')
+# parser.add_argument('--no-fe-extr-optim', action='store_true', help='optimize feature extractor with ril loss')
+# ## main training (env, trainer)
+# parser.add_argument('--T-max', type=int, default=50, metavar='STEPS', help='Number of training steps')
+# parser.add_argument('--t-max', type=int, default=20, metavar='STEPS', help='Max number of forward steps before update')
+# parser.add_argument('--max-episode-length', type=int, default=12, metavar='LENGTH', help='Maximum episode length')
+# parser.add_argument('--eps-rule', type=str, default='gaussian', help='epsilon rule')
+# parser.add_argument('--eps-final', type=float, default=0.005, metavar='eps', help='final epsilon')
+# parser.add_argument('--eps-scaling', type=float, default=1, metavar='eps', help='final epsilon')
+# parser.add_argument('--eps-offset', type=float, default=0, metavar='eps', help='final epsilon')
+# parser.add_argument('--stop-qual-rule', type=str, default='gaussian', help='epsilon rule')
+# parser.add_argument('--stop-qual-final', type=float, default=0.001, metavar='eps', help='final epsilon')
+# parser.add_argument('--stop-qual-scaling', type=float, default=1, metavar='eps', help='final epsilon')
+# parser.add_argument('--stop-qual-offset', type=float, default=5, metavar='eps', help='final epsilon')
+# parser.add_argument('--stop-qual-ra-bw', type=float, default=20, metavar='eps', help='running average bandwidth')
+# parser.add_argument('--stop-qual-ra-off', type=float, default=-15, metavar='eps', help='running average offset')
+# parser.add_argument('--reward-function', type=str, default='fully_supervised', help='Reward function')
+# parser.add_argument('--action-agression', type=float, default=0.1, help='value by which one action changes state')
+# ## acer continuous
+# parser.add_argument('--b-sigma-final', type=float, default=0.0001, metavar='var', help='final behavior std dev')
+# parser.add_argument('--b-sigma-scaling', type=float, default=4, metavar='var', help='scaling behavior std dev')
+# parser.add_argument('--p-sigma', type=float, default=0.03, metavar='var', help='policy std dev')
+# parser.add_argument('--exp-steps', type=int, default=5, help='Number of samples drawn to estimate expectation in loss')
+# parser.add_argument('--density-eval-range', type=float, default=0.05, help='pdf evaluation range (value +- range) for retrieving probas')
+# ## Training specifics (agent)
+# # parser.add_argument('--trace-decay', type=float, default=1, metavar='λ', help='Eligibility trace decay factor')
+# parser.add_argument('--trust-region', action='store_true', help='use trust region gradient')
+# parser.add_argument('--discount', type=float, default=0.5, metavar='γ', help='Discount factor')  # for acer this is 0.99
+# parser.add_argument('--lbd', type=float, default=3, metavar='lambda', help='lambda elegibility trace parameter')
+# parser.add_argument('--qnext-replace-cnt', type=int, default=10, help='number of learning steps after which qnext is updated')
+# parser.add_argument('--trace-max', type=float, default=1.5, metavar='c', help='Importance weight truncation (max) value')
+# parser.add_argument('--trust-region-decay', type=float, default=0.01, metavar='α', help='Average model weight averaging rate')
+# parser.add_argument('--trust-region-threshold', type=float, default=0.5, metavar='δ', help='Trust region threshold value')
+# parser.add_argument('--trust-region-weight', type=float, default=2, metavar='lbd', help='Trust region regularization weight')
+# parser.add_argument('--entropy-weight', type=float, default=1, metavar='entropy', help='Entropy regularisation weight')
+# parser.add_argument('--max-gradient-norm', type=float, default=1000, metavar='VALUE', help='Gradient L2 norm clipping')
+# parser.add_argument('--l2-reg-params-weight', type=float, default=0.0
+#                     , metavar='VALUE', help='Gradient L2 weight')
+# parser.add_argument('--p-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
+# parser.add_argument('--v-loss-weight', type=float, default=1, metavar='VALUE', help='Gradient L2 weight')
+# ## Optimization
+# parser.add_argument('--min-lr', type=float, default=0.0, metavar='η', help='min Learning rate')
+# parser.add_argument('--lr', type=float, default=0.00001, metavar='η', help='Learning rate')
+# parser.add_argument('--Adam-weight-decay', type=float, default=0, metavar='wdec', help='Adam weight decay')
+# parser.add_argument('--Adam-betas', type=float, default=[0.9, 0.999], metavar='β', help='Adam decay factors')
+# ## runtime ctl
+# parser.add_argument('--eps', type=float, default=1.0, metavar='eps', help='epsilon for manual config during runtime')
+# parser.add_argument('--safe-model', action='store_true', help='the model is saved')
+# parser.add_argument('--add-noise', action='store_true', help='noise is added to the rewards')
 
-
-def main():
+@hydra.main(config_path="/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/config")
+def main(cfg):
     start_time = time.time()
     # test_model()
     # sp_fe_ae.main()
@@ -140,7 +142,7 @@ def main():
 
     # q_learning(dloader_mult_discs, rootPath, args, learn=True)
     print('visible gpus: ', torch.cuda.device_count())
-    args = parser.parse_args()
+    args = cfg.general
     mp.set_start_method('spawn')
     if args.algorithm == 'offpac':
         trainer = TrainOffpac(args)
@@ -154,6 +156,9 @@ def main():
     elif args.algorithm == 'naive_gcn':
         trainer = TrainNaiveGcn(args)
         score = trainer.train()
+    elif "sac" in args.algorithm:
+        trainer = TrainSAC(cfg.sac, args)
+        score = trainer.train(start_time)
     elif 'acer' in args.algorithm:
         if not args.cross_validate_hp:
             trainer = TrainACER(args)

@@ -224,6 +224,12 @@ class MultiDiscSpGraphDsetBalanced(tg.data.Dataset):
         if self.no_suppix:
             raw = torch.from_numpy(raw).float()
             return raw.unsqueeze(0), torch.from_numpy(gt.astype(np.long))
+        if self.no_rl:
+            raw = torch.from_numpy(raw).float()
+            gt_edge_weights = torch.from_numpy(gt_edge_weights.astype(np.long))
+            return raw.unsqueeze(0), torch.from_numpy(gt.astype(np.long)), gt_edge_weights
+
+        print('imbalance: ', abs(gt_edge_weights.sum() - (len(gt_edge_weights) / 2)))
 
         return edges, torch.from_numpy(edge_feat).float(), diff_to_gt, torch.from_numpy(gt_edge_weights), \
                torch.from_numpy(node_labeling), torch.from_numpy(raw).float(), torch.from_numpy(nodes), \

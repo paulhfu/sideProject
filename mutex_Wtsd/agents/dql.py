@@ -66,7 +66,7 @@ class AgentDqlTrainer(object):
             self.eps_rule = FollowLeadAvg(1.5 * (args.stop_qual_scaling + args.stop_qual_offset), 2, 1)
         elif self.args.eps_rule == "self_reg_exp_avg":
             self.args.T_max = np.inf
-            self.eps_rule = ExponentialAverage(1.5 * (args.stop_qual_scaling + args.stop_qual_offset), 0.9, 1)
+            self.eps_rule = ExponentialAverage(1 * (args.stop_qual_scaling + args.stop_qual_offset), 0.9, 1)
         else:
             self.eps_rule = NaiveDecay(self.eps, 0.00005, 1000, 1)
 
@@ -120,7 +120,7 @@ class AgentDqlTrainer(object):
         # Gradient L2 normalisation
         nn.utils.clip_grad_norm_(shared_model.parameters(), self.args.max_gradient_norm)
         optimizer.step()
-        with open(os.path.join(self.save_dir, 'config.yaml')) as info:
+        with open(os.path.join(self.save_dir, 'runtime_cfg.yaml')) as info:
             args_dict = yaml.full_load(info)
             if args_dict is not None:
                 if 'lr' in args_dict:
@@ -178,12 +178,12 @@ class AgentDqlTrainer(object):
         return actions, behav_probs
 
     def fe_extr_warm_start(self, sp_feature_ext, writer=None):
-        dloader = DataLoader(MultiDiscSpGraphDsetBalanced(length=self.args.fe_warmup_iterations * 10), batch_size=10,
-                             shuffle=True, pin_memory=True)
-        # dloader = DataLoader(MultiDiscSpGraphDset(length=self.args.fe_warmup_iterations * 10), batch_size=10,
-        #                         shuffle=True, pin_memory=True)
+        # dloader = DataLoader(MultiDiscSpGraphDsetBalanced(length=self.args.fe_warmup_iterations * 10), batch_size=10,
+        #                      shuffle=True, pin_memory=True)
+        dloader = DataLoader(MultiDiscSpGraphDset(length=self.args.fe_warmup_iterations * 10), batch_size=10,
+                                shuffle=True, pin_memory=True)
         criterion = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
-        optimizer = torch.optim.Adam(sp_feature_ext.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(sp_feature_ext.parameters(), lr=2e-3)
         for i, (data, gt) in enumerate(dloader):
             data, gt = data.to(sp_feature_ext.device), gt.to(sp_feature_ext.device)
             pred = sp_feature_ext(data)
@@ -314,10 +314,10 @@ class AgentDqlTrainer(object):
         shared_model = DDP(model, device_ids=[model.device])
 
 
-        dloader = DataLoader(MultiDiscSpGraphDsetBalanced(no_suppix=False, create=False), batch_size=1, shuffle=True, pin_memory=True,
-                             num_workers=0)
-        # dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
+        # dloader = DataLoader(MultiDiscSpGraphDsetBalanced(no_suppix=False, create=False), batch_size=1, shuffle=True, pin_memory=True,
         #                      num_workers=0)
+        dloader = DataLoader(MultiDiscSpGraphDset(no_suppix=False), batch_size=1, shuffle=True, pin_memory=True,
+                             num_workers=0)
         # Create optimizer for shared network parameters with shared statistics
         # optimizer = CstmAdam(shared_model.parameters(), lr=self.args.lr, betas=self.args.Adam_betas,
         #                      weight_decay=self.args.Adam_weight_decay)
@@ -328,9 +328,9 @@ class AgentDqlTrainer(object):
             fe_extr.cuda(device)
             self.fe_extr_warm_start(fe_extr, writer=writer)
             shared_model.module.fe_ext.load_state_dict(fe_extr.state_dict())
-            if self.args.model_name == "":
+            if self.args.model_name == "" and not self.args.no_save:
                 torch.save(shared_model.state_dict(), os.path.join(self.save_dir, 'agent_model'))
-            else:
+            elif not self.args.no_save:
                 torch.save(shared_model.state_dict(), os.path.join(self.save_dir, self.args.model_name))
 
         dist.barrier()
@@ -357,8 +357,8 @@ class AgentDqlTrainer(object):
                 self.eps = self.eps_rule.apply(self.global_count.value(), quality)
                 env.stop_quality = self.stop_qual_rule.apply(self.global_count.value(), quality)
 
-                with open(os.path.join(self.save_dir, 'config.yaml')) as info:
-                    args_dict = yaml.full_load(info)
+                with open(os.path.join(self.save_dir, 'runtime_cfg.yaml')) as info:
+                    args_dict = yaml.load(info, Loader=yaml.Loader)
                     if args_dict is not None:
                         if 'eps' in args_dict:
                             if self.args.eps != args_dict['eps']:
@@ -371,7 +371,7 @@ class AgentDqlTrainer(object):
                 if writer is not None:
                     writer.add_scalar("step/epsilon", self.eps, env.writer_counter.value())
 
-                if self.args.safe_model:
+                if self.args.safe_model and not self.args.no_save:
                     if rank == 0:
                         if self.args.model_name_dest != "":
                             torch.save(shared_model.state_dict(),

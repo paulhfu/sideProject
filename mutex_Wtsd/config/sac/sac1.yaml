@@ -1,0 +1,26 @@
+sac:
+  num_seed_steps: 1
+  obs_dim: ??? # to be specified later
+  action_dim: ??? # to be specified later
+  action_range: ??? # to be specified later
+  device: "cuda:0"
+  critic_cfg: ${double_q_critic}
+  actor_cfg: ${diag_gaussian_actor}
+  discount: 0.99
+  init_temperature: 0.03
+  temperature_regulation: optimized #constant, follow_quality, optimized
+  alpha_lr: 1e-3
+  alpha_betas: [0.9, 0.999]
+  actor_lr: 1e-4
+  actor_betas: [0.9, 0.999]
+  actor_update_frequency: 1
+  critic_lr: 1e-4
+  critic_betas: [0.9, 0.999]
+  critic_tau: 0.005
+  critic_target_update_frequency: 2
+  batch_size: 20
+
+  MC_DQL: false # monte carlo learning for the critic
+
+  diag_gaussian_actor:
+    log_std_bounds: [-5, 2]

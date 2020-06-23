@@ -20,8 +20,9 @@ import multiprocessing
 
 
 class MultiDiscSpGraphDset(tg.data.Dataset):
-    def __init__(self, no_suppix=True, length=50000, shape=(128, 128), radius=72):
+    def __init__(self, no_suppix=True, length=50000, shape=(128, 128), radius=72, less=False):
         self.mp = (56, 56)
+        self.less = less
         self.length = length
         self.shape = shape
         self.no_suppix = no_suppix
@@ -55,11 +56,11 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         return self.length
 
     def get(self, idx):
-        n_disc = np.random.randint(25, 30)
+        n_disc = np.random.randint(8, 10)
         rads = []
         mps = []
         for disc in range(n_disc):
-            radius = np.random.randint(max(self.shape) // 25, max(self.shape) // 20)
+            radius = np.random.randint(max(self.shape) // 18, max(self.shape) // 15)
             touching = True
             while touching:
                 mp = np.array([np.random.randint(0 + radius, self.shape[0] - radius),
@@ -155,6 +156,15 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         edge_feat, neighbors = get_edge_features_1d(node_labeling, self.offsets, noisy_affinities)
         gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
 
+        if self.less:
+            raw = torch.from_numpy(data).float()
+            node_labeling = torch.from_numpy(node_labeling.astype(np.float32))
+            gt_edge_weights = torch.from_numpy(gt_edge_weights.astype(np.long))
+            edges = torch.from_numpy(neighbors.astype(np.long))
+            edges = edges.t().contiguous()
+            edges = torch.cat((edges, torch.stack((edges[1], edges[0]))), dim=1)
+            return raw.unsqueeze(0), node_labeling, torch.from_numpy(gt.astype(np.long)), gt_edge_weights, edges
+
         # affs = np.expand_dims(affinities, axis=1)
         # boundary_input = np.mean(affs, axis=0)
         # gt1 = gutils.multicut_from_probas(node_labeling.astype(np.float32), neighbors.astype(np.float32),
@@ -178,6 +188,8 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         # node_features, angles = get_stacked_node_data(nodes, edges, node_labeling, raw, size=[32, 32])
         edges = edges.t().contiguous()
         edges = torch.cat((edges, torch.stack((edges[1], edges[0]))), dim=1)
+
+        # print('imbalance: ', abs(gt_edge_weights.sum() - (len(gt_edge_weights) / 2)))
 
         return edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, noisy_affinities, gt
 

@@ -9,6 +9,7 @@ from torch.autograd import grad
 from torch.autograd import Variable
 import numpy as np
 from torch.distributions.utils import _standard_normal, broadcast_all
+from utils.normals import _norm_cdf, _snorm_pdf, _norm_icdf, _norm_pdf, _snorm_cdf
 
 class TruncNorm(Distribution):
     """
@@ -35,35 +36,36 @@ class TruncNorm(Distribution):
         # assert all(scale >= a) and all(scale <= b)
         self._loc, self._scale = broadcast_all(loc, scale)
         self._a, self._b = a, b
-        self._eval_range = eval_range
         if isinstance(loc, Number) and isinstance(scale, Number):
             batch_shape = torch.Size()
         else:
             batch_shape = self._loc.size()
-        super(TruncNorm, self).__init__(batch_shape, 1)
-
-        # do the transformations
-        self._alpha, self._beta = (a - self._loc) / self._scale, (b - self._loc) / self._scale
-
-        # keep this for sampling
-        self._rvs = truncnorm(self._alpha.detach().cpu().numpy(), self._beta.detach().cpu().numpy(),
-                              loc=self._loc.detach().cpu().numpy(), scale=self._scale.detach().cpu().numpy())
-
+        super(TruncNorm, self).__init__(batch_shape)
 
         self._entrpy = None
         self._mean = None
         self._std = None
         self._var = None
 
+        self._cap_psi_a = _norm_cdf(self._loc, self._scale, self._a)
+        self._psi_a = _norm_pdf(self._loc, self._scale, self._a)
+        self._cap_psi_b = _norm_cdf(self._loc, self._scale, self._b)
+        self._psi_b = _norm_pdf(self._loc, self._scale, self._b)
+        self._cap_z = self._cap_psi_b - self._cap_psi_a
+
+        self._alpha = (self._a - self._loc) / self._scale
+        self._beta = (self._b - self._loc) / self._scale
         self._cap_psi_alpha = _snorm_cdf(self._alpha)
         self._psi_alpha = _snorm_pdf(self._alpha)
+        self._cap_psi_beta = _snorm_cdf(self._beta)
         self._psi_beta = _snorm_pdf(self._beta)
-        self._cap_z = _snorm_cdf(self._beta) - self._cap_psi_alpha
+
 
         # create variables for gradient computations
         self._loc_with_grad = Variable(self._loc.detach().clone(), requires_grad=True)
-        self._alpha_with_grad, self._beta_with_grad = (a - self._loc_with_grad) / self._scale, (b - self._loc_with_grad) / self._scale
-        self._cap_z_with_grad = _snorm_cdf(self._beta_with_grad) - _snorm_cdf(self._alpha_with_grad)
+        self._scale_with_grad = Variable(self._scale.detach().clone(), requires_grad=True)
+        self._cap_z_with_grad = _norm_cdf(self._loc_with_grad, self._scale_with_grad, self._b) - \
+                                _norm_cdf(self._loc_with_grad, self._scale_with_grad, self._a)
 
     def _zeta(self, value):
         return (value - self._loc) / self._scale
@@ -103,7 +105,8 @@ class TruncNorm(Distribution):
         Returns the mean of the distribution.
         """
         if self._mean is None:
-            self._mean = self._loc + self._scale * (self._psi_alpha - self._psi_beta) / self._cap_z
+            self._mean = self._loc - self._scale * (self._psi_beta - self._psi_alpha) / \
+                         (self._cap_psi_beta - self._cap_psi_a)
         return self._mean
 
     @property
@@ -112,8 +115,10 @@ class TruncNorm(Distribution):
         Returns the variance of the distribution.
         """
         if self._var is None:
-            self._var = (self._scale ** 2) * (1 + ((self._psi_alpha - self._psi_beta) / self._cap_z) -
-                                              ((self._psi_alpha - self._psi_beta) / self._cap_z) ** 2)
+            self._var = (self._scale ** 2) * (1 - ((self._beta * self._psi_beta - self._alpha * self._psi_alpha) /
+                                                   (self._cap_psi_beta - self._cap_psi_a)) -
+                                              ((self._psi_beta - self._psi_alpha) /
+                                               (self._cap_psi_beta - self._cap_psi_a)) ** 2)
         return self._var
 
     @property
@@ -121,62 +126,56 @@ class TruncNorm(Distribution):
         """
         Returns the standard deviation of the distribution.
         """
-        if self._var is None:
-            self._var = self._scale ** 2 (1 + ((self._psi_alpha - self._psi_beta) / self._cap_z) -
-                                          ((self._psi_alpha - self._psi_beta) / self._cap_z) ** 2)
-        return torch.sqrt(self._var)
+        if self._std is None:
+            self._std = torch.sqrt(self.variance)
+        return self._std
 
     def sample(self, size=torch.Size()):
         """
         Generates a sample_shape shaped sample or sample_shape shaped batch of
         samples if the distribution parameters are batched. For now this wraps a scipy function
         """
-        # TODO implement https://arxiv.org/pdf/1201.6140.pdf
-        #  (FAST  SIMULATION  OF  TRUNCATED  GAUSSIANDISTRIBUTIONS(NICOLAS CHOPIN, ENSAE-CREST))
-
-        return torch.as_tensor(self._rvs.rvs(), device=self._loc.device, dtype=self._loc.dtype)
-
-    def rsample(self, sample_shape=torch.Size()):
-        # TODO this is actually for non-trunc normal...
-        shape = self._extended_shape(sample_shape)
-        eps = _standard_normal(shape, dtype=self._loc.dtype, device=self._loc.device)
-        sample = self.mean + eps * torch.sqrt(self.variance)
-        while not all(self._a <= sample <= self._b):
-            sample = self.mean + eps * torch.sqrt(self.variance)
+        # @TODO batch processing
+        p = torch.rand_like(self._loc)
+        sample = self.icdf(p)
         return sample
 
-    def prob(self, value):
-        """
-        Returns the cdf function evaluated at
-        `value2` - 'value1'.
+    def rsample(self):
+        try:
+            assert all(self._a < self.mean) and all(self._b > self.mean)
+        except:
+            j=1
 
-        Args:
-            value1 (Tensor):
-            value2 (Tensor):
-        """
-        if not (torch.is_tensor(value) or isinstance(value, Number)):
-            raise ValueError('Input arguments must all be instances of numbers.Number or torch.tensor.')
-        if isinstance(value, Number) or value.dim() == 0:
-            assert self._a <= value <= self._b, "only values in support set are handled"
-            value = torch.tensor(value)
-        else:
-            assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
+        a = (self._a - self.mean.detach()) / self.stddev.detach()
+        b = (self._b - self.mean.detach()) / self.stddev.detach()
 
-        value1, value2 = (value - self._eval_range).clamp(max=self._b, min=self._a), \
-                         (value + self._eval_range).clamp(max=self._b, min=self._a)
-        return self.cdf(value2) - self.cdf(value1)
+        try:
+            assert all(a<=b)
+        except:
+            j=1
 
+        loc, scale = torch.zeros_like(self._loc), torch.ones_like(self._scale)
+        p = torch.rand_like(self._loc)
+        eps = self.rsmpl_icdf(loc, scale, a, b, p)
+        sample = self.mean + eps * self.stddev
+
+        try:
+            assert all(sample >= self._a) and all(sample <= self._b)
+        except:
+            j=1
+
+        return sample
 
     def log_prob(self, value):
         """
         Returns the log of the cdf function evaluated at
-        `value2` - 'value1'.
+        value.
 
         Args:
-            value1 (Tensor):
-            value2 (Tensor):
+            value (Tensor)
         """
-        return torch.log(self.prob(value) + 1e-40)  # add number to prevent -inf values
+        return (self.pdf(value) + 1e-40).log()
+        # return torch.log(self.prob(value) + 1e-40)  # add number to prevent -inf values
 
     def cdf(self, value):
         """
@@ -192,8 +191,45 @@ class TruncNorm(Distribution):
             assert self._a <= value <= self._b, "only values in support set are handled"
         else:
             assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
-        value = self._zeta(value)
-        return (_snorm_cdf(value) - self._cap_psi_alpha) / self._cap_z
+        return (_norm_cdf(self._loc, self._scale, value) - self._cap_psi_alpha) / self._cap_z
+
+    def icdf(self, prob):
+        """
+        Returns the inverse cumulative distribution function evaluated at
+        `value`.
+
+        Args:
+            prob (Tensor):
+        """
+        if not (torch.is_tensor(prob) or isinstance(prob, Number)):
+            raise ValueError('Input arguments must all be instances of numbers.Number or torch.tensor.')
+        if isinstance(prob, Number) or prob.dim() == 0:
+            assert 0 <= prob <= 1, "only values in support set are handled"
+        else:
+            assert all(0 <= prob.view(-1)) and all(prob.view(-1) <= 1), "only values in support set are handled"
+
+        arg = self._cap_psi_a + prob * self._cap_z
+        cd = _norm_icdf(self._loc, self._scale, arg)
+        return cd
+
+    def rsmpl_icdf(self, loc, scale, a, b, prob):
+        """
+        Returns the inverse cumulative distribution function evaluated at
+        `value`.
+
+        Args:
+            prob (Tensor):
+        """
+        if not (torch.is_tensor(prob) or isinstance(prob, Number)):
+            raise ValueError('Input arguments must all be instances of numbers.Number or torch.tensor.')
+        if isinstance(prob, Number) or prob.dim() == 0:
+            assert 0 <= prob <= 1, "only values in support set are handled"
+        else:
+            assert all(0 <= prob.view(-1)) and all(prob.view(-1) <= 1), "only values in support set are handled"
+
+        arg = _norm_cdf(loc, scale, a) + prob * (_norm_cdf(loc, scale, b) - _norm_cdf(loc, scale, a))
+        cd = _norm_icdf(loc, scale, arg)
+        return cd
 
     def pdf(self, value):
         """
@@ -210,8 +246,7 @@ class TruncNorm(Distribution):
         else:
             assert all(self._a <= value.view(-1)) and all(value.view(-1) <= self._b), "only values in support set are handled"
 
-        value = self._zeta(value)
-        return _snorm_pdf(value) / (self._cap_z * self._scale).detach()
+        return _norm_pdf(self._loc, self._scale, value) / self._cap_z
 
     def grad_pdf_mu(self, value):
         """
@@ -257,14 +292,6 @@ class TruncNorm(Distribution):
         plt.ylabel('truncnorm cdf')
         plt.show()
 
-
-def _snorm_cdf(value):
-    """cdf of standard normal"""
-    return 0.5 * (1 + torch.erf(value / math.sqrt(2)))
-
-def _snorm_pdf(value):
-    """pdf of standard normal"""
-    return torch.exp((-(value ** 2)) / 2) / (np.sqrt(2 * np.pi))
 
 
 if __name__ == "__main__":

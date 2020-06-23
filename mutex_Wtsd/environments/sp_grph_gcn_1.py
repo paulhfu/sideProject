@@ -49,25 +49,26 @@ class SpGcnEnv(Environment):
 
         self.data_changed = torch.sum(torch.abs(self.state[0] - self.edge_features[:, 0])).cpu().item()
         penalize_change = 0
-        if self.data_changed > self.penalize_diff_thresh or self.counter > self.args.max_episode_length:
+        quality = (self.state[0] - self.gt_edge_weights).squeeze().abs().sum().item()
+        if self.counter > self.args.max_episode_length:
             # penalize_change = (self.penalize_diff_thresh - self.data_changed) / np.prod(self.state.size()) * 10
+
+            if quality < self.stop_quality:
+                reward += 2
+                self.win = True
+            else:
+                reward -= 1
+
             self.done = True
-            reward -= 1
             self.iteration += 1
+            self.iteration += 1
+            self.win_event_counter.increment()
+
         reward += (penalize_change * (actions != 0).float())
 
         total_reward = torch.sum(reward).item()
         self.counter += 1
 
-        # check if finished
-        quality = (self.state[0] - self.gt_edge_weights).squeeze().abs().sum().item()
-        # print(quality)
-        if quality < self.stop_quality:
-            reward += 5
-            self.done = True
-            self.win = True
-            self.iteration += 1
-            self.win_event_counter.increment()
         if self.writer is not None and self.done:
             self.writer.add_scalar("step/quality", quality, self.writer_counter.value())
             self.writer.add_scalar("step/stop_quality", self.stop_quality, self.writer_counter.value())
@@ -99,8 +100,8 @@ class SpGcnEnv(Environment):
         self.edge_ids = edge_ids
         self.gt_edge_weights = gt_edge_weights
         self.edge_angles = angles
-        self.state = [self.edge_features[:, 0].clone(), None]
-        self.state = [self.edge_features[:, 0], self.get_current_soln()]
+        self.state = [torch.ones_like(gt_edge_weights) / 2, None]
+        self.state = [torch.ones_like(gt_edge_weights) / 2, self.get_current_soln()]
 
     def show_current_soln(self):
         affs = np.expand_dims(self.affinities, axis=1)

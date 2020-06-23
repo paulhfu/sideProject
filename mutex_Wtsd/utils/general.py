@@ -4,6 +4,7 @@ import elf
 from torch import multiprocessing as mp
 import math
 import random
+import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 
@@ -180,6 +181,11 @@ def collate_graphs(node_features, edge_features, edges, shuffle=False):
     return torch.stack(node_features), torch.stack(edges), torch.stack(edge_features)
 
 
+def soft_update_params(net, target_net, tau):
+    for param, target_param in zip(net.parameters(), target_net.parameters()):
+        target_param.data.copy_(tau * param.data +
+                                (1 - tau) * target_param.data)
+
 def _pca_project(embeddings):
     assert embeddings.ndim == 3
     # reshape (C, H, W) -> (C, H * W) and transpose
@@ -195,3 +201,42 @@ def _pca_project(embeddings):
     # normalize to [0, 255]
     img = 255 * (img - np.min(img)) / np.ptp(img)
     return np.moveaxis(img.astype('uint8'), 0, -1)
+
+
+def _pca_project_1d(embeddings):
+    assert embeddings.ndim == 2
+    # reshape (C, H, W) -> (C, H * W) and transpose
+    pca = PCA(n_components=3)
+    # fit the model with embeddings and apply the dimensionality reduction
+    flattened_embeddings = pca.fit_transform(embeddings)
+    # reshape back to original
+    return flattened_embeddings.transpose()
+
+
+def plt_bar_plot(values, labels, colors=['#cd025c', '#032f3e', '#b635aa', '#e67716', '#e09052']):
+    """
+    grouped bars with each group in first dim of values and hight in second dim
+    :param values:
+    :return: plt figure
+    """
+    plt.clf()
+    fig = plt.figure(frameon=False)
+    ax = fig.add_axes([0, 0, 1, 1])
+
+    # set width of bar
+    barWidth = 1 / (values.shape[0] + 1)
+    r = np.arange(values.shape[1])
+
+    for idx, bars in enumerate(values):
+        ax.bar(r, bars, color=colors[idx], width=barWidth, edgecolor='white', label=labels[idx])
+        r = [x + barWidth for x in r]
+    ax.legend()
+
+    return fig
+
+def set_seed_everywhere(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)

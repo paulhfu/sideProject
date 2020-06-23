@@ -2,7 +2,7 @@ import torch
 from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
 import torch.nn.functional as F
 import torch.nn as nn
-from models.sp_embed_unet import SpVecsUnet
+from models.sp_embed_unet import SpVecsUnet, SpVecsUnetGcn
 import matplotlib.pyplot as plt
 from utils.general import _pca_project
 # import gpushift

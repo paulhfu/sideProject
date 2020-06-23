@@ -21,20 +21,17 @@ class TrainDql(object):
             os.makedirs(save_dir)
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        if os.path.exists(os.path.join(save_dir, 'config.yaml')):
-            os.remove(os.path.join(save_dir, 'config.yaml'))
-        print(' ' * 26 + 'Options')
+        if os.path.exists(os.path.join(save_dir, 'runtime_cfg.yaml')):
+            os.remove(os.path.join(save_dir, 'runtime_cfg.yaml'))
 
-        # Saving parameters
-        with open(os.path.join(save_dir, 'params.txt'), 'w') as f:
-            for k, v in vars(self.args).items():
-                print(' ' * 26 + k + ': ' + str(v))
-                f.write(k + ' : ' + str(v) + '\n')
+        print(self.args.pretty())
 
-        with open(os.path.join(save_dir, 'config.yaml'), "w") as info:
-            documents = yaml.dump(vars(self.args), info)
+        with open(os.path.join(save_dir, 'config.txt'), "w") as info:
+            info.write(self.args.pretty())
 
-        torch.manual_seed(self.args.seed)
+        with open(os.path.join(save_dir, 'runtime_cfg.yaml'), "w") as info:
+            yaml.dump(dict(self.args.runtime_config), info)
+
         global_count = Counter()  # Global shared counter
         global_writer_loss_count = Counter()  # Global shared counter
         global_writer_quality_count = Counter()  # Global shared counter

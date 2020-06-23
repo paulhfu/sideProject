@@ -11,22 +11,37 @@ class FullySupervisedReward(object):
     def get(self, diff=None, actions=None, res_seg=None):
         if self.env.discrete_action_space:
             new_diff = diff - (self.env.state[0].float() - self.env.gt_edge_weights).abs()
-            reward = -(new_diff < -0.05).float() + (new_diff > 0.05).float() * 0.8
-            reward -= (((self.env.state[0].float() - self.env.gt_edge_weights).abs() > 0.1) & (actions == 0)).float()  # penalize 0 actions when edge still different from gt
+            reward = -(new_diff < -0.05).float() * 0.5 + (new_diff > 0.05).float()
+            reward -= (((self.env.state[0].float() - self.env.gt_edge_weights).abs() > 0.1) & (actions == 0)).float() * 0.5  # penalize 0 actions when edge still different from gt
+            reward += (((self.env.state[0].float() - self.env.gt_edge_weights).abs() < 0.1) & (actions == 0)).float()
         else:
             # new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
             # reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
             gt_diff = (actions - self.env.gt_edge_weights).abs()
-            pos_rew = (gt_diff < 0.2).float()
-            favor_separations = self.env.gt_edge_weights * actions
-            reward = 1-gt_diff
+            # pos_rew = (gt_diff < 0.2).float()
+            # favor_separations = self.env.gt_edge_weights * actions
+            # reward = 1-gt_diff
+            reward = ((gt_diff <= 0.2).float() + (gt_diff <= 0.1).float() + (gt_diff <= 0.01).float()) / 10
 
             # reward = - (self.env.state[0]).abs()
+
         return reward
 
     # reward = (new_diff > 0).float() * 1 - (new_diff < 0).float() * 2
     # reward -= (((self.env.state[0] - self.env.gt_edge_weights).abs() > 0.1) & (
     #             actions == 0)).float() * 2  # penalize 0 actions when edge still different from gt
+
+
+class GlobalSparseReward():
+    def __init__(self, env):
+        self.env = env
+
+    def get(self, diff=None, actions=None, res_seg=None):
+        qual = diff.abs().sum()
+        if qual <= self.env.stop_quality:
+            return torch.tensor([1.0])
+        else:
+            return torch.tensor([-0.1])
 
 
 class UnSupervisedReward(object):

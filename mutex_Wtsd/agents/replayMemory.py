@@ -1,6 +1,7 @@
 from collections import namedtuple
 import random
 import numpy as np
+import torch
 
 Transition_t = namedtuple('Transition', ('state', 'actions', 'reward', 'state_', 'time', 'behav_probs', 'terminal'))
 
@@ -24,6 +25,52 @@ class ReplayMemory(object):
 
     def sample(self, batch_size):
         return random.sample(self.memory, batch_size)
+
+    def __len__(self):
+        return len(self.memory)
+
+
+class TransitionData_ts(object):
+
+    def __init__(self, capacity, storage_object):
+        self.memory = []
+        self.position = 0
+        self.cap = capacity
+        self.storage_object = storage_object
+        self.sampled_n_times = []
+
+    def __len__(self):
+        return len(self.memory)
+
+    def push(self, *args):
+        """Saves a transition."""
+        if self.position >= self.cap:
+            drop_out = self.sampled_n_times.index(max(self.sampled_n_times))
+            self.pop(drop_out)
+        self.memory.append(None)
+        self.sampled_n_times.append(0)
+        self.memory[self.position] = self.storage_object(*args)
+        self.position += 1
+
+    def is_full(self):
+        if self.position >= self.cap:
+            return True
+        return False
+
+    def pop(self, position):
+        self.position -= 1
+        self.sampled_n_times.pop(position)
+        return self.memory.pop(position)
+
+    def sample(self):
+        distribution = torch.softmax(1/(torch.tensor(self.sampled_n_times, dtype=torch.float) + 1), 0)
+        sample_idx = torch.multinomial(distribution, 1).item()
+        self.sampled_n_times[sample_idx] += 1
+        return self.memory[sample_idx]
+
+    def clear(self):
+        self.memory = []
+        self.position = 0
 
     def __len__(self):
         return len(self.memory)
