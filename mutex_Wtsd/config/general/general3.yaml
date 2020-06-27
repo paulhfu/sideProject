@@ -23,7 +23,7 @@ general:
   weight_side_loss: 10
   n_embedding_features: 16 #number of embedding feature channels
   n_raw_channels: 1 #number of channels in raw data
-  fe_extr_warmup: false
+  fe_extr_warmup: true
 
   #pretrain the feature extractor with contrastive loss
   fe_warmup_iterations: 60 #number of iterations of feature extrqactor warmup

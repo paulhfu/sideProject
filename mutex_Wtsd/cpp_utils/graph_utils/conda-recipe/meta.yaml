@@ -1,0 +1,30 @@
+{% set version = "1.1.0" %}
+package:
+  name: rag_utils
+  version: {{ version }}
+
+
+source:
+  path: ..
+
+
+build:
+  number: 0
+  string: py{{py}}_{{PKG_BUILDNUM}}_g{{GIT_FULL_HASH[:7]}}
+
+
+requirements:
+  build:
+    - python {{PY_VER}}*
+    - cmake
+    - boost 1.68.0  # the boost version needs to be fixed, because we are linking against specific shared objects
+    - xtensor-python 0.22.0
+  run:
+    - python {{PY_VER}}*
+    - boost 1.68.0
+    - numpy # do not need to constrain np version
+
+
+test:
+  imports:
+    - rag_utils

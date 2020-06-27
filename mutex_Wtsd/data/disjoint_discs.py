@@ -27,6 +27,7 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         self.shape = shape
         self.no_suppix = no_suppix
         self.radius = radius
+        self.fidx = 0
         self.transform = None
         # lock = multiprocessing.Lock()
         self.offsets = [[0, -1], [-1, 0],
@@ -95,9 +96,9 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
                     data[y, x] += np.cos(np.sqrt(x ** 2 + (self.shape[0] - y) ** 2) * 30 * np.pi / self.shape[1])
         data += 1
         # plt.imshow(data);plt.show()
-        if self.no_suppix:
-            raw = torch.from_numpy(data).float()
-            return raw.unsqueeze(0), torch.from_numpy(gt.astype(np.long))
+        # if self.no_suppix:
+        #     raw = torch.from_numpy(data).float()
+        #     return raw.unsqueeze(0), torch.from_numpy(gt.astype(np.long))
             # return torch.stack((torch.rand_like(raw), raw, torch.rand_like(raw))), torch.from_numpy(gt.astype(np.long))
 
         affinities = affutils.get_naive_affinities(data, self.offsets)
@@ -186,6 +187,15 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         gt_edge_weights = torch.from_numpy(gt_edge_weights.astype(np.float32))
         diff_to_gt = (edge_feat[:, 0] - gt_edge_weights).abs().sum().item()
         # node_features, angles = get_stacked_node_data(nodes, edges, node_labeling, raw, size=[32, 32])
+
+        file = h5py.File("/g/kreshuk/hilt/projects/rags/" + "rag_" + str(self.fidx) + ".h5", "w")
+        file.create_dataset("edges", data=edges.numpy())
+        self.fidx += 1
+
+        if self.no_suppix:
+            raw = torch.from_numpy(data).float()
+            return raw.unsqueeze(0), torch.from_numpy(gt.numpy().astype(np.long))
+
         edges = edges.t().contiguous()
         edges = torch.cat((edges, torch.stack((edges[1], edges[0]))), dim=1)
 
