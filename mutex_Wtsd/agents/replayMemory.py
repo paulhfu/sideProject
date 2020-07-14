@@ -48,7 +48,7 @@ class TransitionData_ts(object):
             drop_out = self.sampled_n_times.index(max(self.sampled_n_times))
             self.pop(drop_out)
         self.memory.append(None)
-        self.sampled_n_times.append(0)
+        self.sampled_n_times.append(1)
         self.memory[self.position] = self.storage_object(*args)
         self.position += 1
 
@@ -63,13 +63,14 @@ class TransitionData_ts(object):
         return self.memory.pop(position)
 
     def sample(self):
-        distribution = torch.softmax(1/(torch.tensor(self.sampled_n_times, dtype=torch.float) + 1), 0)
+        distribution = torch.softmax(1/(torch.tensor(self.sampled_n_times, dtype=torch.float)), 0)
         sample_idx = torch.multinomial(distribution, 1).item()
         self.sampled_n_times[sample_idx] += 1
         return self.memory[sample_idx]
 
     def clear(self):
         self.memory = []
+        self.sampled_n_times = []
         self.position = 0
 
     def __len__(self):

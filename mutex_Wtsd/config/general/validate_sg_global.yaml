@@ -1,0 +1,20 @@
+general:
+  algorithm: sac_seed_test_sg_global #Algorithm used for training
+  evaluate: true #evaluate existing model
+  target_dir: seed_test_sg_global_gcn_dr #Save folder
+  base_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd #Save folder
+  data_dir: '/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/pix_and_graphs_validation'
+  ## model defs
+  model_name: 'agent_model'
+
+  #Pretrained model (state dict)
+  model_name_dest: agent_model #(state dict) is safed to
+  ## feature extractor
+  weight_edge_loss: 0.3
+  weight_side_loss: 10
+  n_embedding_features: 16 #number of embedding feature channels
+  n_raw_channels: 1 #number of channels in raw data
+
+  ## main training (env, trainer)
+  s_subgraph: 10
+  max_episode_length: 1

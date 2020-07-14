@@ -107,7 +107,7 @@ class FollowLeadAvg(object):
     def apply(self, _, el):
         if len(self._mem) == self.band_width:
             self._mem.pop(0)
-        self._mem.append(min(0.1, (el / self.base)))
+        self._mem.append(min(self.init_val, (el / self.base)))
         return self.avg
 
     @property

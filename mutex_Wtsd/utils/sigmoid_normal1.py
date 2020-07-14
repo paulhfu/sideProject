@@ -21,6 +21,10 @@ class SigmNorm(TransformedDistribution):
             self._mean = torch.sigmoid(self.loc / (torch.sqrt(1 + math.pi * self.scale ** 2 / 8)))
         return self._mean
 
+    def rsample(self, sample_shape=torch.Size()):
+        sample = super(SigmNorm, self).rsample(sample_shape)
+        return sample
+
 
 if __name__ == "__main__":
     import numpy as np

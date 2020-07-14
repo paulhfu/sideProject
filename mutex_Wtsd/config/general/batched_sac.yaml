@@ -1,6 +1,6 @@
 general:
-  algorithm: sac #Algorithm used for training
-  master_port: !!str "12353" #port num on localhost for icp
+  algorithm: batched_sac #Algorithm used for training
+  master_port: !!str "12355" #port num on localhost for icp
   cross_validate_hp: false # make gridsearch cv of hp
   no_save: false #dont save models
   test_score_only: false #no learning only validation
@@ -8,7 +8,7 @@ general:
   n_gpu_per_proc: 1 #Number of gpus per process
   evaluate: false #evaluate existing model
   seed: 123 #Random seed
-  target_dir: test_dbg5 #Save folder
+  target_dir: test_dbg4 #Save folder
   base_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd #Save folder
   ## env and model defs
   model_name: ''
@@ -45,26 +45,13 @@ general:
   stop_qual_ra_off: -15 #running average offset
   reward_function: fully_supervised #Reward function
   action_agression: 0.1 #value by which one action changes state
-  ## acer continuous
-  b_simga_final: 0.0001 #final behavior std dev
-  b_sigma_scaling: 4 #scaling behavior std dev
-  p_sigma: 0.03 #policy std dev
-  exp_steps: 5 #Number of samples drawn to estimate expectation in loss
-  density_eval_range: 0.05 #pdf evaluation range (value +- range) for retrieving probas
   ## Training specifics (agent)
-  trust_region: false #use trust region gradient
   discount: 0.5 #Discount factor
-  lbd: 3 #lambda elegibility trace parameter
-  qnext_replace_cnt: 10 #number of learning steps after which qnext is updated
-  trace_max: 1.5 #Importance weight truncation (max) value
-  trust_region_decay: 0.01 #Average model weight averaging rate
-  trust_region_threshold: 0.5 #Trust region threshold value
-  trust_region_weight: 2 #Trust region regularization weight
-  entropy_weight: 1 #Entropy regularisation weight
   max_gradient_norm: 100 #Gradient L2 norm clipping
   l2_reg_params_weight: 0.0 #Gradient L2 weight
   p_loss_weight: 1 # policy loss weight
   v_loss_weight: 1 # value loss weight
+  s_subgraph: 10
   ## Optimization
   min_lr: 0.0 #min Learning rate
   lr: 0.00006 #
@@ -76,7 +63,7 @@ general:
     eps: 1 #epsilon for manual config during runtime
     safe_model: false #the model is saved
     add_noise: false #noise is added to the rewards
-    actor_lr: 6.0e-4
-    critic_lr: 6.0e-4
-    alpha_lr: 6.0e-3
+    actor_lr: 1.0e-4
+    critic_lr: 1.0e-4
+    alpha_lr: 6.0e-4
 

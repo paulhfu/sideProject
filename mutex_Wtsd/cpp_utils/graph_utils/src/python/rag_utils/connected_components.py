@@ -15,21 +15,21 @@ def find_dense_subgraphs(graphs, k):
     for edges in graphs:
         assert all(np.unique(edges) == np.arange(edges.max()+1)), "graph constraints not satisfied"
     
-    nodes = [edges.max() for edges in graphs]
-
-    sizes = [graph.edges[0] for edges in graphs]
-
+    nodes = [edges.max() + 1 for edges in graphs]
+    sizes = [edges.shape[0] * 2 for edges in graphs]
     all_edges = np.concatenate([edges.ravel() for edges in graphs], axis=0)
+    # if len(edges) == 1:
+    #     all_edges = all_edges[np.newaxis, ...]
 
-    ccs, n_cs = find_dense_subgraphs_impl(all_edges, k, nodes, sizes)
+    ccs, n_cs, sep_sgs = find_dense_subgraphs_impl(all_edges, k, nodes, sizes)
 
     ccs = ccs.reshape(-1, k, 2)
+    sep_sgs = sep_sgs.reshape(-1, k, 2)
     szs = [0] 
     for s in n_cs:
-        szs.append(s*2 + szs[-1])
+        szs.append(int(s + szs[-1]))
 
-    sgs = [ccs[szs[i]:szs[i+1]] for i in range(szs.size()-1)]
-
-    return sgs
+    sgs = [ccs[szs[i]:szs[i+1]] for i in range(len(szs)-1)]
+    return sgs, sep_sgs
 
 

@@ -21,35 +21,43 @@ class TestRagUtils(unittest.TestCase):
         from rag_utils import find_dense_subgraphs
         edges = []
         nodes = []
-        for i in range(10):
-            file = h5py.File("rags/rag_" + str(i) + ".h5", "r")
-            edges.append(file["edges"][:]
+        for i in range(200):
+            file = h5py.File("rags_h5/rag_" + str(i) + ".h5", "r")
+            edges.append(file["edges"][:])
             nodes.append(np.unique(edges[-1]))
 
-        bsgs = find_dense_subgraphs(edges, 10, nodes)
+            g = nx.Graph()
+            g.add_nodes_from(nodes[-1])
+            g.add_edges_from(edges[-1])
+            assert nx.is_connected(g)
 
-        for c, sgs in enumerate(bsgs):
-            for i, sg in enumerate(sgs):
-                fig = plt.figure()
-                
-                g = nx.Graph()
-                g.add_nodes_from(nodes[c])
-                g.add_edges_from(edges[c])
-                pos = nx.spring_layout(g)
+        bsgs = find_dense_subgraphs(edges, 10)
+        a=1
 
-                nsg = np.unique(sg)
-
-                nx.draw(g, pos, with_labels=True, node_color='b', edge_color='b')
-                nx.draw_networkx_nodes(g, pos, nodelist=sg, node_color='r')
-                nx.draw_networkx_edges(g, pos, edgelist=nsg, edge_color='r', width=3)
-
-                directory = "graphs_pics/graph_" + str(c)
-                if not os.path.exists(directory):
-                    os.makedirs(directory)
-
-                plt.savefig(directory + "/sub_graph_" + str(i) + ".png")
-                plt.clf()
-                g.clear()
+        # c = np.random.randint(0, len(bsgs))
+        # sgs = bsgs[c]
+        # for i, sg in enumerate(sgs):
+        #     fig = plt.figure()
+        #
+        #     g = nx.Graph()
+        #     g.add_nodes_from(nodes[c].tolist())
+        #     g.add_edges_from(edges[c].tolist())
+        #     pos = nx.spring_layout(g)
+        #
+        #     nsg = np.unique(sg)
+        #
+        #     nx.draw(g, pos, with_labels=True, node_color='b', edge_color='b')
+        #     nx.draw_networkx_nodes(g, pos, nodelist=nsg.tolist(), node_color='r')
+        #     nx.draw_networkx_edges(g, pos, edgelist=sg.tolist(), edge_color='r', width=3)
+        #
+        #     directory = "graphs_pics/graph_" + str(c)
+        #     if not os.path.exists(directory):
+        #         os.makedirs(directory)
+        #
+        #     plt.savefig(directory + "/sub_graph_" + str(i) + ".png")
+        #     plt.clf()
+        #     g.clear()
+        #     plt.close()
 
 if __name__ == '__main__':
     unittest.main()

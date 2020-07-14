@@ -130,10 +130,10 @@ class EdgeMessagePassing(torch.nn.Module):
         if self.aggr == "no_aggr":
             return self.message(*message_args)
 
-        node_features, edge_features = self.message(*message_args)
+        node_features, side_loss = self.message(*message_args)
         node_features = scatter_(self.aggr, node_features, edge_index[i], dim, dim_size=size[i])
         node_features = self.update(node_features, *update_args)
-        return node_features, edge_features
+        return node_features, side_loss
 
     def message(self, x_j):  # pragma: no cover
         r"""Constructs messages to node :math:`i` in analogy to
@@ -323,25 +323,26 @@ class EdgeConv1(EdgeMessagePassing):
 
 
 class EdgeConv2(EdgeMessagePassing):
-    def __init__(self, n_channels_out, n_node_channels, n_channels_interm,
+    def __init__(self, n_node_channels, n_channels_out, n_channels_interm,
                  use_init_edge_feats=False, n_init_edge_channels=None, n_hidden_layer=0):
         super(EdgeConv2, self).__init__(aggr='no_aggr')  # no need for aggregation when only updating edges.
 
-        hli = [torch.nn.Linear(n_node_channels * 2, n_node_channels * 2)]
-        for i in range(n_hidden_layer):
-            hli.append(torch.nn.Linear(n_node_channels * 2, n_node_channels * 2))
-            hli.append(torch.nn.LeakyReLU())
-        hli.append(torch.nn.Linear(n_node_channels * 2, n_channels_interm))
+        hli = [torch.nn.Linear(n_node_channels * 2, n_node_channels * 10)]
         hli.append(torch.nn.LeakyReLU())
+        for i in range(n_hidden_layer):
+            hli.append(torch.nn.Linear(n_node_channels * 10, n_node_channels * 10))
+            hli.append(torch.nn.LeakyReLU())
+        hli.append(torch.nn.Linear(n_node_channels * 10, n_channels_interm))
         self.lin_edges_inner = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hli)]))
 
         if use_init_edge_feats:
-            hlo = [torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_init_edge_channels + n_channels_interm)]
+            hlo = [torch.nn.LeakyReLU()]
+            hlo.append(torch.nn.Linear(n_init_edge_channels + n_channels_interm, (n_init_edge_channels + n_channels_interm) * 4))
+            hlo.append(torch.nn.LeakyReLU())
             for i in range(n_hidden_layer):
-                hlo.append(torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_init_edge_channels + n_channels_interm))
+                hlo.append(torch.nn.Linear((n_init_edge_channels + n_channels_interm) * 4, (n_init_edge_channels + n_channels_interm) * 4))
                 hlo.append(torch.nn.LeakyReLU())
-            hlo.append(torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_init_edge_channels + n_channels_interm))
-            hlo.append(torch.nn.Linear(n_init_edge_channels + n_channels_interm, n_channels_out))
+            hlo.append(torch.nn.Linear((n_init_edge_channels + n_channels_interm) * 4, n_channels_out))
             self.lin_edges_outer = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hlo)]))
 
     def forward(self, x, edge_index, edge_features=None):
@@ -357,6 +358,25 @@ class EdgeConv2(EdgeMessagePassing):
             e_new = self.lin_edges_outer(torch.cat((e_new, edge_features), dim=-1))
         return loss_sym_edges, e_new
 
+class EdgeConvNoNodes(EdgeMessagePassing):
+    def __init__(self):
+        """
+        expecting graph with only edges and returns node features as mean of edge features
+        :param n_channels_out:
+        :param n_node_channels:
+        :param n_channels_interm:
+        :param use_init_edge_feats:
+        :param n_init_edge_channels:
+        :param n_hidden_layer:
+        """
+        super(EdgeConvNoNodes, self).__init__(aggr='mean')  # no need for aggregation when only updating edges.
+
+    def forward(self, edge_index, edge_features):
+        edge_features = torch.cat([edge_features, edge_features], 0)
+        return self.propagate(edge_index, size=(edge_index.max()+1, edge_index.max()+1), edge_features=edge_features)
+
+    def message(self, edge_features):
+        return edge_features, None
 
 class NodeConv1(EdgeMessagePassing):
     def __init__(self, n_node_features_in, n_node_features_out, angle_res=64, n_hidden_layer=0):
@@ -364,21 +384,21 @@ class NodeConv1(EdgeMessagePassing):
 
         # self.lin_angles = torch.nn.Linear(n_node_features_in, angle_res)
 
-
-        hli = [torch.nn.Linear(n_node_features_in * 2, n_node_features_in * 2)]
-        for i in range(n_hidden_layer):
-            hli.append(torch.nn.Linear(n_node_features_in * 2, n_node_features_in * 2))
-            hli.append(torch.nn.LeakyReLU())
-        hli.append(torch.nn.Linear(n_node_features_in * 2, 2 * n_node_features_in))
+        hli = [torch.nn.Linear(n_node_features_in * 2, n_node_features_in * 10)]
         hli.append(torch.nn.LeakyReLU())
+        for i in range(n_hidden_layer):
+            hli.append(torch.nn.Linear(n_node_features_in * 10, n_node_features_in * 10))
+            hli.append(torch.nn.LeakyReLU())
+        hli.append(torch.nn.Linear(n_node_features_in * 10, n_node_features_in*10))
         self.lin_inner = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hli)]))
 
-        hlo = [torch.nn.Linear(n_node_features_in * 3, n_node_features_in * 3)]
+        hlo = [torch.nn.Linear(n_node_features_in * 10, n_node_features_in * 10)]
+        hli.append(torch.nn.LeakyReLU())
         for i in range(n_hidden_layer):
-            hlo.append(torch.nn.Linear(n_node_features_in * 3, n_node_features_in * 3))
+            hlo.append(torch.nn.Linear(n_node_features_in * 10, n_node_features_in * 10))
             hlo.append(torch.nn.LeakyReLU())
-        hlo.append(torch.nn.Linear(n_node_features_in * 3, n_node_features_out))
-        hlo.append(torch.nn.LeakyReLU())
+        # hlo.append(torch.nn.Linear(n_node_features_in * 3, n_node_features_out))
+        hlo.append(torch.nn.Linear(n_node_features_in * 10, n_node_features_out))
         self.lin_outer = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hlo)]))
 
     def forward(self, x, edge_index, angles):
@@ -392,4 +412,5 @@ class NodeConv1(EdgeMessagePassing):
         return edge_conv, None
 
     def update(self, aggr_out, x):
-        return self.lin_outer(torch.cat((aggr_out, x), dim=-1))
+        # return self.lin_outer(torch.cat((aggr_out, x), dim=-1))
+        return self.lin_outer(aggr_out)

@@ -15,6 +15,7 @@ from matplotlib import cm
 import utils.general as gutils
 import utils.affinities as affutils
 import os
+from utils.affinities import get_edge_features_1d, get_stacked_node_data
 import h5py
 import multiprocessing
 
@@ -188,9 +189,9 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         diff_to_gt = (edge_feat[:, 0] - gt_edge_weights).abs().sum().item()
         # node_features, angles = get_stacked_node_data(nodes, edges, node_labeling, raw, size=[32, 32])
 
-        file = h5py.File("/g/kreshuk/hilt/projects/rags/" + "rag_" + str(self.fidx) + ".h5", "w")
-        file.create_dataset("edges", data=edges.numpy())
-        self.fidx += 1
+        # file = h5py.File("/g/kreshuk/hilt/projects/rags/" + "rag_" + str(self.fidx) + ".h5", "w")
+        # file.create_dataset("edges", data=edges.numpy())
+        # self.fidx += 1
 
         if self.no_suppix:
             raw = torch.from_numpy(data).float()
@@ -202,54 +203,6 @@ class MultiDiscSpGraphDset(tg.data.Dataset):
         # print('imbalance: ', abs(gt_edge_weights.sum() - (len(gt_edge_weights) / 2)))
 
         return edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, raw, nodes, noisy_affinities, gt
-
-
-def get_stacked_node_data(nodes, edges, segmentation, raw, size):
-    raw_nodes = torch.empty([len(nodes), *size])
-    cms = torch.empty((len(nodes), 2))
-    angles = torch.zeros(len(edges) * 2) - 11
-    for i, n in enumerate(nodes):
-        mask = (n == segmentation)
-        # x, y = utils.bbox(mask.unsqueeze(0).numpy())
-        # x, y = x[0], y[0]
-        # masked_seg = mask.float() * raw
-        # masked_seg = masked_seg[x[0]:x[1]+1, y[0]:y[1]+1]
-        # if 0 in masked_seg.shape:
-        #     a=1
-        # raw_nodes[i] = torch.nn.functional.interpolate(masked_seg.unsqueeze(0).unsqueeze(0), size=size)
-        idxs = torch.where(mask)
-        cms[n.long()] = torch.tensor([torch.sum(idxs[0]).long(), torch.sum(idxs[1]).long()]) / mask.sum()
-    for i, e in enumerate(edges):
-        vec = cms[e[1]] - cms[e[0]]
-        angle = abs(np.arctan(vec[0] / (vec[1] + np.finfo(float).eps)))
-        if vec[0] <= 0 and vec[1] <= 0:
-            angles[i] = np.pi + angle
-            angles[i + len(edges)] = angle
-        elif vec[0] >= 0 and vec[1] <= 0:
-            angles[i] = np.pi - angle
-            angles[i + len(edges)] = 2 * np.pi - angle
-        elif vec[0] <= 0 and vec[1] >= 0:
-            angles[i] = 2 * np.pi - angle
-            angles[i + len(edges)] = np.pi - angle
-        elif vec[0] >= 0 and vec[1] >= 0:
-            angles[i] = angle
-            angles[i + len(edges)] = np.pi + angle
-        else:
-            assert False
-    if angles.max() > 2 * np.pi + 1e-20 or angles.min() + 1e-20 < 0:
-        assert False
-    angles = np.rint(angles / (2 * np.pi) * 63)
-    return raw_nodes, angles.long()
-
-
-def get_edge_features_1d(sp_seg, offsets, affinities):
-    offsets_3d = []
-    for off in offsets:
-        offsets_3d.append([0] + off)
-
-    rag = feats.compute_rag(np.expand_dims(sp_seg, axis=0))
-    edge_feat = feats.compute_affinity_features(rag, np.expand_dims(affinities, axis=1), offsets_3d)[:, :]
-    return edge_feat, rag.uvIds()
 
 
 if __name__ == "__main__":

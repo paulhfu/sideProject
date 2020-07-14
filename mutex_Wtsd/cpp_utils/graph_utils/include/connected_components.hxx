@@ -3,7 +3,6 @@
 #include <iostream>
 #include <queue>
 
-using namespace std;
 
 namespace graph_utils {
 	class EdgeProps{
@@ -24,16 +23,13 @@ namespace graph_utils {
 				const size_t subgraph_size,
 				const std::vector<uint64_t> & n_nodes,
 				const std::vector<uint64_t> & n_edges,
-//				xt::xexpression<COMPS> & n_components_exp,
 				std::vector<uint64_t> & n_components,
 				std::vector<uint64_t> & components) {
 			// graphs need to be connected, otw stuck in loop
 			// expecting shape to be (N, C, 2), edges_exp be of size prod(shape)
 			// edges must be non directed unique and ordered like [low_val, high_val]
-			cout<<"in function find connected_components"<<endl;
+
 			const auto & edges = edges_exp.derived_cast();
-//			auto & n_components = n_components_exp.derived_cast();
-//			auto & components = components_exp.derived_cast();
 
 			std::vector<uint64_t> edge_off;
 			edge_off.push_back(0);
@@ -48,43 +44,47 @@ namespace graph_utils {
 			}
 
 			uint64_t n_all_nodes = accumulate(n_nodes.begin(), n_nodes.end(),0);
-			vector<vector<uint64_t>> adj_list;
+			std::vector<std::vector<uint64_t>> adj_list;
 			adj_list.resize(n_all_nodes);
 			// add edges to the directed graph
 			for(int b=0; b < n_edges.size(); ++b){
-				for(int i=0; i < n_edges[b]; ++i){
-					adj_list[edges[(i * 2) + edge_off[b]] + node_off[b]]
-						.push_back(edges[(i * 2 + 1) + edge_off[b]]);
-					adj_list[edges[(i * 2 + 1) + edge_off[b]] + node_off[b]]
-						.push_back(edges[(i * 2) + edge_off[b]]);
+				for(int i=0; i < n_edges[b]; i+=2){
+					adj_list[edges[i + edge_off[b]] + node_off[b]]
+						.push_back(edges[i + 1 + edge_off[b]]);
+					adj_list[edges[i + 1 + edge_off[b]] + node_off[b]]
+						.push_back(edges[i + edge_off[b]]);
 				}
 			}
 			// core algorithm
 			int anchor;
-
 			for(uint64_t b=0; b < n_edges.size(); ++b){
 				std::unordered_map<key, bool, key_hash> unused_edges;
-				uint64_t comps = 0;
+				uint64_t comps;
+				comps = 0;
 
-				for(int i=0; i<n_edges[b]; ++i){
-					int sm = std::min(edges[(i * 2) + edge_off[b]], edges[(i * 2 + 1) + edge_off[b]]);
-					int bg = std::max(edges[(i * 2 + 1) + edge_off[b]], edges[(i * 2) + edge_off[b]]);
+				for(int i=0; i<n_edges[b]; i+=2){
+					int sm = std::min(edges[i + edge_off[b]], edges[i + 1 + edge_off[b]]);
+					int bg = std::max(edges[i + 1 + edge_off[b]], edges[i + edge_off[b]]);
 					unused_edges[std::make_tuple(sm, bg)] = true;
 				}
 				while(unused_edges.size() > 0){
-					int i = 0;
-					int prio = 0;
+					int rn, n_samples, prio, i;
+					key rn_edge;
+					rn = 0;
+					n_samples = 0;
+					prio = 0;
+					i = 0;
 
 					std::unordered_map<uint64_t, bool> drwn_nodes;  // keep current node set
 					std::unordered_map<key, bool, key_hash> used_edges; // keep current edge set
 					// pq stores neighs to current sub_graph, prio lower the later added as sg grows
-					priority_queue<std::pair<int, uint64_t>, 
+					std::priority_queue<std::pair<int, uint64_t>, 
 						std::vector<std::pair<int, uint64_t>>,
 					   	std::greater<std::pair<int, uint64_t>>> pq;
 
 					//start every component by a random, so far, unused edge
-					int rn = rand() % unused_edges.size();
-					auto rn_edge = std::next(std::begin(unused_edges), rn)->first;
+					rn = rand() % unused_edges.size();
+					rn_edge = std::next(std::begin(unused_edges), rn)->first;
 					unused_edges.erase(rn_edge);
 					used_edges[rn_edge] = true;
 					
@@ -96,36 +96,51 @@ namespace graph_utils {
 					components.push_back(std::get<0>(rn_edge));
 					components.push_back(std::get<1>(rn_edge));
 					++i;
-					int n_samples = 0;
 
-					while(i<subgraph_size){
+					while(true){
+						bool all_added;
 						std::pair<int, uint64_t> top_pos = pq.top();
+
 						pq.pop();
-						++top_pos.first;
-						++n_samples;
 						++prio;
-						pq.push(top_pos);
+						all_added = true;
 						
 						for(auto neigh : adj_list[top_pos.second + node_off[b]]){
 							uint64_t sm, bg;
 							sm = std::min(top_pos.second, neigh);
 							bg = std::max(neigh, top_pos.second);
-							if(used_edges.find(std::make_tuple(sm, bg)) == used_edges.end() & 
-								(drwn_nodes.find(neigh)!=drwn_nodes.end() | n_samples >= pq.size())){
-								pq.push(std::make_pair(prio, neigh));
-								components.push_back(top_pos.second);
-								components.push_back(neigh);
+
+							if(used_edges.find(std::make_tuple(sm, bg)) == used_edges.end()){
+								if(drwn_nodes.find(neigh)!=drwn_nodes.end() | n_samples >= pq.size()){
 								
-								unused_edges.erase(std::make_tuple(sm, bg));
-								used_edges[std::make_tuple(sm, bg)] = true;
-								
-								++i;	
-								n_samples = 0;
+									pq.push(std::make_pair(prio, neigh));
+									drwn_nodes[neigh] = true;		 
+
+									components.push_back(sm);
+									components.push_back(bg);
+									++i;
+									if(i==subgraph_size){break;}
+									
+									unused_edges.erase(std::make_tuple(sm, bg));
+									used_edges[std::make_tuple(sm, bg)] = true;
+									
+									n_samples = 0;
+									--top_pos.first;
+								}
+								else{
+									all_added = false;
+								}
 							}
 						}
+						if(i==subgraph_size){break;}
+						if(!all_added){
+							++top_pos.first;
+							pq.push(top_pos);
+						}
+						++n_samples;
 					}
 					++comps;
-					pq = priority_queue<std::pair<int, uint64_t>,
+					pq = std::priority_queue<std::pair<int, uint64_t>,
 							std::vector<std::pair<int, uint64_t>>,
 							std::greater<std::pair<int, uint64_t>>>();  // priority_queue does not provide clear func 
 					used_edges.clear();
@@ -135,4 +150,28 @@ namespace graph_utils {
 				unused_edges.clear();
 			}
 		}
+
+    inline void separate_subgraphs(
+            const std::vector<uint64_t> & edges,
+            const size_t subgraph_size,
+            std::vector<uint64_t> & separate_subgraphs) {
+        // separates a set of possibly connected subgraphs
+        std::unordered_map<uint64_t, uint64_t> node_rep;
+        int node = 0;
+        for(int i=0; i<edges.size(); i+=(subgraph_size*2)){
+            for(int j=0; j<subgraph_size*2; j+=2){
+                if(node_rep.find(edges[i+j]) == node_rep.end()){
+                    node_rep[edges[i+j]] = node;
+                    node++;
+                }
+                if(node_rep.find(edges[i+j+1]) == node_rep.end()){
+                    node_rep[edges[i+j+1]] = node;
+                    node++;
+                }
+                separate_subgraphs[i+j] = node_rep[edges[i+j]];
+                separate_subgraphs[i+j+1] = node_rep[edges[i+j+1]];
+            }
+            node_rep.clear();
+        }
+    }
 }

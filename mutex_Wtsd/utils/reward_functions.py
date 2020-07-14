@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from skimage.transform import hough_circle, hough_circle_peaks
+from skimage.feature import canny
+from scipy.ndimage import maximum_filter
+import numpy as np
+
 
 class FullySupervisedReward(object):
 
@@ -17,13 +22,18 @@ class FullySupervisedReward(object):
         else:
             # new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
             # reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
-            gt_diff = (actions - self.env.gt_edge_weights).abs()
+            # gt_diff = (actions - self.env.b_gt_edge_weights).abs()
+            gt_diff = (actions - self.env.sg_gt_edge_weights).abs()
+            # gt_diff = (actions - self.env.gt_edge_weights).abs()
             # pos_rew = (gt_diff < 0.2).float()
             # favor_separations = self.env.gt_edge_weights * actions
             # reward = 1-gt_diff
-            reward = ((gt_diff <= 0.2).float() + (gt_diff <= 0.1).float() + (gt_diff <= 0.01).float()) / 10
 
-            # reward = - (self.env.state[0]).abs()
+
+            # reward = ((gt_diff <= 0.2).float() + (gt_diff <= 0.1).float() + (gt_diff <= 0.01).float()) / 10
+
+            reward = -gt_diff
+            reward = reward + (gt_diff <= 0.05).float()
 
         return reward
 
@@ -124,6 +134,30 @@ class GraphDiceReward(object):
         return reward
 
 
+class SubGraphDiceReward(object):
+
+    def __init__(self, env):
+        super(SubGraphDiceReward, self).__init__()
+        self.epsilon = 1e-6
+        self.env = env
+        self.class_weights = torch.tensor([1.0, 1.0]).unsqueeze(-1)
+        self.reward_offset = torch.tensor([[-0.7], [-0.7]]).unsqueeze(-1)
+
+    def get(self, diff=None, actions=None, res_seg=None):
+        # compute per channel Dice Coefficient
+        input = torch.stack([1-actions, actions], 0)
+        target = torch.stack([self.env.sg_gt_edge_weights == 0, self.env.sg_gt_edge_weights == 1], 0).float()
+        intersect = (input * target).sum(-1)
+
+        # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)
+        denominator = (input * input).sum(-1) + (target * target).sum(-1)
+        dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
+        dice_score = dice_score * self.class_weights.to(dice_score.device)
+
+        reward = dice_score.sum(0) - 0.5
+        return reward
+
+
 class FocalReward(object):
     #  https://arxiv.org/pdf/1708.02002.pdf
     def __init__(self, env):
@@ -163,3 +197,31 @@ class GraphDiceLoss(nn.Module):
         dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
         dice_score = (dice_score * self.class_weights.to(dice_score.device)).sum()
         return 1 - dice_score
+
+
+class HoughCircles(object):
+    def __init__(self, range_num, range_rad, min_hough_confidence):
+        self.range_num = range_num
+        self.range_rad = range_rad
+        self.min_hough_confidence = min_hough_confidence
+
+    def get(self, diff=None, actions=None, segmentation=None):
+        segmentation = segmentation / segmentation.max()
+        import timeit
+
+        start = timeit.timeit()
+        edges1 = canny(segmentation, sigma=2, low_threshold=.1, high_threshold=.8)
+        end = timeit.timeit()
+        canny_time = end - start
+
+        start = timeit.timeit()
+        imax2 = (maximum_filter(segmentation, size=2) != segmentation)
+        end = timeit.timeit()
+        maxfil_time = end - start
+
+        # Detect two radii
+        hough_radii = np.arange(20, 35, 2)
+        hough_res = hough_circle(edges1, hough_radii)
+
+        # Select the most prominent circles
+        accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii, total_num_peaks=self.range_num[-1])

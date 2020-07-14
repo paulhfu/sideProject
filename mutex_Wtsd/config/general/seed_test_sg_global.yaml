@@ -1,6 +1,6 @@
 general:
-  algorithm: sac #Algorithm used for training
-  master_port: !!str "12353" #port num on localhost for icp
+  algorithm: sac_seed_test_sg_global #Algorithm used for training
+  master_port: !!str "12359" #port num on localhost for icp
   cross_validate_hp: false # make gridsearch cv of hp
   no_save: false #dont save models
   test_score_only: false #no learning only validation
@@ -8,8 +8,9 @@ general:
   n_gpu_per_proc: 1 #Number of gpus per process
   evaluate: false #evaluate existing model
   seed: 123 #Random seed
-  target_dir: test_dbg5 #Save folder
+  target_dir: seed_test_sg_global_gcn_no_alph #Save folder
   base_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd #Save folder
+  data_dir: '/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/pix_and_graphs'
   ## env and model defs
   model_name: ''
 
@@ -30,9 +31,10 @@ general:
   fe_warmup_batch_size: 10 #batch size for feature extractor warmup
   no_fe_extr_optim: true #optimize feature extractor with ril loss
   ## main training (env, trainer)
-  T_max: 10000 #Number of training steps
-  t_max: 100 #Mem size
-  max_episode_length: 15 #Maximum episode length
+  T_max: 60 #Number of training steps
+  t_max: 1000 #Mem size
+  n_updates_per_step: 40
+  max_episode_length: 1 #Maximum episode length
   eps_rule: self_reg_exp_avg #
   eps_final: 0.005 #
   eps_scaling: 1 #
@@ -43,7 +45,7 @@ general:
   stop_qual_offset: 5 #
   stop_qual_ra_bw: 20 #running average bandwidth
   stop_qual_ra_off: -15 #running average offset
-  reward_function: fully_supervised #Reward function
+  reward_function: sub_graph_dice #Reward function: sub_graph_dice, fully_supervised
   action_agression: 0.1 #value by which one action changes state
   ## acer continuous
   b_simga_final: 0.0001 #final behavior std dev
@@ -65,6 +67,7 @@ general:
   l2_reg_params_weight: 0.0 #Gradient L2 weight
   p_loss_weight: 1 # policy loss weight
   v_loss_weight: 1 # value loss weight
+  s_subgraph: 10
   ## Optimization
   min_lr: 0.0 #min Learning rate
   lr: 0.00006 #
@@ -75,8 +78,8 @@ general:
     lr: 0.000006
     eps: 1 #epsilon for manual config during runtime
     safe_model: false #the model is saved
-    add_noise: false #noise is added to the rewards
-    actor_lr: 6.0e-4
-    critic_lr: 6.0e-4
-    alpha_lr: 6.0e-3
+    add_noise: true #noise is added to the rewards
+    actor_lr: 1.0e-4
+    critic_lr: 1.0e-4
+    alpha_lr: 1.0e-4
 

@@ -18,6 +18,7 @@ cd build
 
 PREFIX="${CONDA_PREFIX}"
 SRC_DIR=".."
+PYTHON=$(which python)
 
 CXXFLAGS="${CXXFLAGS} -I${PREFIX}/include"
 LDFLAGS="${LDFLAGS} -Wl,-rpath,${PREFIX}/lib -L${PREFIX}/lib"

@@ -18,6 +18,10 @@ class Counter():
     with self.lock:
       self.val.value += 1
 
+  def reset(self):
+    with self.lock:
+      self.val.value = 0
+
   def value(self):
     with self.lock:
       return self.val.value
@@ -147,7 +151,7 @@ def pca_svd(X, k, center=True):
     return components, explained_variance
 
 
-def multicut_from_probas(segmentation, edges, edge_weights, boundary_input):
+def multicut_from_probas(segmentation, edges, edge_weights, edge_sizes):
     import matplotlib.pyplot as plt
     # for comp in np.unique(segmentation):
     #     plt.imshow(segmentation == comp)
@@ -160,7 +164,6 @@ def multicut_from_probas(segmentation, edges, edge_weights, boundary_input):
             costs[i] = edge_dict[tuple(neighbors)]
         else:
             costs[i] = edge_dict[(neighbors[1], neighbors[0])]
-    edge_sizes = elf.segmentation.features.compute_boundary_mean_and_length(rag, boundary_input)[:, 1]
     costs = elf.segmentation.multicut.transform_probabilities_to_costs(costs, edge_sizes=edge_sizes)
     node_labels = elf.segmentation.multicut.multicut_kernighan_lin(rag, costs)
     mc_seg = elf.segmentation.features.project_node_labels_to_pixels(rag, node_labels).squeeze()
