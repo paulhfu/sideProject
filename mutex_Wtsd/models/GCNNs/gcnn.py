@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from utils.general import _pca_project, _pca_project_1d, plt_bar_plot
+from collections import OrderedDict
 from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv2, EdgeConvNoNodes
 
 
@@ -103,7 +104,7 @@ class QGcnn(nn.Module):
 
 
 class GlobalEdgeGcnn(nn.Module):
-    def __init__(self, n_in_channels, n_out_channels, device, writer=None):
+    def __init__(self, n_in_channels, n_out_channels, device, writer=None, n_hidden_layer=10):
         super(GlobalEdgeGcnn, self).__init__()
         self.device = device
 
@@ -120,6 +121,12 @@ class GlobalEdgeGcnn(nn.Module):
         self.node_conv8 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
         self.node_conv9 = NodeConv1(n_in_channels, n_out_channels, n_hidden_layer=0)
 
+
+        # hl = [EdgeConvNoNodes()]
+        # for i in range(n_hidden_layer):
+        #     hl.append(NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0))
+        # self.lin_inner = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hl)]))
+
     def forward(self, edge_features, edge_index, angles):
 
         node_features, _ = self.node_conv1(edge_index, edge_features)
@@ -131,5 +138,60 @@ class GlobalEdgeGcnn(nn.Module):
         node_features, _ = self.node_conv7(node_features, edge_index, angles)
         node_features, _ = self.node_conv8(node_features, edge_index, angles)
         node_features, _ = self.node_conv9(node_features, edge_index, angles)
+
+        return edge_features, side_loss
+
+
+class GlobalEdgeGcnnLarge(nn.Module):
+    def __init__(self, n_in_channels, n_out_channels, device, writer=None, n_hidden_layer=10):
+        super(GlobalEdgeGcnnLarge, self).__init__()
+        self.device = device
+
+        self.writer = writer
+        self.writer_counter = 0
+        self.n_in_channels = n_in_channels
+        self.node_conv1 = EdgeConvNoNodes()
+        self.node_conv2 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv3 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv4 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv5 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv6 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv7 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv8 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv9 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv10 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv11 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv12 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv13 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv14 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv15 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv16 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.node_conv17 = NodeConv1(n_in_channels, n_out_channels, n_hidden_layer=0)
+
+
+        # hl = [EdgeConvNoNodes()]
+        # for i in range(n_hidden_layer):
+        #     hl.append(NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0))
+        # self.lin_inner = torch.nn.Sequential(OrderedDict([("hl"+str(i), l) for i, l in enumerate(hl)]))
+
+    def forward(self, edge_features, edge_index, angles):
+
+        node_features, _ = self.node_conv1(edge_index, edge_features)
+        node_features, side_loss = self.node_conv2(node_features, edge_index, angles)
+        node_features, _ = self.node_conv3(node_features, edge_index, angles)
+        node_features, _ = self.node_conv4(node_features, edge_index, angles)
+        node_features, _ = self.node_conv5(node_features, edge_index, angles)
+        node_features, _ = self.node_conv6(node_features, edge_index, angles)
+        node_features, _ = self.node_conv7(node_features, edge_index, angles)
+        node_features, _ = self.node_conv8(node_features, edge_index, angles)
+        node_features, _ = self.node_conv9(node_features, edge_index, angles)
+        node_features, _ = self.node_conv10(node_features, edge_index, angles)
+        node_features, _ = self.node_conv11(node_features, edge_index, angles)
+        node_features, _ = self.node_conv12(node_features, edge_index, angles)
+        node_features, _ = self.node_conv13(node_features, edge_index, angles)
+        node_features, _ = self.node_conv14(node_features, edge_index, angles)
+        node_features, _ = self.node_conv15(node_features, edge_index, angles)
+        node_features, _ = self.node_conv16(node_features, edge_index, angles)
+        node_features, _ = self.node_conv17(node_features, edge_index, angles)
 
         return edge_features, side_loss

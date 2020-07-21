@@ -8,7 +8,8 @@ general:
   n_gpu_per_proc: 1 #Number of gpus per process
   evaluate: false #evaluate existing model
   seed: 123 #Random seed
-  target_dir: seed_test_sg_global_gcn_no_alph #Save folder
+  data_shape: [128, 128]
+  target_dir: seed_test_sg_global_gcn_rules #Save folder
   base_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd #Save folder
   data_dir: '/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/pix_and_graphs'
   ## env and model defs
@@ -45,7 +46,7 @@ general:
   stop_qual_offset: 5 #
   stop_qual_ra_bw: 20 #running average bandwidth
   stop_qual_ra_off: -15 #running average offset
-  reward_function: sub_graph_dice #Reward function: sub_graph_dice, fully_supervised
+  reward_function: defining_rules #Reward function: sub_graph_dice, fully_supervised, defining_rules, defining_rules_lg
   action_agression: 0.1 #value by which one action changes state
   ## acer continuous
   b_simga_final: 0.0001 #final behavior std dev
@@ -78,7 +79,7 @@ general:
     lr: 0.000006
     eps: 1 #epsilon for manual config during runtime
     safe_model: false #the model is saved
-    add_noise: true #noise is added to the rewards
+    add_noise: false #noise is added to the rewards
     actor_lr: 1.0e-4
     critic_lr: 1.0e-4
     alpha_lr: 1.0e-4

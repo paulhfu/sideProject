@@ -32,7 +32,13 @@ class SpGcnEnv(Environment):
                                                 range_rad=[max(self.args.data_shape) // 18,
                                                            max(self.args.data_shape) // 15], min_hough_confidence=0.7)
         elif self.args.reward_function == 'defining_rules_lg':
-            assert False
+            self.reward_function = HoughCircles_lg(env=self, range_num=[8, 10],
+                                                range_rad=[max(self.args.data_shape) // 18,
+                                                           max(self.args.data_shape) // 15], min_hough_confidence=0.7)
+        # elif self.args.reward_function == 'focal':
+        #     self.reward_function = FocalReward(env=self)
+        # elif self.args.reward_function == 'global_sparse':
+        #     self.reward_function = GlobalSparseReward(env=self)
         else:
             self.reward_function = UnSupervisedReward(env=self)
 
@@ -49,11 +55,12 @@ class SpGcnEnv(Environment):
         if self.counter >= self.args.max_episode_length:
             self.done = True
 
-        total_reward = torch.sum(reward).item()
+        total_reward = torch.sum(reward[0]).item()
 
         if self.writer is not None and post_stats:
             self.writer.add_scalar("step/quality", quality, self.writer_counter.value())
-            self.writer.add_scalar("step/avg_return", reward.mean(), self.writer_counter.value())
+            self.writer.add_scalar("step/avg_return_1", reward[0].mean(), self.writer_counter.value())
+            self.writer.add_scalar("step/avg_return_2", reward[1].mean(), self.writer_counter.value())
             if self.writer_counter.value() % 80 == 0:
                 self.writer.add_histogram("step/pred_mean", self.sg_current_edge_weights.view(-1).cpu().numpy(), self.writer_counter.value() // 80)
             self.writer.add_scalar("step/gt_mean", self.sg_gt_edge_weights.mean(), self.writer_counter.value())
@@ -66,8 +73,11 @@ class SpGcnEnv(Environment):
         self.acc_reward = total_reward
         return self.get_state(), reward, quality
 
+    # def get_state(self):
+    #     return self.raw, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights
+
     def get_state(self):
-        return self.raw, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights
+        return self.raw, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.e_offs, self.counter, self.b_gt_edge_weights
 
     def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_labeling, raw, angles, gt):
         self.gt_seg = gt

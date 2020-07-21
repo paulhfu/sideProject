@@ -10,6 +10,7 @@ from agents.sac_seed_test import AgentSacTrainer_test
 from agents.sac_seed_test_sg import AgentSacTrainer_test_sg
 from agents.sac_seed_test_global import AgentSacTrainer_test_global
 from agents.sac_seed_test_sg_global import AgentSacTrainer_test_sg_global, SacValidate
+from agents.sac_gr_sg import AgentSacTrainer_sg_lg
 import yaml
 
 class TrainSAC(object):
@@ -61,7 +62,14 @@ class TrainSAC(object):
             # Start training agents
             manager = mp.Manager()
             return_dict = manager.dict()
-            if 'seed_test_sg_global' in self.args.algorithm:
+            if self.args.reward_function == 'defining_rules_lg':
+                trainer = AgentSacTrainer_sg_lg(self.cfg, self.args, global_count,
+                                                         global_writer_loss_count,
+                                                         global_writer_quality_count,
+                                                         global_win_event_count=global_win_event_count,
+                                                         action_stats_count=action_stats_count,
+                                                         save_dir=save_dir)
+            elif 'seed_test_sg_global' in self.args.algorithm:
                 trainer = AgentSacTrainer_test_sg_global(self.cfg, self.args, global_count,
                                                          global_writer_loss_count,
                                                          global_writer_quality_count,

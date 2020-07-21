@@ -10,7 +10,6 @@ import utils.affinities as affutils
 import h5py
 from utils.affinities import get_edge_features_1d, get_stacked_node_data
 
-
 def get_sp_graph(data, gt, scal=1.01):
     offsets = [[0, -1], [-1, 0],
                     [-3, 0], [0, -3]]

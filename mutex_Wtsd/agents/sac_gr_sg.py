@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from agents.replayMemory import TransitionData_ts
 from collections import namedtuple
 from mu_net.criteria.contrastive_loss import ContrastiveLoss
-from environments.batched_sp_sub_grph import SpGcnEnv
+from environments.batched_sp_sub_grph_lg import SpGcnEnv
 from models.GCNNs.sac_agent1 import GcnEdgeAC_1
-from models.GCNNs.batched_no_actor_mlp_qgpool_sac_agent import GcnEdgeAC
+from models.GCNNs.batched_no_actor_mlp_2qgpool_sac_agent import GcnEdgeAC
 # from models.GCNNs.batched_no_actor_mlp_sac_agent import GcnEdgeAC
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
@@ -29,11 +29,11 @@ import yaml
 import sys
 
 
-class AgentSacTrainer_test_sg_global(object):
+class AgentSacTrainer_sg_lg(object):
 
     def __init__(self, cfg, args, global_count, global_writer_loss_count, global_writer_quality_count,
                  global_win_event_count, action_stats_count, save_dir):
-        super(AgentSacTrainer_test_sg_global, self).__init__()
+        super(AgentSacTrainer_sg_lg, self).__init__()
 
         self.cfg = cfg
         self.args = args
@@ -97,7 +97,7 @@ class AgentSacTrainer_test_sg_global(object):
 
     def agent_forward(self, env, model, state, actions=None, grad=True, post_input=False, post_model=False, policy_opt=False):
         with torch.set_grad_enabled(grad):
-            raw, edge_ids, sp_indices, edge_angles, sub_graphs, sep_subgraphs, counter, b_gt_edge_weights = self.state_to_cuda(state)
+            raw, edge_ids, sp_indices, edge_angles, sub_graphs, sep_subgraphs, e_offs, counter, b_gt_edge_weights = self.state_to_cuda(state)
             if actions is not None:
                 actions = actions.to(model.module.device)
             counter /= self.args.max_episode_length
@@ -112,6 +112,7 @@ class AgentSacTrainer_test_sg_global(object):
                         gt_edges=b_gt_edge_weights,
                         sub_graphs=sub_graphs,
                         sep_subgraphs=sep_subgraphs,
+                        e_offs=e_offs,
                         post_input=post_input,
                         policy_opt=policy_opt and grad)
 
@@ -138,21 +139,24 @@ class AgentSacTrainer_test_sg_global(object):
         distribution, target_Q1, target_Q2, next_action = self.agent_forward(env, model, state=next_obs)
 
         log_prob = distribution.log_prob(next_action)
-        log_prob = log_prob[next_obs[4]].view(-1, self.args.s_subgraph).sum(-1)
+        log_prob_sg = log_prob[next_obs[4]].view(-1, self.args.s_subgraph).sum(-1)
 
-        target_V = torch.min(target_Q1, target_Q2) - self.beta * log_prob
-        # target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
+        log_prob_g = torch.empty((len(next_obs[6]) - 1, )).to(self.device).float()
+        for i in range(len(next_obs[6]) - 1):
+            log_prob_g[i] = log_prob[next_obs[6][i]:next_obs[6][i+1]].sum()
 
-        # target_V = target_V[obs[4]].view(-1, self.args.s_subgraph).sum(-1)
+        target_V_sg = torch.min(target_Q1[0], target_Q2[0]) - self.beta * log_prob_sg
+        target_V_g = torch.min(target_Q1[1], target_Q2[1]) - self.beta * log_prob_g
 
-        target_Q = reward + (not_done * self.cfg.discount * target_V)
-        target_Q = target_Q.detach().squeeze()
+        target_Q_sg = reward[0] + (not_done * self.cfg.discount * target_V_sg)
+        target_Q_g = reward[1] + (not_done * self.cfg.discount * target_V_g)
+        target_Q_sg = target_Q_sg.detach().squeeze()
+        target_Q_g = target_Q_g.detach().squeeze()
 
         current_Q1, current_Q2 = self.agent_forward(env, model, state=obs, actions=action)
 
-        # current_Q1 = current_Q1[obs[4]].view(-1, self.args.s_subgraph).sum(-1)
-        # current_Q2 = current_Q2[obs[4]].view(-1, self.args.s_subgraph).sum(-1)
-        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+        critic_loss = F.mse_loss(current_Q1[0], target_Q_sg) + F.mse_loss(current_Q2[0], target_Q_sg)
+        critic_loss = critic_loss + F.mse_loss(current_Q1[1], target_Q_g) + F.mse_loss(current_Q2[1], target_Q_g)
 
         optimizers.critic.zero_grad()
         critic_loss.backward()
@@ -164,12 +168,13 @@ class AgentSacTrainer_test_sg_global(object):
         distribution, actor_Q1, actor_Q2, action = self.agent_forward(env, model, state=obs, policy_opt=True)
         log_prob = distribution.log_prob(action)
 
-        actor_Q = torch.min(actor_Q1, actor_Q2)
+        log_prob_sg = log_prob[obs[4]].view(-1, self.args.s_subgraph).sum(-1)
+        log_prob_g = torch.empty((len(obs[6]) - 1, )).to(self.device).float()
+        for i in range(len(obs[6]) - 1):
+            log_prob_g[i] = log_prob[obs[6][i]:obs[6][i+1]].sum()
 
-        # actor_Q = actor_Q[obs[4]].view(-1, self.args.s_subgraph).sum(-1)
-        log_prob = log_prob[obs[4]].view(-1, self.args.s_subgraph).sum(-1)
-
-        actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
+        actor_loss = (self.alpha.detach() * log_prob_sg - torch.min(actor_Q1[0], actor_Q2[0])).mean()
+        actor_loss = actor_loss + (self.alpha.detach() * log_prob_g - torch.min(actor_Q1[1], actor_Q2[1])).mean()
 
         optimizers.actor.zero_grad()
         actor_loss.backward()
@@ -312,7 +317,7 @@ class AgentSacTrainer_test_sg_global(object):
                 loss_weight = torch.softmax(env.b_gt_edge_weights + 1, dim=0)
                 env.reset()
                 # self.target_entropy = - float(env.gt_edge_weights.shape[0])
-                self.target_entropy = -100
+                self.target_entropy = -self.args.s_subgraph
 
                 if self.cfg.temperature_regulation == 'follow_quality':
                     if self.beta_rule.base < quality:
