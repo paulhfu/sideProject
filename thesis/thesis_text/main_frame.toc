@@ -1,0 +1,14 @@
+\babel@toc {USenglish}{}
+\contentsline {section}{Summary of Notation}{4}{section*.1}
+\contentsline {section}{\numberline {0.1}Introduction}{5}{section.0.1}
+\contentsline {chapter}{\numberline {1}Preliminaries}{6}{chapter.1}
+\contentsline {section}{\numberline {1.1}Reinforcement Learning}{6}{section.1.1}
+\contentsline {subsection}{\numberline {1.1.1}Value functions}{7}{subsection.1.1.1}
+\contentsline {subsection}{\numberline {1.1.2}Q-learning}{8}{subsection.1.1.2}
+\contentsline {subsection}{\numberline {1.1.3}Policy gradient methods}{8}{subsection.1.1.3}
+\contentsline {subsection}{\numberline {1.1.4}Soft Actor-Critic}{9}{subsection.1.1.4}
+\contentsline {subsection}{\numberline {1.1.5}Graph convolutional neural networks}{10}{subsection.1.1.5}
+\contentsline {subsection}{\numberline {1.1.6}Mutex watershed}{11}{subsection.1.1.6}
+\contentsline {subsection}{\numberline {1.1.7}Principal component analysis}{12}{subsection.1.1.7}
+\contentsline {subsection}{\numberline {1.1.8}Loss functions}{13}{subsection.1.1.8}
+\contentsline {section}{References}{14}{section*.2}

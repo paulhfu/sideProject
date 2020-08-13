@@ -1,0 +1,56 @@
+% LaTeX style file for Ph.D. thesis document
+% Institution: Kyungpook National University (KNU)
+% 
+% (c) Gwenaelle Cunha Sergio (gwena.cs@gmail.com)
+% and
+% (c) Dennis Singh Moirangthem (mdennissingh@gmail.com)
+%
+% Please note:
+%    1. Compile with XeLatex
+%    2. This was not made for monetary purposes and it is free for anyone to use. However, if you do use it or modify it, please acknowledge this work by mentioning this original source code.
+%
+
+% !TeX program = lualatex
+
+\documentclass[12pt]{report}
+
+\usepackage{thesis}
+\input{tex/packages.tex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Document starts here %
+%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+\onehalfspacing
+\makecover
+\makeinnercover\newpage
+\pagenumbering{arabic}
+%\thispagestyle{empty}
+\addtocounter{page}{1}
+\tableofcontents \newpage
+\listoffigures \newpage
+
+\input{notation} \pagebreak
+
+%%%%%%%%%%%%%%%%%%%%
+% Rest of document %
+%%%%%%%%%%%%%%%%%%%%
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\input{introduction} \pagebreak
+
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\input{prelims/preliminaries} \pagebreak
+
+
+
+%\section*{References}
+\setstretch{1.0}
+\phantomsection~\label{sec:ref}
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{IEEEtran}
+\bibliography{bibliography.bib}
+\pagebreak
+
+\end{document}

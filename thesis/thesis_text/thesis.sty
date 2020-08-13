@@ -1,0 +1,88 @@
+% LaTeX style file for Ph.D. thesis document
+% Institution: Kyungpook National University (KNU)
+% 
+% (c) Gwenaelle Cunha Sergio (gwena.cs@gmail.com)
+% and
+% (c) Dennis Singh Moirangthem (mdennissingh@gmail.com)
+%
+% Please note:
+%    1. Compile with XeLatex
+%    2. This was not made for monetary purposes and it is free for anyone to use. However, if you do use it or modify it, please acknowledge this work by mentioning this original source code.
+%
+
+%%%%% My notes %%%%%
+% Use \RequirePackage instead of \usepackage
+\NeedsTeXFormat{LaTeX2e}[1994/06/01]
+\ProvidesPackage{thesis}
+  [2020/03/21 v0.01 LaTeX package for KNU's Ph.D. Thesis]
+%%%%%%%%%%%%
+% Packages %
+%%%%%%%%%%%%
+% Date
+\RequirePackage[USenglish]{babel}
+\RequirePackage[useregional]{datetime2}
+\RequirePackage{lipsum}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Section with Roman Numerals %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{fontspec}
+\RequirePackage{times} %\setmainfont{Times New Roman}
+\RequirePackage[T1]{fontenc}
+\RequirePackage{kotex} % for korean text
+\RequirePackage[subfigure]{tocloft}
+\RequirePackage{titlesec}
+\RequirePackage{chngpage}
+\RequirePackage{fontspec}
+\RequirePackage{slantsc} % http://mirrors.ibiblio.org/CTAN/macros/latex/contrib/slantsc/slantsc.pdf
+\RequirePackage{bold-extra} % allows for bfseries and scshape to be used together
+
+\defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+\setmainfont{Arial}
+
+\usepackage{geometry}
+\geometry{
+	a4paper,
+	total={170mm,257mm},
+	left=20mm,
+	right=25mm,
+	top=30mm,
+	bottom=30mm,
+}
+
+%%%%%%%%%%%%%%%%
+%  Cover page  %
+%%%%%%%%%%%%%%%%
+\newcommand*{\makecover}{%
+  \begin{titlepage}
+  	\newpage\null\thispagestyle{empty}\newpage
+  \end{titlepage}
+}
+
+%%%%%%%%%%%%%%%%%%%%
+% Inner cover page %
+%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\makeinnercover}{
+  \begin{titlepage}
+  	\begin{Center}
+  		\vspace{5cm}
+  		\large{\textbf{Ruprecht-Karls-Universität Heidelberg}} \\ 
+  		\vspace{1cm}
+  		\large{\textbf{Fakultät für Mathematik und Informatik}} \\
+  		\vspace{1cm}
+  		\large{\textbf{Institut für Informatik}} \\
+  		\vspace{3cm}
+  		\large{\textbf{Masterarbeit}} \\ 
+  		\vspace{2cm}
+  		\large{Bestärkendes Lernen für semantische Segmentierung von Bilddaten} \\ 
+  		\vspace{1cm}
+  		\large{Reinforcement Learning for semantic segmentation of image data} \\ 
+  		\vspace{3cm}
+  	\end{Center}\par
+	\noindent Name: Paul Hilt \vspace{3mm} \\
+	Matrikelnummer: 3533310 \vspace{3mm} \\
+	Betreuer: Prof. Dr. rer. nat. Fred Hamprecht
+  \end{titlepage}
+}
+
+\endinput
