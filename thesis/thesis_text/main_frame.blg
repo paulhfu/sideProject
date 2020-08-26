@@ -23,53 +23,57 @@ I was expecting a `,' or a `}'---line 22 of file bibliography.bib.bib
  :  organization={The MIT}
 (Error may have been on previous line)
 I'm skipping whatever remains of this entry
+Warning--entry type for "AAAIziebert" isn't style-file defined
+--line 25 of file bibliography.bib.bib
 -- IEEEtran.bst version 1.14 (2015/08/26) by Michael Shell.
 -- http://www.michaelshell.org/tex/ieeetran/bibtex/
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
 Warning--empty booktitle in SB_all
 Warning--empty booktitle in SBQL
 Warning--empty booktitle in SBeligibility
+Too many commas in name 1 of "BrianD. Ziebart, Andrew Maas, J.Andrew Bagnell,andAnind K. Dey" for entry AAAIziebert
+while executing---line 2403 of file IEEEtran.bst
 
 Done.
-You've used 6 entries,
+You've used 23 entries,
             4087 wiz_defined-function locations,
-            847 strings with 8038 characters,
-and the built_in function-call counts, 3770 in all, are:
-= -- 249
-> -- 121
-< -- 18
-+ -- 61
-- -- 25
-* -- 179
-:= -- 543
-add.period$ -- 12
-call.type$ -- 6
-change.case$ -- 6
-chr.to.int$ -- 45
-cite$ -- 9
-duplicate$ -- 280
-empty$ -- 341
-format.name$ -- 31
-if$ -- 861
+            936 strings with 11595 characters,
+and the built_in function-call counts, 12913 in all, are:
+= -- 916
+> -- 452
+< -- 32
++ -- 218
+- -- 102
+* -- 601
+:= -- 1994
+add.period$ -- 47
+call.type$ -- 23
+change.case$ -- 25
+chr.to.int$ -- 63
+cite$ -- 26
+duplicate$ -- 1011
+empty$ -- 1125
+format.name$ -- 125
+if$ -- 2930
 int.to.chr$ -- 0
-int.to.str$ -- 6
-missing$ -- 59
-newline$ -- 41
-num.names$ -- 6
-pop$ -- 179
+int.to.str$ -- 23
+missing$ -- 235
+newline$ -- 106
+num.names$ -- 25
+pop$ -- 671
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 2
-skip$ -- 282
+skip$ -- 969
 stack$ -- 0
-substring$ -- 110
-swap$ -- 191
-text.length$ -- 3
+substring$ -- 183
+swap$ -- 680
+text.length$ -- 11
 text.prefix$ -- 0
 top$ -- 5
-type$ -- 6
+type$ -- 23
 warning$ -- 3
-while$ -- 14
-width$ -- 7
-write$ -- 68
-(There were 3 error messages)
+while$ -- 37
+width$ -- 25
+write$ -- 224
+(There were 4 error messages)

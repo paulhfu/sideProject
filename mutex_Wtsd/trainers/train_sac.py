@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 from utils.general import Counter
 from torch import multiprocessing as mp
 from agents.sac import AgentSacTrainer
@@ -45,13 +46,11 @@ class TrainSAC(object):
                 yaml.dump(dict(self.args.runtime_config), info)
 
             global_count = Counter()  # Global shared counter
+            global_writer_count = Counter()
             global_writer_loss_count = Counter()  # Global shared counter
             global_writer_quality_count = Counter()  # Global shared counter
             global_win_event_count = Counter()  # Global shared counter
             action_stats_count = Counter()
-
-            # Start validation agent
-            processes = []
 
         # ctx = mp.get_context('spawn')
         # q = ctx.Queue()
@@ -75,6 +74,7 @@ class TrainSAC(object):
                                                          global_writer_quality_count,
                                                          global_win_event_count=global_win_event_count,
                                                          action_stats_count=action_stats_count,
+                                                         global_writer_count=global_writer_count,
                                                          save_dir=save_dir)
             elif 'seed_test_sg' in self.args.algorithm:
                 trainer = AgentSacTrainer_test_sg(self.cfg, self.args, global_count, global_writer_loss_count,
@@ -116,13 +116,34 @@ class TrainSAC(object):
                                           global_writer_quality_count, global_win_event_count=global_win_event_count,
                                           action_stats_count=action_stats_count,
                                           save_dir=save_dir)
-            for rank in range(0, self.args.num_processes):
-                p = mp.Process(target=trainer.train, args=(rank, time, return_dict))
-                p.start()
-                processes.append(p)
-            # Clean up
-            for p in processes:
-                p.join()
+
+            rns = torch.randint(0, 2 ** 32, torch.Size([10]))
+            best_qual = np.inf
+            best_seed = None
+            for i, rn in enumerate(rns):
+                # Start validation agent
+                processes = []
+                for rank in range(0, self.args.n_processes_per_gpu * self.args.n_gpu):
+                    ret = None
+                    if rank==0:
+                        ret = return_dict
+                    p = mp.Process(target=trainer.train, args=(rank, time, ret, rn.item()))
+                    p.start()
+                    processes.append(p)
+                # Clean up
+                for p in processes:
+                    p.join()
+
+                if return_dict['score'] < best_qual:
+                    best_qual = return_dict['score']
+                    best_seed = rn.item()
+
+                res = 'best seed is: ' + str(best_seed) + " with a qual of: " + str(best_qual)
+                print(res)
+
+            with open(os.path.join(save_dir, 'result.txt'), "w") as info:
+                info.write(res)
+
             if self.args.cross_validate_hp or self.args.test_score_only:
                 print('Score is: ', return_dict['test_score'])
                 print('Wins out of 20 trials')

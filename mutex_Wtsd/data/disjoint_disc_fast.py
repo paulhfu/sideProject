@@ -2,6 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 import h5py
 import os
+import portalocker
 
 import torch.utils.data as torch_data
 import numpy as np
@@ -12,6 +13,7 @@ class MultiDiscPixDset(torch_data.Dataset):
         self.graph_dir = os.path.join(root_dir, 'graph_data')
         self.pix_dir = os.path.join(root_dir, 'pix_data')
         self.length = len([name for name in os.listdir(self.graph_dir)])
+        print('found ', self.length, " data files")
         return
 
     def __len__(self):
@@ -30,7 +32,6 @@ class MultiDiscPixDset(torch_data.Dataset):
         edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, = [], [], [], [], []
         for i in indices:
             graph_file = h5py.File(os.path.join(self.graph_dir, "graph_" + str(i.item()) + ".h5"), 'r')
-
             try:
                 edges.append(torch.from_numpy(graph_file["edges"][:]).to(device))
                 edge_feat.append(torch.from_numpy(graph_file["edge_feat"][:]).to(device))

@@ -193,16 +193,18 @@ class AgentSacTrainer_sg_lg(object):
 
     def _step(self, replay_buffer, optimizers, env, model, step, writer=None):
 
-        obs, action, reward, next_obs, done = replay_buffer.sample()
+        (obs, action, reward, next_obs, done), sample_idx = replay_buffer.sample()
         not_done = int(not done)
 
         critic_loss = self.update_critic(obs, action, reward, next_obs, not_done, env, model, optimizers)
+        replay_buffer.report_sample_loss(critic_loss, sample_idx)
 
         if step % self.cfg.actor_update_frequency == 0:
             actor_loss, alpha_loss = self.update_actor_and_alpha(obs, env, model, optimizers)
             if writer is not None:
                 writer.add_scalar("loss/actor", actor_loss, self.global_writer_loss_count.value())
                 writer.add_scalar("loss/temperature", alpha_loss, self.global_writer_loss_count.value())
+
 
         if step % self.cfg.critic_target_update_frequency == 0:
             soft_update_params(model.module.critic, model.module.critic_tgt, self.critic_tau)

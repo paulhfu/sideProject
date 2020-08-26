@@ -1,4 +1,4 @@
-This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  13 AUG 2020 13:19
+This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  26 AUG 2020 11:26
  restricted system commands enabled.
 **main_frame.tex
 (./main_frame.tex
@@ -34,7 +34,7 @@ Inserting `luaotfload.aux.set_capheight' at position 3 in `luaotfload.patch_font
 '.
 Inserting `luaotfload.rewrite_fontname' at position 4 in `luaotfload.patch_font'
 .
-luaotfload | main : initialization completed in 0.088 seconds
+luaotfload | main : initialization completed in 0.086 seconds
 Babel <3.18> and hyphenation patterns for 1 language(s) loaded.
 (/usr/share/texlive/texmf-dist/tex/latex/base/report.cls
 Document Class: report 2014/09/29 v1.4h Standard LaTeX document class
@@ -1551,8 +1551,63 @@ Package: subfig 2005/06/28 ver: 1.3 subfig package
 )
 (/usr/share/texlive/texmf-dist/tex/latex/tools/indentfirst.sty
 Package: indentfirst 1995/11/23 v1.03 Indent first paragraph (DPC)
-))
+)
+(/usr/share/texlive/texmf-dist/tex/latex/algorithm2e/algorithm2e.sty
+Package: algorithm2e 2017/07/18 v5.2 algorithms environments
+\c@AlgoLine=\count309
+\algocf@hangindent=\skip125
+
+(/usr/share/texlive/texmf-dist/tex/latex/tools/xspace.sty
+Package: xspace 2014/10/28 v1.13 Space after command names (DPC,MH)
+)
+(/usr/share/texlive/texmf-dist/tex/latex/relsize/relsize.sty
+Package: relsize 2013/03/29 ver 4.1
+)
+\skiptotal=\skip126
+\skiplinenumber=\skip127
+\skiprule=\skip128
+\skiphlne=\skip129
+\skiptext=\skip130
+\skiplength=\skip131
+\algomargin=\skip132
+\skipalgocfslide=\skip133
+\algowidth=\dimen291
+\inoutsize=\dimen292
+\inoutindent=\dimen293
+\interspacetitleruled=\dimen294
+\interspacealgoruled=\dimen295
+\interspacetitleboxruled=\dimen296
+\algocf@ruledwidth=\skip134
+\algocf@inoutbox=\box54
+\algocf@inputbox=\box55
+\AlCapSkip=\skip135
+\AlCapHSkip=\skip136
+\algoskipindent=\skip137
+\algocf@nlbox=\box56
+\algocf@hangingbox=\box57
+\algocf@untilbox=\box58
+\algocf@skipuntil=\skip138
+\algocf@capbox=\box59
+\algocf@lcaptionbox=\skip139
+\algoheightruledefault=\skip140
+\algoheightrule=\skip141
+\algotitleheightruledefault=\skip142
+\algotitleheightrule=\skip143
+\c@algocfline=\count310
+\c@algocfproc=\count311
+\c@algocf=\count312
+\algocf@algoframe=\box60
+\algocf@algobox=\box61
+)
+\c@defn=\count313
+)
 (./main_frame.aux
+
+LaTeX Warning: Label `chap:rl_for_seg' multiply defined.
+
+
+LaTeX Warning: Label `sec:rl_for_seg' multiply defined.
+
 
 LaTeX Warning: Label `sec:ref' multiply defined.
 
@@ -1674,16 +1729,16 @@ LaTeX Font Info:    Overwriting symbol font `mathhangul' in version `bold'
 
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count309
-\scratchdimen=\dimen291
-\scratchbox=\box54
-\nofMPsegments=\count310
-\nofMParguments=\count311
+\scratchcounter=\count314
+\scratchdimen=\dimen297
+\scratchbox=\box62
+\nofMPsegments=\count315
+\nofMParguments=\count316
 \everyMPshowfont=\toks34
-\MPscratchCnt=\count312
-\MPscratchDim=\dimen292
-\MPnumerator=\count313
-\makeMPintoPDFobject=\count314
+\MPscratchCnt=\count317
+\MPscratchDim=\dimen298
+\MPnumerator=\count318
+\makeMPintoPDFobject=\count319
 \everyMPtoPDFconversion=\toks35
 ) (/usr/share/texlive/texmf-dist/tex/latex/oberdiek/epstopdf-base.sty
 Package: epstopdf-base 2016/05/15 v2.6 Base part for package epstopdf
@@ -1707,7 +1762,7 @@ Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: subfig package v1.3 is loaded.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
-\AtBeginShipoutBox=\box55
+\AtBeginShipoutBox=\box63
 Package hyperref Info: Link coloring OFF on input line 23.
 
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
@@ -1716,7 +1771,7 @@ Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
 (/usr/share/texlive/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
 Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
 )
-\c@section@level=\count315
+\c@section@level=\count320
 )
 LaTeX Info: Redefining \ref on input line 23.
 LaTeX Info: Redefining \pageref on input line 23.
@@ -1730,16 +1785,16 @@ LaTeX Info: Redefining \nameref on input line 23.
 
 ]
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
-(Font)              scaled to size 12.49628pt on input line 26.
+(Font)              scaled to size 12.49628pt on input line 28.
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
-(Font)              scaled to size 12.49628pt on input line 26.
+(Font)              scaled to size 12.49628pt on input line 28.
 
 warning  (pdf backend): ignoring duplicate destination with the name 'page.1'
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
-(Font)              scaled to size 21.5908pt on input line 30.
+(Font)              scaled to size 21.5908pt on input line 32.
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
-(Font)              scaled to size 21.5908pt on input line 30.
+(Font)              scaled to size 21.5908pt on input line 32.
  (./main_frame.toc
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
 (Font)              scaled to size 6.94238pt on input line 2.
@@ -1776,26 +1831,95 @@ LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
 (Font)              scaled to size 14.99554pt on input line 1.
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
 (Font)              scaled to size 14.99554pt on input line 1.
-) [5]
-(./prelims/preliminaries.tex
+)
+(./main/motivation.tex [5]
 Chapter 1.
-(./prelims/rl.tex [6
+) [6
 
-] [7] [8]) (./prelims/gcn.tex [9]) (./prelims/mutex.tex
-[10]) (./prelims/pca.tex [11]) (./prelims/losses.tex [12])) [13]
-(./main_frame.bbl [14]
+] (./prelims/preliminaries.tex
+Chapter 2.
+(./prelims/segmentation.tex [7
+
+]) (./prelims/rl.tex
+<figures/rl/agent_env_interface.png, id=195, 1307.63531pt x 508.14844pt>
+File: figures/rl/agent_env_interface.png Graphic file (type png)
+<use figures/rl/agent_env_interface.png>
+Package luatex.def Info: figures/rl/agent_env_interface.png  used on input line 
+19.
+(luatex.def)             Requested size: 375.57782pt x 145.94809pt.
+ [8]
+Overfull \hbox (16.54022pt too wide) in paragraph at lines 28--30
+\TU/Arial(0)/m/n/12 Fur-ther, if $\OML/cmm/m/it/12 a[]$ \TU/Arial(0)/m/n/12 is 
+sam-pled from $\OML/cmm/m/it/12 \OT1/cmr/m/n/12 (\OML/cmm/m/it/12 a[]\OMS/cmsy
+/m/n/12 j\OML/cmm/m/it/12 s[]\OT1/cmr/m/n/12 )$ \TU/Arial(0)/m/n/12 the Markov 
+Prop-erty in-duces con-di-tional in-de-pen-dence of $\OT1/cmr/m/n/12 (\OML/cmm/
+m/it/12 s[]; r[]\OT1/cmr/m/n/12 )$
+ []
+
+[9<./figures/rl/agent_env_interface.png>] [10] [11] [12]
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
-(Font)              scaled to size 10.41357pt on input line 40.
-) [15
+(Font)              scaled to size 10.41357pt on input line 160.
+ [13] [14])
+(./prelims/gcn.tex [15]) (./prelims/mutex.tex
+<figures/mutexwatershed/walkthrough.png, id=322, 526.21594pt x 639.13782pt>
+File: figures/mutexwatershed/walkthrough.png Graphic file (type png)
+<use figures/mutexwatershed/walkthrough.png>
+Package luatex.def Info: figures/mutexwatershed/walkthrough.png  used on input l
+ine 31.
+(luatex.def)             Requested size: 234.73524pt x 285.11273pt.
+ [16] [17<./figures/mutexwatershed/walkthrough.png>]
+LaTeX Font Info:    Font shape `TU/Arial(0)/bx/it' will be
+(Font)              scaled to size 10.41357pt on input line 39.
+LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
+(Font)              scaled to size 6.94238pt on input line 43.
+LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
+(Font)              scaled to size 5.20679pt on input line 43.
+) (./prelims/multicut.tex [18]) (./prelims/pca.tex [19])
+(./prelims/losses.tex [20]
+Overfull \hbox (1.20647pt too wide) in paragraph at lines 23--24
+[]\TU/Arial(0)/bx/n/12 reg-u-lar-iza-tion term \TU/Arial(0)/m/n/12 this is a sm
+all pull-force that keeps the pre-dicted em-bed-ding vec-tors bounded
+ []
+
+<figures/contrastive_loss.png, id=388, 700.11563pt x 433.62pt>
+File: figures/contrastive_loss.png Graphic file (type png)
+<use figures/contrastive_loss.png>
+Package luatex.def Info: figures/contrastive_loss.png  used on input line 42.
+(luatex.def)             Requested size: 234.73524pt x 145.38435pt.
+[21]
+<figures/triplet_loss.png, id=403, 1146.53343pt x 331.99031pt>
+File: figures/triplet_loss.png Graphic file (type png)
+<use figures/triplet_loss.png>
+Package luatex.def Info: figures/triplet_loss.png  used on input line 58.
+(luatex.def)             Requested size: 234.73524pt x 67.96725pt.
+ [22<./figures/contrastive_loss.png><./figures/triplet_loss.png>]))
+[23] (./main/main.tex
+Chapter 3.
+(./main/rl_for_seg.tex) (./main/rl_for_mutex.tex [24
 
 ]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 56.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 56.
+
+LaTeX Warning: Reference `fig:seg_contradiction' on page 25 undefined on input l
+ine 7.
+
+) (./main/mainframe.tex
+
+LaTeX Warning: Reference `ssec:loss_contrastive' on page 25 undefined on input l
+ine 5.
+
+)) [25] [26] (./main_frame.bbl [27] [28
+
+]) [29]
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 67.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 67.
  (./main_frame.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 56.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 56.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 67.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 67.
 Package rerunfilecheck Info: File `main_frame.out' has not changed.
-(rerunfilecheck)             Checksum: 385F676DD6111E30DE04E84F00D89AAE;860.
+(rerunfilecheck)             Checksum: 9B835CF9EB23F4B90B5F5EBF4DE10FBF;1616.
+
+
+LaTeX Warning: There were undefined references.
 
 
 LaTeX Warning: There were multiply-defined labels.
@@ -1803,30 +1927,34 @@ LaTeX Warning: There were multiply-defined labels.
 )
 
 Here is how much of LuaTeX's memory you used:
- 31490 strings out of 494480
+ 32680 strings out of 494480
  125171,953878 words of node,token memory allocated
- 810 words of node memory still in use:
-   7 hlist, 2 vlist, 2 rule, 2 glue, 1 kern, 17 attribute, 115 glue_spec, 9 attr
-ibute_list, 1 write nodes
-   avail lists: 1:2,2:8851,3:109,4:18,5:131,6:2096,7:614,8:89,9:282,10:8,11:184
- 34396 multiletter control sequences out of 65536+600000
- 64 fonts using 10290167 bytes
- 67i,13n,119p,860b,420s stack positions out of 5000i,500n,10000p,200000b,100000s
-</usr/share/fonts/truetype/msttcorefonts/Arial_Italic.ttf></usr/share/fonts/true
-type/msttcorefonts/Arial.ttf></usr/share/fonts/truetype/msttcorefonts/Arial_Bold
-.ttf></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></
-usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texli
-ve/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf
--dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fo
-nts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public
-/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfont
-s/symbols/msbm10.pfb>
-Output written on main_frame.pdf (16 pages, 160529 bytes).
+ 931 words of node memory still in use:
+   7 hlist, 2 vlist, 2 rule, 2 glue, 1 kern, 23 attribute, 132 glue_spec, 12 att
+ribute_list, 1 write, 3 pdf_action nodes
+   avail lists: 1:2,2:16991,3:211,4:43,5:170,6:4176,7:897,8:105,9:377,10:25,11:4
+14
+ 35374 multiletter control sequences out of 65536+600000
+ 67 fonts using 10754351 bytes
+ 67i,16n,119p,1518b,519s stack positions out of 5000i,500n,10000p,200000b,100000s
+</usr/share/fonts/truetype/msttcorefonts/Arial_Bold_Italic.ttf></usr/share/fonts
+/truetype/msttcorefonts/Arial_Italic.ttf></usr/share/fonts/truetype/msttcorefont
+s/Arial.ttf></usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf></usr/share/
+texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive
+/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-
+dist/fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fon
+ts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1
+/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
+amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10
+.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></u
+sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share
+/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/share/t
+exlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on main_frame.pdf (30 pages, 635895 bytes).
 
-PDF statistics: 236 PDF objects out of 1000 (max. 8388607)
- 198 compressed objects within 2 object streams
- 52 named destinations out of 1000 (max. 131072)
- 120 words of extra memory for PDF output out of 10000 (max. 100000000)
+PDF statistics: 536 PDF objects out of 1000 (max. 8388607)
+ 462 compressed objects within 5 object streams
+ 145 named destinations out of 1000 (max. 131072)
+ 208 words of extra memory for PDF output out of 10000 (max. 100000000)
 

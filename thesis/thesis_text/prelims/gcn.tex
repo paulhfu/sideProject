@@ -1,1 +1,18 @@
-\subsection{Graph convolutional neural networks}~\label{ssec:gcn}
+\section{Geometric deep learning}~\label{sec:gcn}
+Convolutional neural networks use the convolution operation to "filter" a regular grid graph of certain dimension with a filter consisting of learnable parameters. Graph convolution, was introduced by \cite{bruna2013spectral} generalizes this notion of convolutional filtering to arbitrary graphs. Through that it is possible to learn functions on non eucledian, structured domains that have a notion of locality.\\
+Since then the field developed rapidly, \cite{Bronstein_2017} provides a good overview of the research that was done so far.\\
+Most of the research focuses on the application where graphs are constructed from descretizations of 2-dimensional manifolds, embedded in 3-dimensional eucledian space, usually called point clouds. However the principle can be used for arbitrary graphs that contain features in their nodes.\\
+Typically there are two equivalent definitions of convolution on graphs. One is the spectral definition which suffers from large complexity in terms of memory and time. The other one is a spatial construction motivated from signal flows on graphs which is much faster as operating with sparse representations of the graph. The A quick summary of the latter as in \cite{gilmer2017neural} is given below. \\
+
+Let a graph be represented by $\mathcal{G}=(X, (I, E))$ where $X\in \mathbb{R}^{Nxm}$ is a node feature matrix of $N$, $m$-dimensional node feature vectors, with nodes ecoded as $i \in[1..N]$ and $(A, E)$ is a set of adjacency tuples where $A\in \mathbb{N}^{2x|E|}$ encodes the set of $|E|$ edges with edge features $E$.
+
+The generalization of the convolutional operator locally expressed by means of the neighborhood $\mathcal{N}(i)$ around node $i$ is
+
+\begin{align}
+	\vec{x}_i^\prime = \gamma \left(\vec{x}_i, \aggr_{j \in \mathcal{N}(i)}  \phi \left(\vec{x}_i, \vec{x}_i, \vec{e}_{ij} \right) \right)
+\end{align}
+
+where $\aggr$ is a differentiable and permutation invariant function such as the sum or the mean. $\gamma$ and $\phi$ are differentiable functions represented by multi layer perceptrons. This convolution is also referred to as message passing scheme. All this covolution operations w.r.t. to each node in the graph allow parallel computation which makes this schemes fast.
+
+
+

@@ -39,8 +39,13 @@
 
 \usepackage{titlesec}
 
+\usepackage[]{algorithm2e}
+
 \titleformat{\chapter}[display]
 {\normalfont\bfseries}{}{0pt}{\Huge}
+\setlength\parindent{0pt}
+
+\newtheorem{defn}{Definition}
 
 % Suppress badness warnings
 \hbadness=99999
@@ -48,3 +53,5 @@
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator*{\argmin}{arg\,min}
 \DeclareMathOperator*{\softmax}{softmax}
+\DeclareMathOperator*{\aggr}{\boxplus}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}

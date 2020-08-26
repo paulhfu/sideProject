@@ -1,0 +1,86 @@
+general:
+  algorithm: sac_seed_test_sg_global #Algorithm used for training
+  master_port: !!str "12358" #port num on localhost for icp
+  cross_validate_hp: false # make gridsearch cv of hp
+  no_save: false #dont save models
+  test_score_only: false #no learning only validation
+  n_processes_per_gpu: 2 #Number of training async agents
+  n_gpu: 2 #Number of gpus per process
+  evaluate: false #evaluate existing model
+  seed: 123 #Random seed
+  data_shape: [128, 128]
+  target_dir: seed_test_sg_global_gcn_rules #Save folder
+  base_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd #Save folder
+  data_dir: '/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/pix_and_graphs'
+  ## env and model defs
+  model_name: ''
+
+  #Pretrained model (state dict)
+  model_fe_name: 'agent_model_fe_extr'
+  model_name_dest: agent_model #(state dict) is safed to
+  n_edge_features: 10 #number of initial edge features
+  n_actions: 3 #number of actions on edge
+  ## feature extractor
+  weight_edge_loss: 0.3
+  weight_side_loss: 10
+  n_embedding_features: 16 #number of embedding feature channels
+  n_raw_channels: 1 #number of channels in raw data
+  fe_extr_warmup: false
+
+  #pretrain the feature extractor with contrastive loss
+  fe_warmup_iterations: 60 #number of iterations of feature extrqactor warmup
+  fe_warmup_batch_size: 10 #batch size for feature extractor warmup
+  no_fe_extr_optim: false #optimize feature extractor with ril loss
+  ## main training (env, trainer)
+  T_max: 8000 #Number of training steps
+  t_max: 80 #Mem size
+  n_updates_per_step: 10
+  max_episode_length: 1 #Maximum episode length
+  eps_rule: self_reg_exp_avg #
+  eps_final: 0.005 #
+  eps_scaling: 1 #
+  eps_offset: 0 #
+  stop_qual_rule: constant # running_average #
+  stop_qual_final: 5 #
+  stop_qual_scaling: 40 #
+  stop_qual_offset: 5 #
+  stop_qual_ra_bw: 20 #running average bandwidth
+  stop_qual_ra_off: -15 #running average offset
+  reward_function: defining_rules_sp_based #Reward function: sub_graph_dice, fully_supervised, defining_rules, defining_rules_lg,defining_rules_edge_based
+  action_agression: 0.1 #value by which one action changes state
+  ## acer continuous
+  b_simga_final: 0.0001 #final behavior std dev
+  b_sigma_scaling: 4 #scaling behavior std dev
+  p_sigma: 0.03 #policy std dev
+  exp_steps: 5 #Number of samples drawn to estimate expectation in loss
+  density_eval_range: 0.05 #pdf evaluation range (value +- range) for retrieving probas
+  ## Training specifics (agent)
+  trust_region: false #use trust region gradient
+  discount: 0.5 #Discount factor
+  lbd: 3 #lambda elegibility trace parameter
+  qnext_replace_cnt: 10 #number of learning steps after which qnext is updated
+  trace_max: 1.5 #Importance weight truncation (max) value
+  trust_region_decay: 0.01 #Average model weight averaging rate
+  trust_region_threshold: 0.5 #Trust region threshold value
+  trust_region_weight: 2 #Trust region regularization weight
+  entropy_weight: 1 #Entropy regularisation weight
+  max_gradient_norm: 100 #Gradient L2 norm clipping
+  l2_reg_params_weight: 0.0 #Gradient L2 weight
+  p_loss_weight: 1 # policy loss weight
+  v_loss_weight: 1 # value loss weight
+  s_subgraph: 10
+  ## Optimization
+  min_lr: 0.0 #min Learning rate
+  lr: 0.00006 #
+  Adam_weight_decay: 0 #
+  Adam_betas: [0.9, 0.999] #Adam decay factors
+  ## runtime ctl
+  runtime_config:
+    lr: 0.000006
+    eps: 1 #epsilon for manual config during runtime
+    safe_model: false #the model is saved
+    add_noise: false #noise is added to the rewards
+    actor_lr: 1.0e-4
+    critic_lr: 1.0e-4
+    alpha_lr: 1.0e-4
+

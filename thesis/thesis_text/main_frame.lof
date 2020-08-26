@@ -1,2 +1,8 @@
 \babel@toc {USenglish}{}
 \addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces agent environment interaction \cite {SB_all}\relax }}{9}{figure.caption.2}
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Some iterations of algorithm \ref {algo:mtx_wtsd} applied to a graph with weighted attractive edges (green) and repulsive (ref) edges. Edges that are part of the active set $A$ at each iteration are shown in bold. On termination (f), the connected components in $A \cap E^+$ represent the partitions of the final partitioning. Edges that are not added to $A$ because of the violation of $\mathcal {C}_0$ or $\mathcal {C}_1$ are highlighted in blue and yellow respectively \cite {wolf2019mutex}\relax }}{17}{figure.caption.3}
+\contentsline {figure}{\numberline {2.3}{\ignorespaces As defined by the loss, this are the hinged inter-pulling and intra-pushing forces acting on points in the embedding space \cite {brab2017semantic}\relax }}{22}{figure.caption.4}
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Position of triplets in the embedding space before and after training \cite {Schroff_2015}\relax }}{22}{figure.caption.5}
+\addvspace {10\p@ }

@@ -8,7 +8,7 @@ from math import inf
 import matplotlib.pyplot as plt
 from environments.environment_bc import Environment
 from utils.reward_functions import FocalReward, FullySupervisedReward, ObjectLevelReward, UnSupervisedReward, \
-    GraphDiceReward, GlobalSparseReward, SubGraphDiceReward, HoughCircles, HoughCircles_lg
+    GraphDiceReward, GlobalSparseReward, SubGraphDiceReward, HoughCircles, HoughCircles_lg, HoughCirclesOnSp
 from utils.graphs import separate_nodes, collate_edges, get_edge_indices
 from rag_utils import find_dense_subgraphs
 
@@ -27,8 +27,12 @@ class SpGcnEnv(Environment):
             self.reward_function = FullySupervisedReward(env=self)
         elif self.args.reward_function == 'sub_graph_dice':
             self.reward_function = SubGraphDiceReward(env=self)
-        elif self.args.reward_function == 'defining_rules':
+        elif self.args.reward_function == 'defining_rules_edge_based':
             self.reward_function = HoughCircles(env=self, range_num=[8, 10],
+                                                range_rad=[max(self.args.data_shape) // 18,
+                                                           max(self.args.data_shape) // 15], min_hough_confidence=0.7)
+        elif self.args.reward_function == 'defining_rules_sp_based':
+            self.reward_function = HoughCirclesOnSp(env=self, range_num=[8, 10],
                                                 range_rad=[max(self.args.data_shape) // 18,
                                                            max(self.args.data_shape) // 15], min_hough_confidence=0.7)
         elif self.args.reward_function == 'defining_rules_lg':
@@ -42,7 +46,9 @@ class SpGcnEnv(Environment):
         self.b_current_edge_weights = actions.clone()
         self.sg_current_edge_weights = actions[self.b_subgraph_indices].view(-1, self.args.s_subgraph)
 
-        reward = self.reward_function.get(actions, self.get_current_soln())
+        reward = self.reward_function.get(actions, self.get_current_soln(self.b_current_edge_weights))
+        # reward = self.reward_function.get(actions, self.get_current_soln(self.b_gt_edge_weights))
+        # reward = self.reward_function.get(actions=self.sg_current_edge_weights)
 
         quality = (self.sg_current_edge_weights - self.sg_gt_edge_weights).squeeze().abs().sum().item()
         self.counter += 1
@@ -54,8 +60,20 @@ class SpGcnEnv(Environment):
         if self.writer is not None and post_stats:
             self.writer.add_scalar("step/quality", quality, self.writer_counter.value())
             self.writer.add_scalar("step/avg_return", reward.mean(), self.writer_counter.value())
-            if self.writer_counter.value() % 80 == 0:
-                self.writer.add_histogram("step/pred_mean", self.sg_current_edge_weights.view(-1).cpu().numpy(), self.writer_counter.value() // 80)
+            if self.writer_counter.value() % 10 == 0:
+                self.writer.add_histogram("step/pred_mean", self.sg_current_edge_weights.view(-1).cpu().numpy(), self.writer_counter.value() // 10)
+                current_soln = self.get_current_soln(self.b_current_edge_weights)
+                gt_soln = self.get_current_soln(self.b_gt_edge_weights)
+                fig, (a1, a2, a3, a4) = plt.subplots(1, 4, sharex='col', sharey='row', gridspec_kw={'hspace': 0, 'wspace': 0})
+                a1.imshow(self.raw[0].cpu().squeeze(), cmap='hot')
+                a1.set_title('raw image')
+                a2.imshow(cm.prism(self.init_sp_seg[0].cpu() / self.init_sp_seg[0].max()))
+                a2.set_title('superpixels')
+                a3.imshow(cm.prism(gt_soln[0].cpu()/gt_soln[0].max()))
+                a3.set_title('gt')
+                a4.imshow(cm.prism(current_soln[0].cpu()/current_soln[0].max()))
+                a4.set_title('prediction')
+                self.writer.add_figure("image/state", fig, self.writer_counter.value() // 10)
             self.writer.add_scalar("step/gt_mean", self.sg_gt_edge_weights.mean(), self.writer_counter.value())
             self.writer.add_scalar("step/gt_std", self.sg_gt_edge_weights.std(), self.writer_counter.value())
             if logg_vals is not None:
@@ -67,7 +85,7 @@ class SpGcnEnv(Environment):
         return self.get_state(), reward, quality
 
     def get_state(self):
-        return self.raw, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights
+        return self.raw, self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
 
     def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_labeling, raw, angles, gt):
         self.gt_seg = gt
@@ -109,12 +127,12 @@ class SpGcnEnv(Environment):
             b_actions[i] = torch.where(mask, actions.float(), other.float()).sum() / num
         return b_actions
 
-    def get_current_soln(self):
+    def get_current_soln(self, b_edge_weights):
         p_min = 0.001
         p_max = 1.
         segmentations = []
         for i in range(1, len(self.e_offs)):
-            probs = self.b_current_edge_weights[self.e_offs[i-1]:self.e_offs[i]]
+            probs = b_edge_weights[self.e_offs[i-1]:self.e_offs[i]]
             # probs = self.b_gt_edge_weights[self.e_offs[i-1]:self.e_offs[i]]
             edges = self.b_edge_ids[:, self.e_offs[i-1]:self.e_offs[i]] - self.n_offs[i-1]
             costs = (p_max - p_min) * probs + p_min

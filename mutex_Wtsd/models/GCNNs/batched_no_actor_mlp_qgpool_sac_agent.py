@@ -2,12 +2,15 @@ import torch
 from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
 import torch.nn.functional as F
 import torch.nn as nn
+# from models.sp_embed_with_affs import SpVecsUnet
 from models.sp_embed_unet1 import SpVecsUnet
 import matplotlib.pyplot as plt
 from utils.general import _pca_project, plt_bar_plot
 from utils.truncated_normal import TruncNorm
 from models.GCNNs.gcnn import Gcnn, QGcnn, GlobalEdgeGcnn
 from utils.sigmoid_normal1 import SigmNorm
+import numpy as np
+from losses.rag_contrastive_loss import ContrastiveLoss
 # import gpushift
 
 
@@ -26,27 +29,46 @@ class GcnEdgeAC(torch.nn.Module):
 
         self.fe_ext = SpVecsUnet(self.args.n_raw_channels, self.args.n_embedding_features, device, writer)
 
-        self.actor = PolicyNet(self.args.n_embedding_features+1, 2, device, writer)
-        self.critic = DoubleQValueNet(self.args.n_embedding_features+1, 1, self.args, device, writer)
-        self.critic_tgt = DoubleQValueNet(self.args.n_embedding_features+1, 1, self.args, device, writer)
+        self.actor = PolicyNet(self.args.n_embedding_features, 2, device, writer)
+        self.critic = DoubleQValueNet(self.args.n_embedding_features, 1, self.args, device, writer)
+        self.critic_tgt = DoubleQValueNet(self.args.n_embedding_features, 1, self.args, device, writer)
 
-    def forward(self, raw, gt_edges=None, sp_indices=None, edge_index=None, angles=None, round_n=None,
-                sub_graphs=None, sep_subgraphs=None, actions=None, post_input=False, policy_opt=False):
+        self.log_alpha = torch.tensor(np.log(self.cfg.init_temperature)).to(device)
+        self.log_alpha.requires_grad = True
+        self.embedd_loss = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
+
+    @property
+    def alpha(self):
+        return self.log_alpha.exp()
+
+    @alpha.setter
+    def alpha(self, value):
+        self.log_alpha = torch.tensor(np.log(value)).to(self.device)
+        self.log_alpha.requires_grad = True
+
+    def forward(self, raw, sp_seg, gt_edges=None, sp_indices=None, edge_index=None, angles=None, round_n=None,
+                sub_graphs=None, sep_subgraphs=None, actions=None, post_input=False, policy_opt=False, embeddings_opt=False):
 
         if sp_indices is None:
             return self.fe_ext(raw)
-        embeddings = self.fe_ext(raw)
-        node_features = []
+        with torch.set_grad_enabled(embeddings_opt):
+            embeddings = self.fe_ext(raw)
+        # self.embedd_loss.beta = self.alpha.item()
+        # embedding_regularizer = self.embedd_loss(embeddings, sp_seg.long())
+        node_feats = []
+        # embedding_regularizer = 0
         for i, sp_ind in enumerate(sp_indices):
             post_inp = False
             if post_input and i == 0:
                 post_inp = True
-            node_features.append(self.fe_ext.get_node_features(raw[i].squeeze(), embeddings[i].squeeze(), sp_ind, post_input=post_inp))
+            n_f, _mass = self.fe_ext.get_node_features(raw[i].squeeze(), embeddings[i].squeeze(), sp_ind, post_input=post_inp)
+            # embedding_regularizer = embedding_regularizer + _reg
+            node_feats.append(n_f)
+
+        # embedding_regularizer = embedding_regularizer / len(sp_indices)
 
         # create one large unconnected graph where each connected component corresponds to one image
-        node_features = torch.cat(node_features, dim=0)
-        node_features = torch.cat(
-            [node_features, torch.ones([node_features.shape[0], 1], device=node_features.device) * round_n], -1)
+        node_features = torch.cat(node_feats, dim=0).detach()
 
         edge_index = torch.cat([edge_index, torch.stack([edge_index[1], edge_index[0]], dim=0)], dim=1)  # gcnn expects two directed edges for one undirected edge
 
@@ -75,7 +97,10 @@ class GcnEdgeAC(torch.nn.Module):
             q1, q2, _ = self.critic_tgt(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
             # q1, q2 = q1[sub_graphs].view(-1, self.args.s_subgraph), q1[sub_graphs].view(-1, self.args.s_subgraph)
             q1, q2 = q1.squeeze(), q1.squeeze()
-            return dist, q1, q2, actions
+            if policy_opt:
+                return dist, q1, q2, actions
+            else:
+                return dist, q1, q2, actions, embeddings
 
         q1, q2, _ = self.critic(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
         # q1, q2 = q1[sub_graphs].view(-1, self.args.s_subgraph), q1[sub_graphs].view(-1, self.args.s_subgraph)
