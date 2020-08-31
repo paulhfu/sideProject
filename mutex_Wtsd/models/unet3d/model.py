@@ -181,7 +181,7 @@ class UNet2D(Abstract3DUNet):
     Just a standard 2D Unet. Arises naturally by specifying conv_kernel_size=(1, 3, 3), pool_kernel_size=(1, 2, 2).
     """
 
-    def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='gcr',
+    def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='bcr',
                  num_groups=8, num_levels=4, is_segmentation=True, conv_padding=1, **kwargs):
         if conv_padding == 1:
             conv_padding = (0, 1, 1)

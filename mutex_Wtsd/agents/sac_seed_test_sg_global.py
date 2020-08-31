@@ -176,7 +176,7 @@ class AgentSacTrainer_test_sg_global(object):
     def update_embeddings(self, obs, env, model, optimizers):
         distribution, actor_Q1, actor_Q2, action, embeddings = self.agent_forward(env, model, grad=False, state=obs, policy_opt=False, embeddings_opt=True)
 
-        embedding_regularizer = torch.tensor(0.)
+        # embedding_regularizer = torch.tensor(0.)
         weights = distribution.loc.detach()
 
         # weights = torch.autograd.grad(outputs=actor_loss, inputs=distribution.loc, retain_graph=True, create_graph=True, only_inputs=True)[0]
@@ -257,7 +257,7 @@ class AgentSacTrainer_test_sg_global(object):
         (obs, action, reward, next_obs, done), sample_idx = replay_buffer.sample()
         not_done = int(not done)
 
-        if max(1, self.global_count.value()-self.args.t_max) % self.cfg.embeddings_update_frequency == 0:
+        if max(1, self.global_count.value()-self.args.t_max) % self.cfg.embeddings_update_frequency <= self.args.n_processes_per_gpu*self.args.n_gpu:
             embedd_loss = self.update_embeddings(obs, env, model, optimizers)
             if writer is not None:
                 writer.add_scalar("loss/embedd", embedd_loss, self.global_writer_loss_count.value())
@@ -356,10 +356,11 @@ class AgentSacTrainer_test_sg_global(object):
         last_quals = []
         while self.global_count.value() <= self.args.T_max:
             dloader = DataLoader(dset, batch_size=self.cfg.batch_size, shuffle=True, pin_memory=True, num_workers=0)
-            for iteration in range(len(dset)):
+            for iteration in range(len(dset)*self.args.data_update_frequency):
                 # if self.global_count.value() > self.args.T_max:
                 #     a=1
-                self.update_env_data(env, dloader, device)
+                if iteration % self.args.data_update_frequency == 0:
+                    self.update_env_data(env, dloader, device)
                 # waff_dis = torch.softmax(env.edge_features[:, 0].squeeze() + 1e-30, dim=0)
                 # waff_dis = torch.softmax(env.gt_edge_weights + 0.5, dim=0)
                 # waff_dis = torch.softmax(torch.ones_like(env.b_gt_edge_weights), dim=0)

@@ -46,7 +46,8 @@ class SpGcnEnv(Environment):
         self.b_current_edge_weights = actions.clone()
         self.sg_current_edge_weights = actions[self.b_subgraph_indices].view(-1, self.args.s_subgraph)
 
-        reward = self.reward_function.get(actions, self.get_current_soln(self.b_current_edge_weights))
+        self.current_soln = self.get_current_soln(self.b_current_edge_weights)
+        reward = self.reward_function.get(actions, self.current_soln)
         # reward = self.reward_function.get(actions, self.get_current_soln(self.b_gt_edge_weights))
         # reward = self.reward_function.get(actions=self.sg_current_edge_weights)
 
@@ -67,15 +68,15 @@ class SpGcnEnv(Environment):
                 fig, (a1, a2, a3, a4) = plt.subplots(1, 4, sharex='col', sharey='row', gridspec_kw={'hspace': 0, 'wspace': 0})
                 a1.imshow(self.raw[0].cpu().squeeze(), cmap='hot')
                 a1.set_title('raw image')
-                a2.imshow(cm.prism(self.init_sp_seg[0].cpu() / self.init_sp_seg[0].max()))
+                a2.imshow(cm.prism(self.init_sp_seg[0].cpu() / self.init_sp_seg[0].max().item()))
                 a2.set_title('superpixels')
-                a3.imshow(cm.prism(gt_soln[0].cpu()/gt_soln[0].max()))
+                a3.imshow(cm.prism(gt_soln[0].cpu()/gt_soln[0].max().item()))
                 a3.set_title('gt')
-                a4.imshow(cm.prism(current_soln[0].cpu()/current_soln[0].max()))
+                a4.imshow(cm.prism(current_soln[0].cpu()/current_soln[0].max().item()))
                 a4.set_title('prediction')
                 self.writer.add_figure("image/state", fig, self.writer_counter.value() // 10)
-            self.writer.add_scalar("step/gt_mean", self.sg_gt_edge_weights.mean(), self.writer_counter.value())
-            self.writer.add_scalar("step/gt_std", self.sg_gt_edge_weights.std(), self.writer_counter.value())
+            self.writer.add_scalar("step/gt_mean", self.sg_gt_edge_weights.mean().item(), self.writer_counter.value())
+            self.writer.add_scalar("step/gt_std", self.sg_gt_edge_weights.std().item(), self.writer_counter.value())
             if logg_vals is not None:
                 for key, val in logg_vals.items():
                     self.writer.add_scalar("step/" + key, val, self.writer_counter.value())
@@ -85,7 +86,7 @@ class SpGcnEnv(Environment):
         return self.get_state(), reward, quality
 
     def get_state(self):
-        return self.raw, self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
+        return torch.cat([self.raw, self.init_sp_seg.unsqueeze(1), self.current_soln.unsqueeze(1)], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
 
     def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_labeling, raw, angles, gt):
         self.gt_seg = gt
@@ -109,10 +110,11 @@ class SpGcnEnv(Environment):
         self.sg_current_edge_weights = torch.ones_like(self.sg_gt_edge_weights) / 2
 
         self.b_initial_edge_weights = torch.cat([edge_fe[:, 0] for edge_fe in edge_features], dim=0)
-        self.b_current_edge_weights = torch.ones_like(self.b_initial_edge_weights) / 2
+        self.b_current_edge_weights = self.b_initial_edge_weights.clone()
+        self.current_soln = self.get_current_soln(self.b_current_edge_weights)
 
         stacked_superpixels = [[node_labeling[i] == n for n in range(n_node)] for i, n_node in enumerate(self.n_nodes)]
-        self.sp_indices = [[sp.nonzero().cpu() for sp in stacked_superpixel] for stacked_superpixel in stacked_superpixels]
+        self.sp_indices = [[torch.nonzero(sp, as_tuple=False).cpu() for sp in stacked_superpixel] for stacked_superpixel in stacked_superpixels]
 
         # self.b_penalize_diff_thresh = diff_to_gt * 4
         # plt.imshow(self.get_current_soln_pic(1));plt.show()

@@ -61,7 +61,7 @@ class GcnEdgeAC(torch.nn.Module):
             post_inp = False
             if post_input and i == 0:
                 post_inp = True
-            n_f, _mass = self.fe_ext.get_node_features(raw[i].squeeze(), embeddings[i].squeeze(), sp_ind, post_input=post_inp)
+            n_f, _mass = self.fe_ext.get_node_features(raw[i].squeeze(), embeddings[i].detach().squeeze(), sp_ind, post_input=post_inp)
             # embedding_regularizer = embedding_regularizer + _reg
             node_feats.append(n_f)
 
@@ -101,6 +101,7 @@ class GcnEdgeAC(torch.nn.Module):
                 return dist, q1, q2, actions
             else:
                 return dist, q1, q2, actions, embeddings
+
 
         q1, q2, _ = self.critic(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
         # q1, q2 = q1[sub_graphs].view(-1, self.args.s_subgraph), q1[sub_graphs].view(-1, self.args.s_subgraph)

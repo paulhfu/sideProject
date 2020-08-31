@@ -122,7 +122,7 @@ class ContrastiveTripletLoss(nn.Module):
         return variance_term
 
     def _compute_triplet_distance_term(self, cluster_means, attr_edges, rep_edges):
-        sims = torch.nonzero((attr_edges.unsqueeze(-1).unsqueeze(-1) == rep_edges.unsqueeze(0).unsqueeze(0)).sum((0,2))==1)
+        sims = torch.nonzero((attr_edges.unsqueeze(-1).unsqueeze(-1) == rep_edges.unsqueeze(0).unsqueeze(0)).sum((0,2))==1, as_tuple=False)
         triplets = attr_edges[:, sims[:, 0]], rep_edges[:, sims[:, 1]]
 
         triplet_term = .5 * (pairwise_distance(cluster_means[triplets[0][0]], cluster_means[triplets[0][1]], p=2) ** 2 \
@@ -219,11 +219,10 @@ class ContrastiveTripletLoss(nn.Module):
 
             distance_term = 0
             if sngl_e_w_attr is not None and sngl_e_w_rep is not None:
-                # print('found triplets')
                 distance_term = self._compute_triplet_distance_term(cluster_means.squeeze(), sngl_e_w_attr, sngl_e_w_rep)
-            else:
+            # else:
                 # print("NO TRIPLETS FOUND")
-                distance_term = self._compute_distance_term(cluster_means, C, spatial_dims)
+                # distance_term = self._compute_distance_term(cluster_means, C, spatial_dims)
 
             regularization_term = self._compute_regularizer_term(cluster_means, C, spatial_dims)
             # compute total loss and sum it up

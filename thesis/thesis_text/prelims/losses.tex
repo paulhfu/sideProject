@@ -1,6 +1,8 @@
 \section{Loss functions}~\label{ssec:losses}
 This section reviews some important loss functions.
 
+\subsection{Dice loss}\label{ssec:loss_dice}
+
 \subsection{Contrasive loss}\label{ssec:loss_contrastive}
 
 This loss, as defined in \cite{brab2017semantic}, applies to the task of instance segmentation in images. A differentiable function predicts points in a feature space that are embedded in a $n$-dimensional eucledian space. Each predicted point in the embedding space corresponds to a pixel within the image. Ideally the $n$-dimensional embedding vectors for each pixel are close to each other in the embedding space if the corresponding pixels belong to the same instance and distant to each other if not. Then a final clustering algorithm can assign an instance/cluster to each embedding vector.\\
@@ -44,7 +46,7 @@ The behaviors of the different terms in the loss are sketched in figure \ref{fig
 	\label{fig_contrastive}
 \end{figure}
 
-\subsection{Triplet loss}\label{loss_triplet}
+\subsection{Triplet loss}\label{ssec:loss_triplet}
 This loss, as defined in \cite{Schroff_2015} is related to the contrastive loss in section \ref{loss_contrastive} in the sense that it is also defined over data points in an embedding space where the resulting embeddings form ideally per instance clusters. The loss function expects three embedding vectors as an input. An anchor $x_i^a$, a embedding that is of the same class $x_i^p$ and one that is of a different class $x_i^n$. Then the loss yields
 
 \begin{align}

@@ -1,0 +1,45 @@
+\section{The actor critic networks}~\label{seg:sag_gcn}
+
+In this section the involved GCNN's are discussed in detail. There is one network predicting the statistics for the policy. This is referred to as the actor network. The implemented graph convolution on a directed graph for $K$ convolution iterations is defined the update functions\\
+
+\begin{align}
+\vec{e}_{ij} &= \eta \left( \phi_1 \left(\vec{x}_i, \vec{x}_j \right)\right)\\
+\vec{x}_i &= \eta \left( \gamma_1 \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij} \right)\right)
+\end{align}
+
+For the first iteration as there are no edge features initially, the following iterations are defined by the update functions
+
+\begin{align}
+\vec{e}_{ij} &= \eta \left( \phi_k \left(\vec{x}_i, \vec{x}_j, \vec{e}_{ij} \right)\right)\\
+\vec{x}_i &= \eta \left( \gamma_k \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij} \right) \right)\\
+\text{for }k&=1...K-1
+\end{align}
+
+Here $\phi_k$ and $\gamma_k$ are multi layer perceptrons and $\eta$ is a elementwise non linear function. $i$ is the node index of the sink node and $j$ the node index of the source node for each edge. The region adjacency graph of the superpixels is undirected therefore it is converted to a directed graph, by swapping each undirected edge for two directed edges, beforehand. The final $K^{\text{th}}$ iteration is defined by the update functions
+
+\begin{align}
+\vec{e}_{ij} &= \eta \left( \phi_K \left(\vec{x}_i, \vec{x}_j, \vec{e}_{ij} \right)\right)\\
+\end{align}
+
+Where the the number of elements in the output vector $\vec{e}_{ij}$ corresponds to the number of the required scalar values that define the distribution used for the policy. This could be all coefficients of a categorical distribution in a discrete action space setting or mean and variance of a normal distribution in a continuous action space setting.\\
+
+The GCNN's approximating the state action values are referred to as the critic networks. There are two of them of equal architecture but distinct parameters, incorporating Double Q-Learning \ref{text:doublQ}. The first $K$ graph convolutions are equally defined to the actor network with the difference that the last convolution outputs vectors $e_{ij}$ of the same lengths as the input node feature vectors.
+Following that, the graph without node features and edge features $e_{ij}$ is split into unconnected subgraphs with a fixed number of $l$ edges. The following iteration on the subgraphs is defined by the update
+
+\begin{align}
+\vec{x}_i &= \eta \left( \gamma_1 \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \eta \left( \phi_K \left(\vec{x}_i, \vec{x}_j\right)\right) \right)\right)
+\end{align}
+
+and the last graph convolution iteration by
+
+\begin{align}
+\vec{e}_{ij} &= \eta \left( \phi_K \left(\vec{x}_i, \vec{x}_j \right)\right)
+\end{align}
+
+the scalar state action value per subgraph is obtained by
+
+\begin{align}
+	\gamma_{Q}\left( \frac{1}{l} \sum_{ij\in sg} e_{ij} \right)
+\end{align}
+
+where $\gamma_{Q}$ is a mlp outputting a scalar value.

@@ -4,7 +4,7 @@ Since then the field developed rapidly, \cite{Bronstein_2017} provides a good ov
 Most of the research focuses on the application where graphs are constructed from descretizations of 2-dimensional manifolds, embedded in 3-dimensional eucledian space, usually called point clouds. However the principle can be used for arbitrary graphs that contain features in their nodes.\\
 Typically there are two equivalent definitions of convolution on graphs. One is the spectral definition which suffers from large complexity in terms of memory and time. The other one is a spatial construction motivated from signal flows on graphs which is much faster as operating with sparse representations of the graph. The A quick summary of the latter as in \cite{gilmer2017neural} is given below. \\
 
-Let a graph be represented by $\mathcal{G}=(X, (I, E))$ where $X\in \mathbb{R}^{Nxm}$ is a node feature matrix of $N$, $m$-dimensional node feature vectors, with nodes ecoded as $i \in[1..N]$ and $(A, E)$ is a set of adjacency tuples where $A\in \mathbb{N}^{2x|E|}$ encodes the set of $|E|$ edges with edge features $E$.
+Let a graph be represented by $\mathcal{G}=(X, (I, E))$ where $X\in \mathbb{R}^{N\times m}$ is a node feature matrix of $N$, $m$-dimensional node feature vectors, with nodes ecoded as $i \in[1..N]$ and $(A, E)$ is a set of adjacency tuples where $A\in \mathbb{N}^{2x|E|}$ encodes the set of $|E|$ edges with edge features $E$.
 
 The generalization of the convolutional operator locally expressed by means of the neighborhood $\mathcal{N}(i)$ around node $i$ is
 

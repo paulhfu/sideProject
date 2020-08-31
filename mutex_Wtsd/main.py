@@ -143,7 +143,7 @@ def main(cfg):
     # q_learning(dloader_mult_discs, rootPath, args, learn=True)
     print('visible gpus: ', torch.cuda.device_count())
     args = cfg.general
-    mp.set_start_method('spawn')
+    mp.set_start_method('spawn', force=True)
     if args.algorithm == 'offpac':
         trainer = TrainOffpac(args)
         score = trainer.train(start_time)

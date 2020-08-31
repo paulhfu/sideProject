@@ -119,7 +119,8 @@ class GlobalEdgeGcnn(nn.Module):
         self.node_conv6 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
         self.node_conv7 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
         self.node_conv8 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
-        self.node_conv9 = NodeConv1(n_in_channels, n_out_channels, n_hidden_layer=0)
+        self.node_conv9 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
+        self.edge_conv = EdgeConv2(n_in_channels, n_out_channels, n_out_channels, use_init_edge_feats=False, n_hidden_layer=0)
 
 
         # hl = [EdgeConvNoNodes()]
@@ -138,6 +139,7 @@ class GlobalEdgeGcnn(nn.Module):
         node_features, _ = self.node_conv7(node_features, edge_index, angles)
         node_features, _ = self.node_conv8(node_features, edge_index, angles)
         node_features, _ = self.node_conv9(node_features, edge_index, angles)
+        _, edge_features = self.edge_conv(node_features, edge_index)
 
         return edge_features, side_loss
 
@@ -167,6 +169,8 @@ class GlobalEdgeGcnnLarge(nn.Module):
         self.node_conv15 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
         self.node_conv16 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0)
         self.node_conv17 = NodeConv1(n_in_channels, n_out_channels, n_hidden_layer=0)
+        self.edge_conv = EdgeConv2(n_in_channels, n_out_channels, n_out_channels, use_init_edge_feats=False, n_hidden_layer=0)
+
 
 
         # hl = [EdgeConvNoNodes()]
@@ -193,5 +197,6 @@ class GlobalEdgeGcnnLarge(nn.Module):
         node_features, _ = self.node_conv15(node_features, edge_index, angles)
         node_features, _ = self.node_conv16(node_features, edge_index, angles)
         node_features, _ = self.node_conv17(node_features, edge_index, angles)
+        _, edge_features = self.edge_conv(node_features, edge_index)
 
         return edge_features, side_loss

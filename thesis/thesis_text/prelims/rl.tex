@@ -133,7 +133,7 @@ p_x(x)=p_u(T^{-1}(u)) |detJ_T(u)|^{-1}
 where $J_T(u)$ is the Jacobian matrix of $T$ w.r.t. $u$. I practice an invertible neural network can be trained to transform a simplistic density function into a more expressive one.\\
 E.g. let the agent predict mean and variance of a Normal distribution. Actions are the in the data collection process sampled from a transformed Normal distribution where the transform encourages entropy and maybe also multiple modes. Assuming the sampling happened using reparametrization the log probabilities and their gradient in eq (1.14) can still be calculated. This is a on-policy training with a expressive density function and the advantage is that easy reparameterization tricks can still be used since the sampling itself is happening from the base distribution.
 
-\subsection{Soft Actor-Critic (SAC)}
+\subsection{Soft Actor-Critic (SAC)}\label{ssec:sac}
 This algorithm was introduced by \cite{haarnoja2018soft}. They aim to maximize the objective in eq. (1.17). Particularly they focus on the selection of the weight factor $\alpha$ and show, that it can be seen as a learnable parameter which is trained jointly with actor and critic networks.\\
 SAC is derived from the soft policy iteration where the temporal difference equation for the action value depends on the soft value function which is
 \begin{align}
@@ -176,11 +176,11 @@ minimizing this loss by a gradient descent method involves backpropping through 
 
 In practice, reinforcement learning problems have high dimensional action spaces but only one dimensional rewards. Therefore the learned action value function of the critic is also one dimensional in contrast to the actor who predicts the statistics of the policiy for each action dimension. Then the joint probability is the product of probabilities over all actions. This results in summing the log probabilities in eq. (1.25)
 
-\subsection{Common optimization methods}
+\subsection{Common optimization methods}\label{ssec:common_opt}
 There are numerous optimization methods for reinforcement learning problems. This is just a listing of only very few but important ones, reviewed and tested in \cite{hessel2017rainbow}.
 
 \begin{itemize}
-	\item \textbf{Double Q-learning} \cite{DBLP:journals/corr/HasseltGS15} Conventional Q-learning is affected by an overestimation bias of action values. Decoupling the action selection from its evaluation by learning two action value networks independently resulting in the loss
+	\item \textbf{Double Q-learning} \label{text:doublQ} \cite{DBLP:journals/corr/HasseltGS15} Conventional Q-learning is affected by an overestimation bias of action values. Decoupling the action selection from its evaluation by learning two action value networks independently resulting in the loss
 	
 	\begin{align}
 		\mathcal{L}_{TD} = \frac{1}{2} \left(r_{t+1} + \gamma Q_{\pi}^{(\bar{\phi})} \left( s_{t+1}, \argmax_{a}Q_{\pi}^{(\phi)}(s_{t+1}, a) \right) - Q_{\pi}^{(\phi)}(s_t, a_t)\right)^2\text{.}
@@ -218,3 +218,6 @@ There are numerous optimization methods for reinforcement learning problems. Thi
 	
 \end{itemize}
 
+\subsection{Reparameterization} \label{ssec:reparam}
+
+\subsection{Normalizing flows}\label{ssec:norm_flows}
