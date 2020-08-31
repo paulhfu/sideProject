@@ -1,45 +1,75 @@
-\section{The actor critic networks}~\label{seg:sag_gcn}
+\section{The actor critic networks}~\label{sec:sag_gcn}
 
-In this section the involved GCNN's are discussed in detail. There is one network predicting the statistics for the policy. This is referred to as the actor network. The implemented graph convolution on a directed graph for $K$ convolution iterations is defined the update functions\\
+In this section the involved GCNN's are discussed in detail. There is one network predicting the statistics for the policy. This is referred to as the actor network. Let the directed region adjacency graph of the superpixel segmentation be $G=(V,E)$. The conversion from the undirected region adjacency graph to a directed graph is achieved by replacing each undirected edge by a pair of opposing directed edges with the same incidental nodes. The implemented graph convolution on $G$ for $K$ convolution iterations is defined the update functions\\
 
 \begin{align}
-\vec{e}_{ij} &= \eta \left( \phi_1 \left(\vec{x}_i, \vec{x}_j \right)\right)\\
-\vec{x}_i &= \eta \left( \gamma_1 \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij} \right)\right)
+\vec{e}_{ij}^{1} &= \sigma \left( \phi^0 \left(\vec{x}_i^{0}, \vec{x}_j^{0} \right)\right)\\
+\vec{x}_i^1 &= \sigma \left( \gamma^0 \left(\vec{x}_i^0, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij}^1 \right)\right)
 \end{align}
 
-For the first iteration as there are no edge features initially, the following iterations are defined by the update functions
+For the first iteration as there are no edge features initially. The superscripts refer to the convolution step and $x_i^0$ is the node feature vector obtained by avaraging the pixel embeddings for each superpixel $i \in V$. 
+$\phi^k$ and $\gamma^k$ are multi layer perceptrons at step $k$ and $\sigma$ is an elementwise non linear function.
+$\vec{e}_{ij}^{k}$ is the edge feature vector at update step $k$ for edge $(ij) \in E$ where $i \in V$ is always the node index of the sink node and $j \in V$ the node index of the source node. $x_i^k$ is the node feature vector at update step $k$ for node $i \in V$.\\
+The following $K-1$ iterations are defined by the update functions
 
 \begin{align}
-\vec{e}_{ij} &= \eta \left( \phi_k \left(\vec{x}_i, \vec{x}_j, \vec{e}_{ij} \right)\right)\\
-\vec{x}_i &= \eta \left( \gamma_k \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij} \right) \right)\\
+\vec{e}_{ij}^{k+1} &= \sigma \left( \phi_k \left(\vec{x}_i^k, \vec{x}_j^k, \vec{e}_{ij}^k \right)\right)\\
+\vec{x}_i^{k+1} &= \sigma \left( \gamma_k \left(\vec{x}_i^k, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij}^{k+1} \right) \right)\\
 \text{for }k&=1...K-1
 \end{align}
 
-Here $\phi_k$ and $\gamma_k$ are multi layer perceptrons and $\eta$ is a elementwise non linear function. $i$ is the node index of the sink node and $j$ the node index of the source node for each edge. The region adjacency graph of the superpixels is undirected therefore it is converted to a directed graph, by swapping each undirected edge for two directed edges, beforehand. The final $K^{\text{th}}$ iteration is defined by the update functions
+The final $K^{\text{th}}$ iteration is defined by the update function
 
 \begin{align}
-\vec{e}_{ij} &= \eta \left( \phi_K \left(\vec{x}_i, \vec{x}_j, \vec{e}_{ij} \right)\right)\\
+\vec{e}_{ij} &= \sigma \left( \phi_K \left(\vec{x}_i, \vec{x}_j, \vec{e}_{ij} \right)\right)
 \end{align}
 
 Where the the number of elements in the output vector $\vec{e}_{ij}$ corresponds to the number of the required scalar values that define the distribution used for the policy. This could be all coefficients of a categorical distribution in a discrete action space setting or mean and variance of a normal distribution in a continuous action space setting.\\
 
-The GCNN's approximating the state action values are referred to as the critic networks. There are two of them of equal architecture but distinct parameters, incorporating Double Q-Learning \ref{text:doublQ}. The first $K$ graph convolutions are equally defined to the actor network with the difference that the last convolution outputs vectors $e_{ij}$ of the same lengths as the input node feature vectors.
-Following that, the graph without node features and edge features $e_{ij}$ is split into unconnected subgraphs with a fixed number of $l$ edges. The following iteration on the subgraphs is defined by the update
+The GCNN's approximating the state action values are referred to as the critic networks. There are two of them of equal architecture but distinct parameters, incorporating Double Q-Learning \ref{text:doublQ}. The first convolution step is defined as the update
 
 \begin{align}
-\vec{x}_i &= \eta \left( \gamma_1 \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \eta \left( \phi_K \left(\vec{x}_i, \vec{x}_j\right)\right) \right)\right)
+\vec{e}_{ij}^1 &= \sigma \left( \eta^0 \left(\vec{x}_i^0, \vec{x}_j^0, \vec{a}_{ij} \right)\right)\\
+\vec{x}_i^1 &= \sigma \left( \psi^0 \left(\vec{x}_i, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij}^1 \right)\right)
 \end{align}
-
-and the last graph convolution iteration by
+Where $\vec{a}_{ij}$ is the action $a_t$ on the edge $ij$ and $\eta^k$ and $\psi^k$
+are multi layer perceptrons at update step $k$.
+The following $M-2$ convolution steps are the updates
 
 \begin{align}
-\vec{e}_{ij} &= \eta \left( \phi_K \left(\vec{x}_i, \vec{x}_j \right)\right)
+\vec{e}_{ij}^{k+1} &= \sigma \left( \eta^k \left(\vec{x}_i^k, \vec{x}_j^k, \vec{e}_{ij}^k \right)\right)\\
+\vec{x}_i^{k+1} &= \sigma \left( \psi^k \left(\vec{x}_i^k, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \vec{e}_{ij}^{k+1} \right)\right)\\
+\text{for }k&=1...M-2
+\end{align}
+and the final iteration update only for the edges
+\begin{align}
+\vec{e}_{ij}^M &= \sigma \left( \eta^{M-1} \left(\vec{x}_i^{M-1}, \vec{x}_j^{M-1}, \vec{e}_{ij}^{M-1} \right)\right)
 \end{align}
 
-the scalar state action value per subgraph is obtained by
+Following that, the graph $G$ with edge features $e_{ij}^M$ is split into unconnected subgraphs $SG=(SV,SE)$ such that each connected component in $SG$ is a subgraph in $G$ with exact $l$ edges and the union of all those subgraphs covers $G$ completely. It is continued with the edge features only because, for the state action value approximation, only information of affinities between superpixels is important. The first update on the subgraphs is
 
 \begin{align}
-	\gamma_{Q}\left( \frac{1}{l} \sum_{ij\in sg} e_{ij} \right)
+\vec{x}_i^1 &= \sigma \left( \beta^1 \left(\frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  e_{ij}^M\right)\right)
 \end{align}
 
-where $\gamma_{Q}$ is a mlp outputting a scalar value.
+With $(ij)\in SE$ where $i \in SV$ is always the node index of the sink node and $j \in SV$ the node index of the source node.
+This is followed by the $N-2$ updates
+
+\begin{align}
+\vec{x}_i^{k+1} &= \sigma \left( \beta^k \left(\vec{x}_i^k, \frac{1}{deg(\mathcal{N}(i))} \sum_{j \in \mathcal{N}(i)}  \sigma \left( \delta^k \left(\vec{x}_i^k, \vec{x}_j^k\right)\right) \right)\right)\\
+\text{for }k&=1...N-2
+\end{align}
+
+Again, $\delta^k$ and $\beta^k$ are multi layer perceptrons at step $k$. The last graph convolution iteration is the edge feature update
+
+\begin{align}
+\vec{e}_{ij} &= \sigma \left( \delta^{N-1} \left(\vec{x}_i^{N-1}, \vec{x}_j^{N-1} \right)\right)
+\end{align}
+
+the scalar state action value per subgraph $sg$ is obtained by
+
+\begin{align}
+	Q\pi(s, a)_{sg} = \gamma_{Q}\left( \frac{1}{l} \sum_{ij\in sg} \vec{e}_{ij} \right)
+\end{align}
+
+where $\gamma_{Q}$ is a mlp outputting a scalar value and $\vec{e}_{ij}$ is dependent on $(s, a)$ by the shown upstream pipelines in the way that $x^0_i$ depends on $s$ and the embedding network and $a$ are reparameterized samples from distributions dependent on the predicted statistics in eq. (3.8).

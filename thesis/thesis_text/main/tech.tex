@@ -1,5 +1,7 @@
-\section{Technical details}\label{chap:tech}
-This section reviews some technical details of the implementation of the pipeline.
+\section{Technical details}\label{sec:tech}
+This section reviews some technical details of the implementation of the pipeline. Except for algorithm \ref{algo:sgs} and some more helper functions for operations on graphs that have been implemented in c++ all has been written in python under heavy use of the libraries pytorch, numpy, scipy and skimage. The c++ implementations are called from the python interpreter using the pybind11 interface together with the xtensor libraries.\\
+pytorch multiprocessing is used for parallelization and synchronization in the fashion of the A3C (section \ref{ssec::a3c}). After each update step through graph convolutions in section \ref{sec:sag_gcn} node and edge features are normalized by a Batch Normalization layer \cite{ioffe2015batch}.\\
+There embedding space is $\mathbb{R}^{16}$ and the node features in section \ref{sec:sag_gcn} are in the embedding space $x_{i}^0 \in \mathbb{R}^{16}$
 
 
-\subsection{Batch processing}\label{sec:batchp}
+\subsection{Batch processing}\label{ssec:batchp}

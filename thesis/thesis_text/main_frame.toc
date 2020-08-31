@@ -36,8 +36,8 @@
 \contentsline {section}{\numberline {3.5}Obtaining superpixels from mutex watershed}{31}{section.3.5}
 \contentsline {section}{\numberline {3.6}The embedding network}{31}{section.3.6}
 \contentsline {section}{\numberline {3.7}The actor critic networks}{32}{section.3.7}
-\contentsline {section}{\numberline {3.8}Finding subgraphs}{34}{section.3.8}
-\contentsline {section}{\numberline {3.9}Technical details}{34}{section.3.9}
-\contentsline {subsection}{\numberline {3.9.1}Batch processing}{34}{subsection.3.9.1}
-\contentsline {chapter}{\numberline {4}Technical realization}{35}{chapter.4}
-\contentsline {section}{References}{36}{section*.8}
+\contentsline {section}{\numberline {3.8}Finding subgraphs}{35}{section.3.8}
+\contentsline {section}{\numberline {3.9}Technical details}{36}{section.3.9}
+\contentsline {subsection}{\numberline {3.9.1}Batch processing}{37}{subsection.3.9.1}
+\contentsline {chapter}{\numberline {4}Experiments and results}{38}{chapter.4}
+\contentsline {section}{References}{39}{section*.8}

@@ -126,7 +126,7 @@ class DoubleQValueNet(torch.nn.Module):
         self.args = args
 
         self.gcn1_1 = QGcnn(n_in_features, n_in_features, device, writer)
-        self.gcn1_2 = GlobalEdgeGcnn(n_in_features, n_classes, device, writer)
+        self.gcn1_2 = GlobalEdgeGcnn(n_in_features, n_in_features, device, writer)
         self.l_relu = torch.nn.LeakyReLU()
         self.norm_features = torch.nn.BatchNorm1d(n_in_features, track_running_stats=False)
 

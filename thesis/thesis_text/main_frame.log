@@ -1,4 +1,4 @@
-This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  31 AUG 2020 11:31
+This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  31 AUG 2020 20:50
  restricted system commands enabled.
 **main_frame.tex
 (./main_frame.tex
@@ -34,7 +34,7 @@ Inserting `luaotfload.aux.set_capheight' at position 3 in `luaotfload.patch_font
 '.
 Inserting `luaotfload.rewrite_fontname' at position 4 in `luaotfload.patch_font'
 .
-luaotfload | main : initialization completed in 0.083 seconds
+luaotfload | main : initialization completed in 0.089 seconds
 Babel <3.18> and hyphenation patterns for 1 language(s) loaded.
 (/usr/share/texlive/texmf-dist/tex/latex/base/report.cls
 Document Class: report 2014/09/29 v1.4h Standard LaTeX document class
@@ -1612,9 +1612,6 @@ LaTeX Warning: Label `sec:rl_for_seg' multiply defined.
 LaTeX Warning: Label `overview' multiply defined.
 
 
-LaTeX Warning: Label `seg:sag_gcn' multiply defined.
-
-
 LaTeX Warning: Label `sec:ref' multiply defined.
 
 )
@@ -1867,13 +1864,16 @@ LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
 (Font)              scaled to size 10.41357pt on input line 160.
  [14] [15])
 (./prelims/gcn.tex [16]) (./prelims/mutex.tex
-<figures/mutexwatershed/walkthrough.png, id=428, 526.21594pt x 639.13782pt>
+LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
+(Font)              scaled to size 6.94238pt on input line 14.
+ [17]
+<figures/mutexwatershed/walkthrough.png, id=446, 526.21594pt x 639.13782pt>
 File: figures/mutexwatershed/walkthrough.png Graphic file (type png)
 <use figures/mutexwatershed/walkthrough.png>
 Package luatex.def Info: figures/mutexwatershed/walkthrough.png  used on input l
 ine 31.
 (luatex.def)             Requested size: 234.73524pt x 285.11273pt.
- [17] [18<./figures/mutexwatershed/walkthrough.png>]
+ [18<./figures/mutexwatershed/walkthrough.png>]
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/it' will be
 (Font)              scaled to size 10.41357pt on input line 39.
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
@@ -1887,7 +1887,7 @@ Overfull \hbox (1.20647pt too wide) in paragraph at lines 25--26
 all pull-force that keeps the pre-dicted em-bed-ding vec-tors bounded
  []
 
-<figures/contrastive_loss.png, id=497, 700.11563pt x 433.62pt>
+<figures/contrastive_loss.png, id=505, 700.11563pt x 433.62pt>
 File: figures/contrastive_loss.png Graphic file (type png)
 <use figures/contrastive_loss.png>
 Package luatex.def Info: figures/contrastive_loss.png  used on input line 44.
@@ -1897,7 +1897,7 @@ LaTeX Warning: Reference `loss_contrastive' on page 22 undefined on input line 5
 0.
 
 [22]
-<figures/triplet_loss.png, id=511, 1146.53343pt x 331.99031pt>
+<figures/triplet_loss.png, id=519, 1146.53343pt x 331.99031pt>
 File: figures/triplet_loss.png Graphic file (type png)
 <use figures/triplet_loss.png>
 Package luatex.def Info: figures/triplet_loss.png  used on input line 60.
@@ -1913,7 +1913,7 @@ LaTeX Warning: Reference `fig:seg_contradiction' on page 26 undefined on input l
 ine 11.
 
 ) (./main/mainframe.tex [26]
-<figures/images/sketch_overall.png, id=546, 1084.05pt x 995.72pt>
+<figures/images/sketch_overall.png, id=555, 1084.05pt x 995.72pt>
 File: figures/images/sketch_overall.png Graphic file (type png)
 <use figures/images/sketch_overall.png>
 Package luatex.def Info: figures/images/sketch_overall.png  used on input line 1
@@ -1927,7 +1927,7 @@ LaTeX Warning: Reference `blabla' on page 28 undefined on input line 18.
 
 LaTeX Warning: Reference `fig_sg' on page 29 undefined on input line 30.
 
-<figures/images/reward_calc_sketch.png, id=563, 1927.2pt x 1084.05pt>
+<figures/images/reward_calc_sketch.png, id=571, 1927.2pt x 1084.05pt>
 File: figures/images/reward_calc_sketch.png Graphic file (type png)
 <use figures/images/reward_calc_sketch.png>
 Package luatex.def Info: figures/images/reward_calc_sketch.png  used on input li
@@ -1946,21 +1946,21 @@ LaTeX Warning: Reference `figssss' on page 32 undefined on input line 11.
 
 LaTeX Warning: Reference `figsss' on page 32 undefined on input line 11.
 
-) (./main/sac.tex [32] [33]) (./main/sgs.tex) (./main/tech.tex)) [34]
-(./main/Implementation.tex
+) (./main/sac.tex [32] [33]) (./main/sgs.tex [34] [35]) (./main/tech.tex
+[36])) [37] (./main/experiments.tex
 Chapter 4.
-) [35
+) [38
 
-] (./main_frame.bbl [36] [37
+] (./main_frame.bbl [39] [40
 
-]) [38]
+]) [41]
 Package atveryend Info: Empty hook `BeforeClearDocument' on input line 72.
 Package atveryend Info: Empty hook `AfterLastShipout' on input line 72.
  (./main_frame.aux)
 Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 72.
 Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 72.
 Package rerunfilecheck Info: File `main_frame.out' has not changed.
-(rerunfilecheck)             Checksum: C716EC02B927C77D4255FE113885906D;2876.
+(rerunfilecheck)             Checksum: 81EF0C91A911CD7FE8F22C4AC9CDC856;2878.
 
 
 LaTeX Warning: There were undefined references.
@@ -1971,15 +1971,15 @@ LaTeX Warning: There were multiply-defined labels.
 )
 
 Here is how much of LuaTeX's memory you used:
- 32831 strings out of 494480
+ 32890 strings out of 494480
  125171,953878 words of node,token memory allocated
- 1081 words of node memory still in use:
-   7 hlist, 2 vlist, 2 rule, 2 glue, 1 kern, 14 sub_mlist, 55 attribute, 132 glu
-e_spec, 28 attribute_list, 1 write, 5 pdf_action nodes
-   avail lists: 2:17394,3:233,4:40,5:171,6:4287,7:906,8:105,9:436,10:20,11:425
- 35418 multiletter control sequences out of 65536+600000
- 67 fonts using 10754351 bytes
- 67i,16n,119p,1789b,557s stack positions out of 5000i,500n,10000p,200000b,100000s
+ 1189 words of node memory still in use:
+   7 hlist, 2 vlist, 2 rule, 2 glue, 1 kern, 26 sub_mlist, 79 attribute, 132 glu
+e_spec, 40 attribute_list, 1 write, 5 pdf_action nodes
+   avail lists: 2:17787,3:211,4:39,5:397,6:4287,7:1387,8:133,9:733,10:20,11:425
+ 35425 multiletter control sequences out of 65536+600000
+ 68 fonts using 10975319 bytes
+ 67i,18n,119p,1789b,620s stack positions out of 5000i,500n,10000p,200000b,100000s
 </usr/share/fonts/truetype/msttcorefonts/Arial_Bold_Italic.ttf></usr/share/fonts
 /truetype/msttcorefonts/Arial_Italic.ttf></usr/share/fonts/truetype/msttcorefont
 s/Arial.ttf></usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf></usr/share/
@@ -1994,10 +1994,10 @@ cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10
 sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/share/t
 exlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main_frame.pdf (39 pages, 828132 bytes).
+Output written on main_frame.pdf (42 pages, 840917 bytes).
 
-PDF statistics: 724 PDF objects out of 1000 (max. 8388607)
- 634 compressed objects within 7 object streams
- 186 named destinations out of 1000 (max. 131072)
+PDF statistics: 793 PDF objects out of 1000 (max. 8388607)
+ 700 compressed objects within 7 object streams
+ 235 named destinations out of 1000 (max. 131072)
  352 words of extra memory for PDF output out of 10000 (max. 100000000)
 

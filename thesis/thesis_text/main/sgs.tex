@@ -1,2 +1,50 @@
 \section{Finding subgraphs}~\label{seg:sag_gcn}
+The selection of subgraphs has the only hard restrictions that all selected subgraphs should consist of $l$ edges and that the union of subgraphs should cover the region adjacency graph of the superpixel segmentation. Additional to that it is encouraged to select overlapping subgraphs and subgraphs of high density. The latter can be rewritten by finding subgraphs with the smallest possible node counts. Also the overlaps should not be too large such that the result is still a feasible number of subgraphs. \\
+Finding the densest subgraph of size $l$ in a graph $G=(V,E)$ is in general a NP-hard problem \cite{densestSg}. The implemented algorithm is a fast heuristic that leverages the properties of the region adjacency in $G$ where one can assume a relative even density over the whole graph.\\
+The heuristic starts by sampling a random edge $(ij)\in E$, that is not contained in any subgraph so fara, adds it to the new subgraph $SG=(SV,SE)$ and pushes its incidental nodes to a priority queue $pq$ with starting priority value $0$ (smaller value corresponds to higher priority). Nodes are drawn from $pq$ until the respective subgraph has the right amount of edges. Drawing a node $n$ from $pq$ is followed by iteratively verifying if there is a node $m$ s.t. $(nm)\in E$ and $m\in SV$, if yes than $(nm)$ is added to $SG$ and $m$ is added to $pq$ with a priority that is incremented by $1$. If not all to $n$ adjacent nodes where accepted and the corresponding edges added to $SG$, the priority of $n$ is decreased by the amount of edges that where added and pushed into $pq$ again.\\
+The next iteration starts by drawing the next node from $pq$. If all elements in $pq$ where drawn without an edge being added to $SG$ and $SG$ being still incomplete, the last drawn nodes $n$ last examined neighbour $m$ is added to $pq$ and  the edge $nm$ is added to $SG$.\\
+This is repeated until all subgraphs cover $G$. The worst case of this method would be tree-like subgraphs overlapping completely except for one edge. However for region adjacency graphs this is unlikely too happen and can be ignored.\\
+The pseudo code for the described heuristic is given in algorithm \ref{algo:sgs}.\\
+\vspace{8mm}\\
+\begin{algorithm}[H]
+	\KwData{$G=(V, E)$, $l$}
+	\KwResult{subgraphs by sets of $l$ edges}
+	Initialization:$SG = \emptyset$\;
+	\While{$E\backslash SG \neq \emptyset$}{
+		pq = PriorityQueue\;
+		prio = 0\;
+		n\_draws = 0\;
+		$sg = \emptyset$\;
+		$i, j = (ij)$ s.t. $(ij)\in E\backslash SG$\;
+		pq.push($i$,prio)\;
+		pq.push($j$, prio)\;
+		$sg = sg \cup (ij)$\;
+		\While{|sg| < $l$}{
+			$n$, n\_prio = pq.pop()\;
+			n\_draws ++\;
+			prio ++\;
+			$adj = \{(nj) | \exists (nj)\in sg\}$\;
+			\ForAll{$(nj)\in adj$}{
+				pq.push(j, prio)\;
+				$sg = sg \cup (nj)$\;
+				n\_draws = 0\;
+			}
+		\uIf{$|adj| < $ deg$(n)$}{
+			n\_prio -= $(|adj|-1)$\;
+			pq.push($n$, n\_prio)\;
+		}
+		\uIf{n\_draws = pq.size()}{
+			$j \in \left\{j |(nj) \in E\right\}$\;
+			pq.push($j$, prio)\;
+			$sg = sg \cup (nj)$)\;
+		}
+		}
+		$SG$ = $sg \cup SG$
+	}
+	\Return $SG$
+	\caption{Dense subgraphs in a rag}
+	\label{algo:sgs}
+\end{algorithm}
+\vspace{8mm}
+
 

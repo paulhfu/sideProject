@@ -74,9 +74,11 @@
 \newlabel{text:doublQ}{{2.2.6}{15}{Common optimization methods}{subsection.2.2.6}{}}
 \citation{SBQL}
 \citation{DBLP:journals/corr/WangFL15}
+\citation{mnih2016asynchronous}
 \citation{bruna2013spectral}
 \citation{Bronstein_2017}
 \citation{gilmer2017neural}
+\newlabel{ssec::a3c}{{2.2.6}{16}{Common optimization methods}{equation.2.2.31}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2.7}Reparameterization}{16}{subsection.2.2.7}}
 \newlabel{ssec:reparam}{{2.2.7}{16}{Reparameterization}{subsection.2.2.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2.8}Normalizing flows}{16}{subsection.2.2.8}}
@@ -85,12 +87,12 @@
 \newlabel{sec:gcn}{{2.3}{16}{Geometric deep learning}{section.2.3}{}}
 \citation{wolf2019mutex}
 \citation{wolf2019mutex}
-\citation{wolf2019mutex}
-\citation{wolf2019mutex}
 \@writefile{toc}{\contentsline {section}{\numberline {2.4}Mutex watershed}{17}{section.2.4}}
 \newlabel{sec:mtx_wtsd}{{2.4}{17}{Mutex watershed}{section.2.4}{}}
 \@writefile{loa}{\contentsline {algocf}{\numberline {1}{\ignorespaces Mutex Watershed \cite  {wolf2019mutex}\relax }}{17}{algocf.1}}
 \newlabel{algo:mtx_wtsd}{{1}{17}{Mutex watershed}{algocf.1}{}}
+\citation{wolf2019mutex}
+\citation{wolf2019mutex}
 \@writefile{lof}{\contentsline {figure}{\numberline {2.2}{\ignorespaces Some iterations of algorithm \ref  {algo:mtx_wtsd} applied to a graph with weighted attractive edges (green) and repulsive (ref) edges. Edges that are part of the active set $A$ at each iteration are shown in bold. On termination (f), the connected components in $A \cap E^+$ represent the partitions of the final partitioning. Edges that are not added to $A$ because of the violation of $\mathcal  {C}_0$ or $\mathcal  {C}_1$ are highlighted in blue and yellow respectively \cite  {wolf2019mutex}\relax }}{18}{figure.caption.3}}
 \newlabel{fig_mtxwtsd1}{{2.2}{18}{Some iterations of algorithm \ref {algo:mtx_wtsd} applied to a graph with weighted attractive edges (green) and repulsive (ref) edges. Edges that are part of the active set $A$ at each iteration are shown in bold. On termination (f), the connected components in $A \cap E^+$ represent the partitions of the final partitioning. Edges that are not added to $A$ because of the violation of $\mathcal {C}_0$ or $\mathcal {C}_1$ are highlighted in blue and yellow respectively \cite {wolf2019mutex}\relax }{figure.caption.3}{}}
 \citation{wolf2019mutex}
@@ -151,42 +153,49 @@
 \@writefile{toc}{\contentsline {section}{\numberline {3.6}The embedding network}{31}{section.3.6}}
 \newlabel{seg:pip_embed}{{3.6}{31}{The embedding network}{section.3.6}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {3.7}The actor critic networks}{32}{section.3.7}}
-\newlabel{seg:sag_gcn}{{3.7}{32}{The actor critic networks}{section.3.7}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.8}Finding subgraphs}{34}{section.3.8}}
-\newlabel{seg:sag_gcn}{{3.8}{34}{Finding subgraphs}{section.3.8}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.9}Technical details}{34}{section.3.9}}
-\newlabel{chap:tech}{{3.9}{34}{Technical details}{section.3.9}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.9.1}Batch processing}{34}{subsection.3.9.1}}
-\newlabel{sec:batchp}{{3.9.1}{34}{Batch processing}{subsection.3.9.1}{}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {4}Technical realization}{35}{chapter.4}}
+\newlabel{sec:sag_gcn}{{3.7}{32}{The actor critic networks}{section.3.7}{}}
+\citation{densestSg}
+\@writefile{toc}{\contentsline {section}{\numberline {3.8}Finding subgraphs}{35}{section.3.8}}
+\newlabel{seg:sag_gcn}{{3.8}{35}{Finding subgraphs}{section.3.8}{}}
+\citation{ioffe2015batch}
+\@writefile{loa}{\contentsline {algocf}{\numberline {2}{\ignorespaces Dense subgraphs in a rag\relax }}{36}{algocf.2}}
+\newlabel{algo:sgs}{{2}{36}{Finding subgraphs}{algocf.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.9}Technical details}{36}{section.3.9}}
+\newlabel{sec:tech}{{3.9}{36}{Technical details}{section.3.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.9.1}Batch processing}{37}{subsection.3.9.1}}
+\newlabel{ssec:batchp}{{3.9.1}{37}{Batch processing}{subsection.3.9.1}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {4}Experiments and results}{38}{chapter.4}}
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
 \@writefile{loa}{\addvspace {10\p@ }}
-\newlabel{chap:impl}{{4}{35}{Technical realization}{chapter.4}{}}
+\newlabel{chap:exp_res}{{4}{38}{Experiments and results}{chapter.4}{}}
 \bibstyle{IEEEtran}
 \bibdata{bibliography.bib}
-\newlabel{sec:ref}{{4}{36}{Technical realization}{section*.8}{}}
-\@writefile{toc}{\contentsline {section}{References}{36}{section*.8}}
+\newlabel{sec:ref}{{4}{39}{Experiments and results}{section*.8}{}}
+\@writefile{toc}{\contentsline {section}{References}{39}{section*.8}}
 \bibcite{SB_all}{1}
-\bibcite{SBQL}{2}
-\bibcite{SBeligibility}{3}
-\bibcite{liu2018breaking}{4}
-\bibcite{PGBS}{5}
-\bibcite{AAAIziebert}{6}
-\bibcite{DBLP:journals/corr/HaarnojaTAL17}{7}
-\bibcite{DBLP:journals/corr/abs-1906-02771}{8}
-\bibcite{papamakarios2019normalizing}{9}
-\bibcite{haarnoja2018soft}{10}
-\bibcite{kingma2013autoencoding}{11}
-\bibcite{hessel2017rainbow}{12}
-\bibcite{DBLP:journals/corr/HasseltGS15}{13}
-\bibcite{schaul2015prioritized}{14}
-\bibcite{DBLP:journals/corr/WangFL15}{15}
-\bibcite{bruna2013spectral}{16}
-\bibcite{Bronstein_2017}{17}
-\bibcite{gilmer2017neural}{18}
-\bibcite{wolf2019mutex}{19}
-\bibcite{10.1007/978-3-642-23094-3_3}{20}
-\bibcite{brab2017semantic}{21}
-\bibcite{Schroff_2015}{22}
-\bibcite{monti2016geometric}{23}
+\bibcite{wolf2019mutex}{2}
+\bibcite{brab2017semantic}{3}
+\bibcite{Schroff_2015}{4}
+\bibcite{SBQL}{5}
+\bibcite{SBeligibility}{6}
+\bibcite{liu2018breaking}{7}
+\bibcite{PGBS}{8}
+\bibcite{AAAIziebert}{9}
+\bibcite{DBLP:journals/corr/HaarnojaTAL17}{10}
+\bibcite{DBLP:journals/corr/abs-1906-02771}{11}
+\bibcite{papamakarios2019normalizing}{12}
+\bibcite{haarnoja2018soft}{13}
+\bibcite{kingma2013autoencoding}{14}
+\bibcite{hessel2017rainbow}{15}
+\bibcite{DBLP:journals/corr/HasseltGS15}{16}
+\bibcite{schaul2015prioritized}{17}
+\bibcite{DBLP:journals/corr/WangFL15}{18}
+\bibcite{mnih2016asynchronous}{19}
+\bibcite{bruna2013spectral}{20}
+\bibcite{Bronstein_2017}{21}
+\bibcite{gilmer2017neural}{22}
+\bibcite{10.1007/978-3-642-23094-3_3}{23}
+\bibcite{monti2016geometric}{24}
+\bibcite{densestSg}{25}
+\bibcite{ioffe2015batch}{26}
