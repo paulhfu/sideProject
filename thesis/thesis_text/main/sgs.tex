@@ -47,4 +47,8 @@ The pseudo code for the described heuristic is given in algorithm \ref{algo:sgs}
 \end{algorithm}
 \vspace{8mm}
 
+\subsection{Thoughts on dependence}
 
+The actors predicts a univariate probability distribution on each edge in the superpixel graph. Looking at the predicted statistics for this distributions as random variables, one can consider the predicted distribution itself as a random variable. Since all predictions are dependent on each other through the graph convolutions there is an underlying multivariate probability distribution for the statistics on all the edges. This makes sense intuitively because actions should depend on broader local neighborhoods in the graph if not on the whole graph.\\
+The same holds therefore for the update of the critics networks. Since the subgraphs are moved into the batch dimension (see section \ref{ssec:batchp}) they have no dependence to each other through the convolution on the subgraphs. This is the reason for the upstream network doing the convolution on the whole graph. Also
+the overlaps of the subgraphs help building interdependence between subgraphs.
