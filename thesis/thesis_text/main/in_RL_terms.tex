@@ -41,7 +41,7 @@ Vanilla Q-learning or REINFORCE are algorithms that operate in discrete action s
 Therefore the selection falls to the SAC algorithm \ref{ssec:sac} which is a confortable choice because it is defined for continuous actions and it takes care of sufficient exploration. 
 
 It is easy to adjust eq. (2.26) in section \ref{ssec:sac} for predictions on subgraphs. Considering a subgraph size of $10$ and selecting the normal distribution for the policy $\pi$. The GCNN predicts for every edge mean $\mu$ and variance $\sigma ^2$ of its action distribution. \\
-Drawing a reparameterized \ref{ssec:reparam} sample from the distribution follows a sigmoid transform of the sample. The change of variables formula \ref{ssec:norm_flows} allows for the computation of the probability density of the transformed sample. \\
+Drawing a reparameterized \ref{ssec:reparam} sample from the distribution follows a sigmoid transform of the sample. The change of variables formula \cite{papamakarios2019normalizing} allows for the computation of the probability density of the transformed sample. \\
 The joint probability density of all actions per subgraph is given by the product of their respective densities. Therefore eq. (2.26) in section \ref{ssec:sac} is rewritten as
 
 \begin{align}

@@ -1,0 +1,13 @@
+\section{The reparameterization trick} \label{ssec:reparam}
+The reparameterizatiion trick was proposed in \cite{kingma2013autoencoding}. Since then it is commonly used to make a sampling process differentiable with respect to the statistics of the respective distribution. Not all distributions have definitions for their reparameterization yet but for some basic ones such as the normal distribution it exists.\\
+The problem is stated as follows. Given a continuous random variable $y$ and its conditional distribution $y\sim q_{\theta}(y|x)$ where $\theta$ are the parameters of the distribution. Then the monte carlo estimate of the expectation $\mathbb{E}_{y \sim q_{\theta}(y|x)}[y] \approx \frac{1}{N}\sum_{n=0}^N y$ is not differentiable w.r.t. $\theta$.\\
+
+If a vector valued and differentiable function $g_{\theta}(\epsilon, x)$ where $\epsilon$ is an auxiliary variable distributed by $\epsilon \sim p(\epsilon)$ can be found such that $\mathbb{E}_{y\sim q_{\theta}(y|x)}[y] = \mathbb{E}_{\epsilon\sim p(\epsilon)}[g_{\theta}(\epsilon, x)]$ then the monte carlo estimate of the expectation $\mathbb{E}_{\epsilon\sim p(\epsilon)}[g_{\theta}(\epsilon, x)] \approx \frac{1}{N}\sum_{n=0}^N g_{\theta}(\epsilon_n, x)$ where $\epsilon_n \sim p(\epsilon)$, is differentiable w.r.t. $\theta$.\\
+
+For a random variable $y$ distributed by the normal distribution $y \sim \mathcal{N}(\mu, \sigma^2)$ such a function would be
+
+\begin{align}
+	g(\epsilon, \mu, \sigma) = \frac{1}{\sigma}(\epsilon - \mu), \text{\hspace{8mm} $\epsilon \sim \mathcal{N}(0, 1)$}
+\end{align}
+
+this is useful in RL since there an expectation is estimated by the Monte Carlo extimate that needs to be differentiable with respect to the parameters of the distribution wich is the policy sampled from.

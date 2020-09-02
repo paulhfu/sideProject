@@ -30,6 +30,10 @@ I was expecting a `,' or a `}'---line 307 of file bibliography.bib.bib
  :  journal={International Colloquium on Automata, Languages, and Programming},
 (Error may have been on previous line)
 I'm skipping whatever remains of this entry
+Repeated entry---line 354 of file bibliography.bib.bib
+ : @misc{kingma2013autoencoding
+ :                             ,
+I'm skipping whatever remains of this entry
 -- IEEEtran.bst version 1.14 (2015/08/26) by Michael Shell.
 -- http://www.michaelshell.org/tex/ieeetran/bibtex/
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
@@ -40,45 +44,45 @@ Too many commas in name 1 of "BrianD. Ziebart, Andrew Maas, J.Andrew Bagnell,and
 while executing---line 2403 of file IEEEtran.bst
 
 Done.
-You've used 28 entries,
+You've used 30 entries,
             4087 wiz_defined-function locations,
-            957 strings with 12346 characters,
-and the built_in function-call counts, 15064 in all, are:
-= -- 1058
-> -- 521
-< -- 32
-+ -- 250
-- -- 118
-* -- 681
-:= -- 2321
-add.period$ -- 57
-call.type$ -- 28
-change.case$ -- 30
-chr.to.int$ -- 63
-cite$ -- 31
-duplicate$ -- 1195
-empty$ -- 1345
-format.name$ -- 146
-if$ -- 3423
+            974 strings with 12720 characters,
+and the built_in function-call counts, 16609 in all, are:
+= -- 1209
+> -- 541
+< -- 45
++ -- 262
+- -- 121
+* -- 753
+:= -- 2571
+add.period$ -- 61
+call.type$ -- 30
+change.case$ -- 32
+chr.to.int$ -- 84
+cite$ -- 33
+duplicate$ -- 1314
+empty$ -- 1453
+format.name$ -- 150
+if$ -- 3787
 int.to.chr$ -- 0
-int.to.str$ -- 28
-missing$ -- 281
-newline$ -- 121
-num.names$ -- 30
-pop$ -- 812
+int.to.str$ -- 30
+missing$ -- 298
+newline$ -- 129
+num.names$ -- 32
+pop$ -- 837
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 2
-skip$ -- 1139
+skip$ -- 1272
 stack$ -- 0
-substring$ -- 188
-swap$ -- 784
-text.length$ -- 11
+substring$ -- 253
+swap$ -- 889
+text.length$ -- 17
 text.prefix$ -- 0
 top$ -- 5
-type$ -- 28
+type$ -- 30
 warning$ -- 3
-while$ -- 42
-width$ -- 30
-write$ -- 260
-(There were 5 error messages)
+while$ -- 48
+width$ -- 32
+write$ -- 285
+(There were 6 error messages)

@@ -121,14 +121,14 @@ In off-policy settings it is common to use a data collection policy $\mu$ which 
 \end{align}
 Here $\alpha$ is a non-negative regularization weight which is usually monotonically decreasing with increasing $t$ and $\mathcal{H}$ is some entropy measure. If $\alpha$ becomes $0$ eq. (1.17) becomes equal to eq. (1.11), therefore, intuitively $\alpha$ should be high in the early phase of training the policy and the value function and converge to $0$ as the policy gets closer to the perfect policy and therefore can afford to have more certainty in its prediction.
 This objective is on-policy and still gives control over the exploration behavior. Usually it does not bother if the policy has high entropy, since during inference the action where "\pi" has maximum probability is selected. This makes especially unimodal distributions attractive. They fixate on single actions and they imply few parameters only that need to be learned (e.g. mean and variance of normal distributions). However often more expressive multimodal distributions fit the true distribution which is approximated better. 
-In \cite{DBLP:journals/corr/abs-1906-02771} this idea has been extended by using  normalizing flows. Normalizing flows \cite{papamakarios2019normalizing} are based on the idea of transforming a probability density function by letting each sample undergo a transformation. If this transformation is a diffeomorphism the probability of the transformed sample can be determined. Let $T$ be a diffeomorphism of a real vector $u$ sampled from $p_u(u)$.
+In \cite{DBLP:journals/corr/abs-1906-02771} this idea has been extended by using  normalizing flows. Normalizing flows \cite{papamakarios2019normalizing} are based on the idea of transforming a probability density function by letting each sample undergo a transformation. If this transformation is a diffeomorphism the probability of the transformed sample can be determined. Let $T$ be a diffeomorphism of a real vector $u$ sampled from $q(u)$.
 
 \begin{align}
-	x=T(u) \text{\hspace{5mm}where\hspace{5mm}} u\sim p_u(u)
+	x=T(u) \text{\hspace{5mm}where\hspace{5mm}} u\sim q(u)
 \end{align}
 then
 \begin{align}
-p_x(x)=p_u(T^{-1}(u)) |detJ_T(u)|^{-1}
+p(x)=q(T^{-1}(u)) |detJ_T(u)|^{-1}
 \end{align}
 where $J_T(u)$ is the Jacobian matrix of $T$ w.r.t. $u$. I practice an invertible neural network can be trained to transform a simplistic density function into a more expressive one.\\
 E.g. let the agent predict mean and variance of a Normal distribution. Actions are the in the data collection process sampled from a transformed Normal distribution where the transform encourages entropy and maybe also multiple modes. Assuming the sampling happened using reparametrization the log probabilities and their gradient in eq (1.14) can still be calculated. This is a on-policy training with a expressive density function and the advantage is that easy reparameterization tricks can still be used since the sampling itself is happening from the base distribution.
@@ -219,9 +219,3 @@ There are numerous optimization methods for reinforcement learning problems. Thi
 	\item \textbf{Asynchronous Advantage Actor Critic (A3C)} \label{ssec::a3c} \cite{mnih2016asynchronous}
 	
 \end{itemize}
-
-\subsection{Reparameterization} \label{ssec:reparam}
-
-\subsection{Normalizing flows}\label{ssec:norm_flows}
-
-\subsection{The Heugh transorm}\label{ssec:heugh_tf}

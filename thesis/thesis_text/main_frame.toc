@@ -1,49 +1,48 @@
 \babel@toc {USenglish}{}
-\contentsline {section}{Summary of Notation}{6}{section*.1}
-\contentsline {section}{\numberline {0.1}Introduction}{7}{section.0.1}
-\contentsline {chapter}{\numberline {1}Motivation}{8}{chapter.1}
-\contentsline {chapter}{\numberline {2}Preliminaries}{9}{chapter.2}
-\contentsline {section}{\numberline {2.1}Image segmentation}{9}{section.2.1}
-\contentsline {section}{\numberline {2.2}Reinforcement Learning (RL)}{10}{section.2.2}
-\contentsline {subsection}{\numberline {2.2.1}Value functions}{11}{subsection.2.2.1}
-\contentsline {subsection}{\numberline {2.2.2}Q-learning}{12}{subsection.2.2.2}
-\contentsline {subsection}{\numberline {2.2.3}Policy gradient methods}{13}{subsection.2.2.3}
-\contentsline {subsection}{\numberline {2.2.4}Maximum Entropy Reinforcement Learning}{14}{subsection.2.2.4}
-\contentsline {subsection}{\numberline {2.2.5}Soft Actor-Critic (SAC)}{15}{subsection.2.2.5}
-\contentsline {subsection}{\numberline {2.2.6}Common optimization methods}{16}{subsection.2.2.6}
-\contentsline {subsection}{\numberline {2.2.7}Reparameterization}{17}{subsection.2.2.7}
-\contentsline {subsection}{\numberline {2.2.8}Normalizing flows}{17}{subsection.2.2.8}
-\contentsline {subsection}{\numberline {2.2.9}The Heugh transorm}{17}{subsection.2.2.9}
-\contentsline {section}{\numberline {2.3}Geometric deep learning}{17}{section.2.3}
-\contentsline {section}{\numberline {2.4}Mutex watershed}{18}{section.2.4}
-\contentsline {section}{\numberline {2.5}Image partitioning by multicuts}{20}{section.2.5}
-\contentsline {section}{\numberline {2.6}Principal component analysis}{21}{section.2.6}
-\contentsline {section}{\numberline {2.7}Loss functions}{22}{section.2.7}
-\contentsline {subsection}{\numberline {2.7.1}Dice loss}{22}{subsection.2.7.1}
-\contentsline {subsection}{\numberline {2.7.2}Contrasive loss}{22}{subsection.2.7.2}
-\contentsline {subsection}{\numberline {2.7.3}Triplet loss}{24}{subsection.2.7.3}
-\contentsline {chapter}{\numberline {3}Methods}{26}{chapter.3}
-\contentsline {section}{\numberline {3.1}Using RL for the image segmentation task}{26}{section.3.1}
-\contentsline {section}{\numberline {3.2}Using RL for predicting affinities}{26}{section.3.2}
-\contentsline {section}{\numberline {3.3}Overview over the pipeline}{27}{section.3.3}
-\contentsline {section}{\numberline {3.4}The pipeline in the RL terminology}{29}{section.3.4}
-\contentsline {subsection}{\numberline {3.4.1}The state}{29}{subsection.3.4.1}
-\contentsline {subsection}{\numberline {3.4.2}The actions}{29}{subsection.3.4.2}
-\contentsline {subsection}{\numberline {3.4.3}The reward}{29}{subsection.3.4.3}
-\contentsline {subsection}{\numberline {3.4.4}The agent}{30}{subsection.3.4.4}
-\contentsline {subsection}{\numberline {3.4.5}The environment}{30}{subsection.3.4.5}
-\contentsline {subsection}{\numberline {3.4.6}The problem of local optima}{30}{subsection.3.4.6}
-\contentsline {subsection}{\numberline {3.4.7}Definition of the RL algorithm}{31}{subsection.3.4.7}
-\contentsline {section}{\numberline {3.5}Obtaining superpixels from mutex watershed}{32}{section.3.5}
-\contentsline {section}{\numberline {3.6}The embedding network}{32}{section.3.6}
-\contentsline {section}{\numberline {3.7}The actor critic networks}{33}{section.3.7}
-\contentsline {section}{\numberline {3.8}Finding subgraphs}{36}{section.3.8}
-\contentsline {subsection}{\numberline {3.8.1}Thoughts on dependence}{37}{subsection.3.8.1}
-\contentsline {section}{\numberline {3.9}Technical details}{38}{section.3.9}
-\contentsline {subsection}{\numberline {3.9.1}Batch processing}{38}{subsection.3.9.1}
-\contentsline {chapter}{\numberline {4}Experiments and results}{39}{chapter.4}
-\contentsline {subsection}{\numberline {4.0.1}Supervised training}{40}{subsection.4.0.1}
-\contentsline {subsection}{\numberline {4.0.2}Unsupervised training}{42}{subsection.4.0.2}
-\contentsline {subsubsection}{Data conformity}{42}{subsubsection*.15}
-\contentsline {chapter}{\numberline {5}Conclusion}{44}{chapter.5}
-\contentsline {section}{References}{44}{section*.16}
+\contentsline {chapter}{\numberline {1}Introduction}{6}{chapter.1}
+\contentsline {section}{\numberline {1.1}Motivation}{6}{section.1.1}
+\contentsline {section}{\numberline {1.2}Contribution}{6}{section.1.2}
+\contentsline {chapter}{\numberline {2}Preliminaries}{7}{chapter.2}
+\contentsline {section}{\numberline {2.1}Image segmentation}{7}{section.2.1}
+\contentsline {section}{\numberline {2.2}Reinforcement Learning (RL)}{8}{section.2.2}
+\contentsline {subsection}{\numberline {2.2.1}Value functions}{9}{subsection.2.2.1}
+\contentsline {subsection}{\numberline {2.2.2}Q-learning}{10}{subsection.2.2.2}
+\contentsline {subsection}{\numberline {2.2.3}Policy gradient methods}{11}{subsection.2.2.3}
+\contentsline {subsection}{\numberline {2.2.4}Maximum Entropy Reinforcement Learning}{12}{subsection.2.2.4}
+\contentsline {subsection}{\numberline {2.2.5}Soft Actor-Critic (SAC)}{13}{subsection.2.2.5}
+\contentsline {subsection}{\numberline {2.2.6}Common optimization methods}{14}{subsection.2.2.6}
+\contentsline {section}{\numberline {2.3}Geometric deep learning}{15}{section.2.3}
+\contentsline {section}{\numberline {2.4}Mutex watershed}{16}{section.2.4}
+\contentsline {section}{\numberline {2.5}Image partitioning by multicuts}{18}{section.2.5}
+\contentsline {section}{\numberline {2.6}Principal component analysis}{19}{section.2.6}
+\contentsline {section}{\numberline {2.7}Loss functions}{20}{section.2.7}
+\contentsline {subsection}{\numberline {2.7.1}Dice loss}{20}{subsection.2.7.1}
+\contentsline {subsection}{\numberline {2.7.2}Contrasive loss}{20}{subsection.2.7.2}
+\contentsline {subsection}{\numberline {2.7.3}Triplet loss}{22}{subsection.2.7.3}
+\contentsline {section}{\numberline {2.8}The reparameterization trick}{23}{section.2.8}
+\contentsline {section}{\numberline {2.9}The Heugh transorm}{23}{section.2.9}
+\contentsline {chapter}{\numberline {3}Methods}{25}{chapter.3}
+\contentsline {section}{\numberline {3.1}Using RL for the image segmentation task}{25}{section.3.1}
+\contentsline {section}{\numberline {3.2}Using RL for predicting affinities}{25}{section.3.2}
+\contentsline {section}{\numberline {3.3}Overview over the pipeline}{26}{section.3.3}
+\contentsline {section}{\numberline {3.4}The pipeline in the RL terminology}{28}{section.3.4}
+\contentsline {subsection}{\numberline {3.4.1}The state}{28}{subsection.3.4.1}
+\contentsline {subsection}{\numberline {3.4.2}The actions}{28}{subsection.3.4.2}
+\contentsline {subsection}{\numberline {3.4.3}The reward}{28}{subsection.3.4.3}
+\contentsline {subsection}{\numberline {3.4.4}The agent}{29}{subsection.3.4.4}
+\contentsline {subsection}{\numberline {3.4.5}The environment}{29}{subsection.3.4.5}
+\contentsline {subsection}{\numberline {3.4.6}The problem of local optima}{29}{subsection.3.4.6}
+\contentsline {subsection}{\numberline {3.4.7}Definition of the RL algorithm}{30}{subsection.3.4.7}
+\contentsline {section}{\numberline {3.5}Obtaining superpixels from mutex watershed}{31}{section.3.5}
+\contentsline {section}{\numberline {3.6}The embedding network}{31}{section.3.6}
+\contentsline {section}{\numberline {3.7}The actor critic networks}{32}{section.3.7}
+\contentsline {section}{\numberline {3.8}Finding subgraphs}{35}{section.3.8}
+\contentsline {subsection}{\numberline {3.8.1}Thoughts on dependence}{36}{subsection.3.8.1}
+\contentsline {section}{\numberline {3.9}Technical details}{37}{section.3.9}
+\contentsline {subsection}{\numberline {3.9.1}Batch processing}{37}{subsection.3.9.1}
+\contentsline {chapter}{\numberline {4}Experiments and results}{38}{chapter.4}
+\contentsline {subsection}{\numberline {4.0.1}Supervised training}{39}{subsection.4.0.1}
+\contentsline {subsection}{\numberline {4.0.2}Unsupervised training}{41}{subsection.4.0.2}
+\contentsline {subsubsection}{Data conformity}{41}{subsubsection*.17}
+\contentsline {chapter}{\numberline {5}Conclusion}{43}{chapter.5}
+\contentsline {section}{References}{43}{section*.18}

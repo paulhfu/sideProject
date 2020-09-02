@@ -143,6 +143,13 @@ J.~H. Kappes, M.~Speth, B.~Andres, G.~Reinelt, and C.~Schn, ``Globally optimal
   and F.~R. Schmidt, Eds.\hskip 1em plus 0.5em minus 0.4em\relax Berlin,
   Heidelberg: Springer Berlin Heidelberg, 2011, pp. 31--44.
 
+\bibitem{10.1145/361237.361242}
+\BIBentryALTinterwordspacing
+R.~O. Duda and P.~E. Hart, ``Use of the hough transformation to detect lines
+  and curves in pictures,'' \emph{Commun. ACM}, vol.~15, no.~1, p. 11–15,
+  Jan. 1972. [Online]. Available: \url{https://doi.org/10.1145/361237.361242}
+\BIBentrySTDinterwordspacing
+
 \bibitem{monti2016geometric}
 F.~Monti, D.~Boscaini, J.~Masci, E.~Rodolà, J.~Svoboda, and M.~M. Bronstein,
   ``Geometric deep learning on graphs and manifolds using mixture model cnns,''
@@ -162,5 +169,10 @@ S.~Ioffe and C.~Szegedy, ``Batch normalization: Accelerating deep network
 
 \bibitem{kingma2014adam}
 D.~P. Kingma and J.~Ba, ``Adam: A method for stochastic optimization,'' 2014.
+
+\bibitem{400568}
+{Yizong Cheng}, ``Mean shift, mode seeking, and clustering,'' \emph{IEEE
+  Transactions on Pattern Analysis and Machine Intelligence}, vol.~17, no.~8,
+  pp. 790--799, 1995.
 
 \end{thebibliography}

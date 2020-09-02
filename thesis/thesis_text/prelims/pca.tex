@@ -9,21 +9,21 @@ Consider a data matrix $X \in \mathbb{R}^{nxp}$ of $n$, $p$-dimensional samples 
 Since this is a convex optimization problem, the solution can be found by finding the stationary points of the Lagrange function
 
 \begin{align}
-	\mathcal{L}(w, \lambda) = w^TCw - \lambda(w^Tw -1) \\
-	\text{with \hspace{2mm}} C = X^TX
+	\mathcal{L}(w, \lambda) &= w^TCw - \lambda(w^Tw -1) \\
+	\text{with \hspace{2mm}} C &= X^TX
 \end{align}
 Note, that $C$ is hermetian.
 The partial derivatives yield	
 \begin{align}
-	\nabla_w \mathcal{L}(w, \lambda) = 2Cw-2\lambda w \\
-	\nabla_\lambda \mathcal{L}(w, \lambda) = - (w^Tw -1)
+	\nabla_w \mathcal{L}(w, \lambda) &= 2Cw-2\lambda w \\
+	\nabla_\lambda \mathcal{L}(w, \lambda) &= - (w^Tw -1)
 \end{align}
 
 setting eq. (1.41) to $0$ yields
 
 \begin{align}
-	0 = Cw-\lambda w \\
-	Cw = \lambda w
+	0 &= Cw-\lambda w \\
+	Cw &= \lambda w
 \end{align}
 
 it strikes that eq. (1.43) is a eigenvalue problem. Since $C$ is hermetian its eigenvectors form a orthonormal basis, therefore setting eq. (1.42) to $0$ holds if $w$ is a eigenvector. To see that the solution to eq. (1.38) is in fact the largest eigenvalue, one has to substitute eq. (1.44) into eq. (1.40).
