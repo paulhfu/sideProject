@@ -21,29 +21,21 @@
 \providecommand{\BIBdecl}{\relax}
 \BIBdecl
 
+\bibitem{wang2016sample}
+Z.~Wang, V.~Bapst, N.~Heess, V.~Mnih, R.~Munos, K.~Kavukcuoglu, and
+  N.~de~Freitas, ``Sample efficient actor-critic with experience replay,''
+  2016.
+
+\bibitem{haarnoja2018soft}
+T.~Haarnoja, A.~Zhou, K.~Hartikainen, G.~Tucker, S.~Ha, J.~Tan, V.~Kumar,
+  H.~Zhu, A.~Gupta, P.~Abbeel, and S.~Levine, ``Soft actor-critic algorithms
+  and applications,'' 2018.
+
 \bibitem{SB_all}
 R.~S. Sutton and A.~G. Barto, ``Reinforcement learning:an introduction,'' 2015.
 
-\bibitem{wolf2019mutex}
-S.~Wolf, A.~Bailoni, C.~Pape, N.~Rahaman, A.~Kreshuk, U.~Köthe, and F.~A.
-  Hamprecht, ``The mutex watershed and its objective: Efficient, parameter-free
-  image partitioning,'' 2019.
-
-\bibitem{brab2017semantic}
-B.~D. Brabandere, D.~Neven, and L.~V. Gool, ``Semantic instance segmentation
-  with a discriminative loss function,'' 2017.
-
-\bibitem{Schroff_2015}
-\BIBentryALTinterwordspacing
-F.~Schroff, D.~Kalenichenko, and J.~Philbin, ``Facenet: A unified embedding for
-  face recognition and clustering,'' \emph{2015 IEEE Conference on Computer
-  Vision and Pattern Recognition (CVPR)}, Jun 2015. [Online]. Available:
-  \url{http://dx.doi.org/10.1109/CVPR.2015.7298682}
-\BIBentrySTDinterwordspacing
-
 \bibitem{SBQL}
-R.~S. Sutton and A.~G. Barto, ``Reinforcement learning:an introduction,'' 2015,
-  pp. 74--121.
+------, ``Reinforcement learning:an introduction,'' 2015, pp. 74--121.
 
 \bibitem{SBeligibility}
 ------, ``Reinforcement learning:an introduction,'' 2015, pp. 157--194.
@@ -83,14 +75,6 @@ P.~N. Ward, A.~Smofsky, and A.~J. Bose, ``Improving exploration in
 G.~Papamakarios, E.~Nalisnick, D.~J. Rezende, S.~Mohamed, and
   B.~Lakshminarayanan, ``Normalizing flows for probabilistic modeling and
   inference,'' 2019.
-
-\bibitem{haarnoja2018soft}
-T.~Haarnoja, A.~Zhou, K.~Hartikainen, G.~Tucker, S.~Ha, J.~Tan, V.~Kumar,
-  H.~Zhu, A.~Gupta, P.~Abbeel, and S.~Levine, ``Soft actor-critic algorithms
-  and applications,'' 2018.
-
-\bibitem{kingma2013autoencoding}
-D.~P. Kingma and M.~Welling, ``Auto-encoding variational bayes,'' 2013.
 
 \bibitem{hessel2017rainbow}
 M.~Hessel, J.~Modayil, H.~van Hasselt, T.~Schaul, G.~Ostrovski, W.~Dabney,
@@ -136,12 +120,41 @@ M.~M. Bronstein, J.~Bruna, Y.~LeCun, A.~Szlam, and P.~Vandergheynst,
 J.~Gilmer, S.~S. Schoenholz, P.~F. Riley, O.~Vinyals, and G.~E. Dahl, ``Neural
   message passing for quantum chemistry,'' 2017.
 
+\bibitem{wolf2019mutex}
+S.~Wolf, A.~Bailoni, C.~Pape, N.~Rahaman, A.~Kreshuk, U.~Köthe, and F.~A.
+  Hamprecht, ``The mutex watershed and its objective: Efficient, parameter-free
+  image partitioning,'' 2019.
+
 \bibitem{10.1007/978-3-642-23094-3_3}
 J.~H. Kappes, M.~Speth, B.~Andres, G.~Reinelt, and C.~Schn, ``Globally optimal
   image partitioning by multicuts,'' in \emph{Energy Minimization Methods in
   Computer Vision and Pattern Recognition}, Y.~Boykov, F.~Kahl, V.~Lempitsky,
   and F.~R. Schmidt, Eds.\hskip 1em plus 0.5em minus 0.4em\relax Berlin,
   Heidelberg: Springer Berlin Heidelberg, 2011, pp. 31--44.
+
+\bibitem{Sudre_2017}
+\BIBentryALTinterwordspacing
+C.~H. Sudre, W.~Li, T.~Vercauteren, S.~Ourselin, and M.~Jorge~Cardoso,
+  ``Generalised dice overlap as a deep learning loss function for highly
+  unbalanced segmentations,'' \emph{Lecture Notes in Computer Science}, p.
+  240–248, 2017. [Online]. Available:
+  \url{http://dx.doi.org/10.1007/978-3-319-67558-9_28}
+\BIBentrySTDinterwordspacing
+
+\bibitem{brab2017semantic}
+B.~D. Brabandere, D.~Neven, and L.~V. Gool, ``Semantic instance segmentation
+  with a discriminative loss function,'' 2017.
+
+\bibitem{Schroff_2015}
+\BIBentryALTinterwordspacing
+F.~Schroff, D.~Kalenichenko, and J.~Philbin, ``Facenet: A unified embedding for
+  face recognition and clustering,'' \emph{2015 IEEE Conference on Computer
+  Vision and Pattern Recognition (CVPR)}, Jun 2015. [Online]. Available:
+  \url{http://dx.doi.org/10.1109/CVPR.2015.7298682}
+\BIBentrySTDinterwordspacing
+
+\bibitem{kingma2013autoencoding}
+D.~P. Kingma and M.~Welling, ``Auto-encoding variational bayes,'' 2013.
 
 \bibitem{10.1145/361237.361242}
 \BIBentryALTinterwordspacing

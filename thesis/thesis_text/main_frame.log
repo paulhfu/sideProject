@@ -1,4 +1,4 @@
-This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  2 SEP 2020 21:19
+This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  4 SEP 2020 16:47
  restricted system commands enabled.
 **main_frame.tex
 (./main_frame.tex
@@ -34,7 +34,7 @@ Inserting `luaotfload.aux.set_capheight' at position 3 in `luaotfload.patch_font
 '.
 Inserting `luaotfload.rewrite_fontname' at position 4 in `luaotfload.patch_font'
 .
-luaotfload | main : initialization completed in 0.084 seconds
+luaotfload | main : initialization completed in 0.087 seconds
 Babel <3.18> and hyphenation patterns for 1 language(s) loaded.
 (/usr/share/texlive/texmf-dist/tex/latex/base/report.cls
 Document Class: report 2014/09/29 v1.4h Standard LaTeX document class
@@ -1805,13 +1805,7 @@ LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
 (Font)              scaled to size 14.99554pt on input line 3.
 )
-(./abstract.tex [2]
-Overfull \hbox (10.97775pt too wide) in paragraph at lines 4--8
-\TU/Arial(0)/m/n/12 Die Meth-ode worde auf einem Spiel- Daten-satz getestet wob
-ei Überwachtes Ler-nen sowie Unüberwachtes
- []
-
-) [3]
+(./abstract.tex [2]) [3]
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
 (Font)              scaled to size 21.5908pt on input line 34.
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
@@ -1824,10 +1818,12 @@ LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/n' will be
 (Font)              scaled to size 5.20679pt on input line 2.
 LaTeX Font Info:    Try loading font information for U+lasy on input line 2.
- (/usr/share/texlive/texmf-dist/tex/latex/base/ulasy.fd
+
+(/usr/share/texlive/texmf-dist/tex/latex/base/ulasy.fd
 File: ulasy.fd 1998/08/17 v2.2e LaTeX symbol font definitions
 )
 LaTeX Font Info:    Try loading font information for U+msa on input line 2.
+
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
@@ -1848,15 +1844,15 @@ Chapter 1.
 Chapter 2.
 (./prelims/segmentation.tex [7
 
-]) (./prelims/rl.tex
-<figures/rl/agent_env_interface.png, id=283, 1307.63531pt x 508.14844pt>
+]) (./prelims/rl.tex [8]
+<figures/rl/agent_env_interface.png, id=296, 1307.63531pt x 508.14844pt>
 File: figures/rl/agent_env_interface.png Graphic file (type png)
 <use figures/rl/agent_env_interface.png>
 Package luatex.def Info: figures/rl/agent_env_interface.png  used on input line 
-19.
+24.
 (luatex.def)             Requested size: 375.57782pt x 145.94809pt.
- [8]
-Overfull \hbox (16.54022pt too wide) in paragraph at lines 28--30
+
+Overfull \hbox (16.54022pt too wide) in paragraph at lines 33--35
 \TU/Arial(0)/m/n/12 Fur-ther, if $\OML/cmm/m/it/12 a[]$ \TU/Arial(0)/m/n/12 is 
 sam-pled from $\OML/cmm/m/it/12 \OT1/cmr/m/n/12 (\OML/cmm/m/it/12 a[]\OMS/cmsy
 /m/n/12 j\OML/cmm/m/it/12 s[]\OT1/cmr/m/n/12 )$ \TU/Arial(0)/m/n/12 the Markov 
@@ -1864,80 +1860,70 @@ Prop-erty in-duces con-di-tional in-de-pen-dence of $\OT1/cmr/m/n/12 (\OML/cmm/
 m/it/12 s[]; r[]\OT1/cmr/m/n/12 )$
  []
 
-[9<./figures/rl/agent_env_interface.png>] [10] [11] [12]
+[9<./figures/rl/agent_env_interface.png>] [10] [11] [12] [13]
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
-(Font)              scaled to size 10.41357pt on input line 160.
- [13] [14])
-(./prelims/gcn.tex [15]) (./prelims/mutex.tex
+(Font)              scaled to size 10.41357pt on input line 167.
+ [14] [15])
+(./prelims/gcn.tex) (./prelims/mutex.tex [16]
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/n' will be
 (Font)              scaled to size 6.94238pt on input line 14.
-<figures/mutexwatershed/walkthrough.png, id=413, 526.21594pt x 639.13782pt>
+<figures/mutexwatershed/walkthrough.png, id=423, 526.21594pt x 639.13782pt>
 File: figures/mutexwatershed/walkthrough.png Graphic file (type png)
 <use figures/mutexwatershed/walkthrough.png>
 Package luatex.def Info: figures/mutexwatershed/walkthrough.png  used on input l
 ine 31.
 (luatex.def)             Requested size: 234.73524pt x 285.11273pt.
- [16] [17<./figures/mutexwatershed/walkthrough.png>]
+ [17] [18<./figures/mutexwatershed/walkthrough.png>]
 LaTeX Font Info:    Font shape `TU/Arial(0)/bx/it' will be
 (Font)              scaled to size 10.41357pt on input line 39.
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
 (Font)              scaled to size 6.94238pt on input line 43.
 LaTeX Font Info:    Font shape `TU/Arial(0)/m/it' will be
 (Font)              scaled to size 5.20679pt on input line 43.
-) (./prelims/multicut.tex [18]) (./prelims/pca.tex [19])
-(./prelims/losses.tex [20]
-Overfull \hbox (1.20647pt too wide) in paragraph at lines 25--26
-[]\TU/Arial(0)/bx/n/12 reg-u-lar-iza-tion term \TU/Arial(0)/m/n/12 this is a sm
-all pull-force that keeps the pre-dicted em-bed-ding vec-tors bounded
- []
-
-<figures/contrastive_loss.png, id=492, 700.11563pt x 433.62pt>
+) (./prelims/multicut.tex [19]) (./prelims/pca.tex [20])
+(./prelims/losses.tex [21] [22]
+<figures/contrastive_loss.png, id=508, 700.11563pt x 433.62pt>
 File: figures/contrastive_loss.png Graphic file (type png)
 <use figures/contrastive_loss.png>
-Package luatex.def Info: figures/contrastive_loss.png  used on input line 44.
+Package luatex.def Info: figures/contrastive_loss.png  used on input line 55.
 (luatex.def)             Requested size: 234.73524pt x 145.38435pt.
-
-LaTeX Warning: Reference `loss_contrastive' on page 21 undefined on input line 5
-0.
-
-[21]
-<figures/triplet_loss.png, id=507, 1146.53343pt x 331.99031pt>
+<figures/triplet_loss.png, id=514, 1146.53343pt x 331.99031pt>
 File: figures/triplet_loss.png Graphic file (type png)
 <use figures/triplet_loss.png>
-Package luatex.def Info: figures/triplet_loss.png  used on input line 60.
+Package luatex.def Info: figures/triplet_loss.png  used on input line 71.
 (luatex.def)             Requested size: 234.73524pt x 67.96725pt.
- [22<./figures/contrastive_loss.png><./figures/triplet_loss.png>])
-(./prelims/reparam.tex) (./prelims/heugh.tex
-<figures/heugh_line.png, id=523, 782.925pt x 494.59781pt>
+ [23<./figures/contrastive_loss.png>])
+(./prelims/reparam.tex) (./prelims/heugh.tex [24<./figures/triplet_loss.png>]
+<figures/heugh_line.png, id=542, 782.925pt x 494.59781pt>
 File: figures/heugh_line.png Graphic file (type png)
 <use figures/heugh_line.png>
 Package luatex.def Info: figures/heugh_line.png  used on input line 7.
 (luatex.def)             Requested size: 234.73524pt x 148.28236pt.
- [23])) [24<./figures/heugh_line.png>] (./main/main.tex
+)) [25<./figures/heugh_line.png>] [26] (./main/main.tex
 Chapter 3.
-(./main/rl_for_seg.tex) (./main/rl_for_mutex.tex [25
+(./main/rl_for_seg.tex) (./main/rl_for_mutex.tex [27
 
 ]
 
-LaTeX Warning: Reference `fig:seg_contradiction' on page 26 undefined on input l
+LaTeX Warning: Reference `fig:seg_contradiction' on page 28 undefined on input l
 ine 11.
 
-) (./main/mainframe.tex [26]
-<figures/images/sketch_overall.png, id=565, 1084.05pt x 995.72pt>
+) (./main/mainframe.tex [28]
+<figures/images/sketch_overall.png, id=581, 1084.05pt x 995.72pt>
 File: figures/images/sketch_overall.png Graphic file (type png)
 <use figures/images/sketch_overall.png>
 Package luatex.def Info: figures/images/sketch_overall.png  used on input line 1
 1.
 (luatex.def)             Requested size: 469.47049pt x 431.22034pt.
-) (./main/in_RL_terms.tex [27<./figures/images/sketch_overall.png>]
+) (./main/in_RL_terms.tex [29<./figures/images/sketch_overall.png>]
 
-LaTeX Warning: Reference `blabla' on page 28 undefined on input line 18.
+LaTeX Warning: Reference `blabla' on page 30 undefined on input line 18.
 
-[28]
+[30]
 
-LaTeX Warning: Reference `fig_sg' on page 29 undefined on input line 30.
+LaTeX Warning: Reference `fig_sg' on page 31 undefined on input line 30.
 
-<figures/images/reward_calc_sketch.png, id=583, 1927.2pt x 1084.05pt>
+<figures/images/reward_calc_sketch.png, id=600, 1927.2pt x 1084.05pt>
 File: figures/images/reward_calc_sketch.png Graphic file (type png)
 <use figures/images/reward_calc_sketch.png>
 Package luatex.def Info: figures/images/reward_calc_sketch.png  used on input li
@@ -1948,77 +1934,77 @@ Overfull \hbox (234.73524pt too wide) in paragraph at lines 34--35
  [][] 
  []
 
-[29] [30<./figures/images/reward_calc_sketch.png>]) (./main/mutex_wtsd.tex
-[31]) (./main/sac.tex [32] [33]) (./main/sgs.tex [34] [35]) (./main/tech.tex
-[36])) [37] (./main/experiments.tex
+[31] [32<./figures/images/reward_calc_sketch.png>]) (./main/mutex_wtsd.tex
+[33]) (./main/sac.tex [34] [35]) (./main/sgs.tex [36] [37]) (./main/tech.tex
+[38])) [39] (./main/experiments.tex
 Chapter 4.
-<figures/plots/raw.png, id=709, 642.4pt x 481.8pt>
+<figures/plots/raw.png, id=725, 642.4pt x 481.8pt>
 File: figures/plots/raw.png Graphic file (type png)
 <use figures/plots/raw.png>
 Package luatex.def Info: figures/plots/raw.png  used on input line 6.
 (luatex.def)             Requested size: 234.73524pt x 176.05035pt.
-<figures/plots/pix_embeddings.png, id=713, 642.4pt x 481.8pt>
+<figures/plots/pix_embeddings.png, id=729, 642.4pt x 481.8pt>
 File: figures/plots/pix_embeddings.png Graphic file (type png)
 <use figures/plots/pix_embeddings.png>
 Package luatex.def Info: figures/plots/pix_embeddings.png  used on input line 16
 .
 (luatex.def)             Requested size: 234.73524pt x 176.05035pt.
-[38
+[40
 
 <./figures/plots/raw.png>]
 
 Package hyperref Warning: Difference (2) between bookmark levels is greater 
 (hyperref)                than one, level fixed on input line 23.
 
-<figures/plots/results_dice_reward.png, id=723, 619.31375pt x 222.8325pt>
+<figures/plots/results_dice_reward.png, id=740, 619.31375pt x 222.8325pt>
 File: figures/plots/results_dice_reward.png Graphic file (type png)
 <use figures/plots/results_dice_reward.png>
 Package luatex.def Info: figures/plots/results_dice_reward.png  used on input li
 ne 30.
 (luatex.def)             Requested size: 328.6279pt x 118.24686pt.
-<figures/plots/edge_embeddings.png, id=725, 642.4pt x 481.8pt>
+<figures/plots/edge_embeddings.png, id=742, 642.4pt x 481.8pt>
 File: figures/plots/edge_embeddings.png Graphic file (type png)
 <use figures/plots/edge_embeddings.png>
 Package luatex.def Info: figures/plots/edge_embeddings.png  used on input line 3
 9.
 (luatex.def)             Requested size: 234.73524pt x 176.05035pt.
-<figures/plots/logit_means_hist.png, id=727, 702.625pt x 440.64626pt>
+<figures/plots/logit_means_hist.png, id=744, 702.625pt x 440.64626pt>
 File: figures/plots/logit_means_hist.png Graphic file (type png)
 <use figures/plots/logit_means_hist.png>
 Package luatex.def Info: figures/plots/logit_means_hist.png  used on input line 
 48.
 (luatex.def)             Requested size: 328.6279pt x 206.10193pt.
-[39<./figures/plots/pix_embeddings.png>]
+[41<./figures/plots/pix_embeddings.png>]
 
-LaTeX Warning: Text page 40 contains only floats.
+LaTeX Warning: Text page 42 contains only floats.
 
-[40<./figures/plots/results_dice_reward.png><./figures/plots/edge_embeddings.png
+[42<./figures/plots/results_dice_reward.png><./figures/plots/edge_embeddings.png
 ><./figures/plots/logit_means_hist.png>]
-<figures/plots/res_unsup.jpeg, id=747, 563.10374pt x 200.75pt>
+<figures/plots/res_unsup.jpeg, id=763, 563.10374pt x 200.75pt>
 File: figures/plots/res_unsup.jpeg Graphic file (type jpg)
 <use figures/plots/res_unsup.jpeg>
 Package luatex.def Info: figures/plots/res_unsup.jpeg  used on input line 63.
 (luatex.def)             Requested size: 375.57782pt x 133.89528pt.
-<figures/plots/hist_unsup.jpeg, id=749, 717.68124pt x 484.81125pt>
+<figures/plots/hist_unsup.jpeg, id=765, 717.68124pt x 484.81125pt>
 File: figures/plots/hist_unsup.jpeg Graphic file (type jpg)
 <use figures/plots/hist_unsup.jpeg>
 Package luatex.def Info: figures/plots/hist_unsup.jpeg  used on input line 70.
 (luatex.def)             Requested size: 281.68515pt x 190.28883pt.
- [41<./figures/plots/res_unsup.jpeg>]) [42<./figures/plots/hist_unsup.jpeg>] (.
+ [43<./figures/plots/res_unsup.jpeg>]) [44<./figures/plots/hist_unsup.jpeg>] (.
 /main/final.tex
 Chapter 5.
-) (./main_frame.bbl [43
+) (./main_frame.bbl [45
 
-] [44
+] [46
 
-]) [45]
+]) [47]
 Package atveryend Info: Empty hook `BeforeClearDocument' on input line 75.
 Package atveryend Info: Empty hook `AfterLastShipout' on input line 75.
  (./main_frame.aux)
 Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 75.
 Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 75.
 Package rerunfilecheck Info: File `main_frame.out' has not changed.
-(rerunfilecheck)             Checksum: 2F6C3CD140A526D4506B8023A21C1DED;3161.
+(rerunfilecheck)             Checksum: 45CBD7A9A3982FBD30BBA8F972A2A38C;3174.
 
 
 LaTeX Warning: There were undefined references.
@@ -2029,14 +2015,14 @@ LaTeX Warning: There were multiply-defined labels.
 )
 
 Here is how much of LuaTeX's memory you used:
- 33046 strings out of 494480
+ 33051 strings out of 494480
  125171,953878 words of node,token memory allocated
  1141 words of node memory still in use:
    7 hlist, 2 vlist, 2 rule, 2 glue, 1 kern, 26 sub_mlist, 71 attribute, 132 glu
 e_spec, 36 attribute_list, 1 write, 1 pdf_action nodes
-   avail lists: 1:2,2:18394,3:211,4:39,5:397,6:4344,7:1387,8:133,9:733,10:20,11:
+   avail lists: 1:1,2:18394,3:209,4:38,5:397,6:4344,7:1387,8:133,9:733,10:18,11:
 425
- 35480 multiletter control sequences out of 65536+600000
+ 35481 multiletter control sequences out of 65536+600000
  76 fonts using 11612775 bytes
  67i,18n,119p,1719b,623s stack positions out of 5000i,500n,10000p,200000b,100000s
 </usr/share/fonts/truetype/msttcorefonts/Arial_Bold_Italic.ttf></usr/share/fonts
@@ -2053,10 +2039,10 @@ cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10
 sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/share/t
 exlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main_frame.pdf (46 pages, 1193110 bytes).
+Output written on main_frame.pdf (48 pages, 1197159 bytes).
 
-PDF statistics: 866 PDF objects out of 1000 (max. 8388607)
- 756 compressed objects within 8 object streams
- 262 named destinations out of 1000 (max. 131072)
+PDF statistics: 883 PDF objects out of 1000 (max. 8388607)
+ 771 compressed objects within 8 object streams
+ 266 named destinations out of 1000 (max. 131072)
  384 words of extra memory for PDF output out of 10000 (max. 100000000)
 
