@@ -22,9 +22,9 @@
 \BOOKMARK [1][-]{section.2.9}{The Heugh transform}{chapter.2}% 22
 \BOOKMARK [0][-]{chapter.3}{Methods}{}% 23
 \BOOKMARK [1][-]{section.3.1}{Using RL for the image segmentation task}{chapter.3}% 24
-\BOOKMARK [1][-]{section.3.2}{Using RL for predicting affinities}{chapter.3}% 25
-\BOOKMARK [1][-]{section.3.3}{Overview over the pipeline}{chapter.3}% 26
-\BOOKMARK [1][-]{section.3.4}{The pipeline in the RL terminology}{chapter.3}% 27
+\BOOKMARK [1][-]{section.3.2}{Using RL for pixel affinity predictions}{chapter.3}% 25
+\BOOKMARK [1][-]{section.3.3}{Overview over the proposed pipeline}{chapter.3}% 26
+\BOOKMARK [1][-]{section.3.4}{The pipeline in reinforcement learning terminology}{chapter.3}% 27
 \BOOKMARK [2][-]{subsection.3.4.1}{The state}{section.3.4}% 28
 \BOOKMARK [2][-]{subsection.3.4.2}{The actions}{section.3.4}% 29
 \BOOKMARK [2][-]{subsection.3.4.3}{The reward}{section.3.4}% 30

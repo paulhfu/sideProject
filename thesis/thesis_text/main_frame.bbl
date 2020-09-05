@@ -168,6 +168,10 @@ F.~Monti, D.~Boscaini, J.~Masci, E.~Rodolà, J.~Svoboda, and M.~M. Bronstein,
   ``Geometric deep learning on graphs and manifolds using mixture model cnns,''
   2016.
 
+\bibitem{ronneberger2015unet}
+O.~Ronneberger, P.~Fischer, and T.~Brox, ``U-net: Convolutional networks for
+  biomedical image segmentation,'' 2015.
+
 \bibitem{densestSg}
 K.~Samir and S.~Barna, ``On finding dense subgraphs,'' 2009.
 

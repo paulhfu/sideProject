@@ -1,4 +1,4 @@
-This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  4 SEP 2020 16:47
+This is LuaTeX, Version 1.0.4 (TeX Live 2017/Debian)  (format=lualatex 2020.1.10)  5 SEP 2020 15:37
  restricted system commands enabled.
 **main_frame.tex
 (./main_frame.tex
@@ -34,7 +34,7 @@ Inserting `luaotfload.aux.set_capheight' at position 3 in `luaotfload.patch_font
 '.
 Inserting `luaotfload.rewrite_fontname' at position 4 in `luaotfload.patch_font'
 .
-luaotfload | main : initialization completed in 0.087 seconds
+luaotfload | main : initialization completed in 0.088 seconds
 Babel <3.18> and hyphenation patterns for 1 language(s) loaded.
 (/usr/share/texlive/texmf-dist/tex/latex/base/report.cls
 Document Class: report 2014/09/29 v1.4h Standard LaTeX document class
@@ -1609,9 +1609,6 @@ LaTeX Warning: Label `sec:ref' multiply defined.
 LaTeX Warning: Label `sec:rl_for_seg' multiply defined.
 
 
-LaTeX Warning: Label `overview' multiply defined.
-
-
 LaTeX Warning: Label `fig:resa_dice' multiply defined.
 
 
@@ -1903,27 +1900,16 @@ Package luatex.def Info: figures/heugh_line.png  used on input line 7.
 Chapter 3.
 (./main/rl_for_seg.tex) (./main/rl_for_mutex.tex [27
 
-]
-
-LaTeX Warning: Reference `fig:seg_contradiction' on page 28 undefined on input l
-ine 11.
-
-) (./main/mainframe.tex [28]
-<figures/images/sketch_overall.png, id=581, 1084.05pt x 995.72pt>
+]) (./main/mainframe.tex
+[28]
+<figures/images/sketch_overall.png, id=580, 1084.05pt x 995.72pt>
 File: figures/images/sketch_overall.png Graphic file (type png)
 <use figures/images/sketch_overall.png>
 Package luatex.def Info: figures/images/sketch_overall.png  used on input line 1
-1.
+2.
 (luatex.def)             Requested size: 469.47049pt x 431.22034pt.
-) (./main/in_RL_terms.tex [29<./figures/images/sketch_overall.png>]
-
-LaTeX Warning: Reference `blabla' on page 30 undefined on input line 18.
-
-[30]
-
-LaTeX Warning: Reference `fig_sg' on page 31 undefined on input line 30.
-
-<figures/images/reward_calc_sketch.png, id=600, 1927.2pt x 1084.05pt>
+) (./main/in_RL_terms.tex [29] [30<./figures/images/sketch_overall.png>]
+<figures/images/reward_calc_sketch.png, id=602, 1927.2pt x 1084.05pt>
 File: figures/images/reward_calc_sketch.png Graphic file (type png)
 <use figures/images/reward_calc_sketch.png>
 Package luatex.def Info: figures/images/reward_calc_sketch.png  used on input li
@@ -1938,12 +1924,12 @@ Overfull \hbox (234.73524pt too wide) in paragraph at lines 34--35
 [33]) (./main/sac.tex [34] [35]) (./main/sgs.tex [36] [37]) (./main/tech.tex
 [38])) [39] (./main/experiments.tex
 Chapter 4.
-<figures/plots/raw.png, id=725, 642.4pt x 481.8pt>
+<figures/plots/raw.png, id=732, 642.4pt x 481.8pt>
 File: figures/plots/raw.png Graphic file (type png)
 <use figures/plots/raw.png>
 Package luatex.def Info: figures/plots/raw.png  used on input line 6.
 (luatex.def)             Requested size: 234.73524pt x 176.05035pt.
-<figures/plots/pix_embeddings.png, id=729, 642.4pt x 481.8pt>
+<figures/plots/pix_embeddings.png, id=736, 642.4pt x 481.8pt>
 File: figures/plots/pix_embeddings.png Graphic file (type png)
 <use figures/plots/pix_embeddings.png>
 Package luatex.def Info: figures/plots/pix_embeddings.png  used on input line 16
@@ -1956,19 +1942,19 @@ Package luatex.def Info: figures/plots/pix_embeddings.png  used on input line 16
 Package hyperref Warning: Difference (2) between bookmark levels is greater 
 (hyperref)                than one, level fixed on input line 23.
 
-<figures/plots/results_dice_reward.png, id=740, 619.31375pt x 222.8325pt>
+<figures/plots/results_dice_reward.png, id=747, 619.31375pt x 222.8325pt>
 File: figures/plots/results_dice_reward.png Graphic file (type png)
 <use figures/plots/results_dice_reward.png>
 Package luatex.def Info: figures/plots/results_dice_reward.png  used on input li
 ne 30.
 (luatex.def)             Requested size: 328.6279pt x 118.24686pt.
-<figures/plots/edge_embeddings.png, id=742, 642.4pt x 481.8pt>
+<figures/plots/edge_embeddings.png, id=749, 642.4pt x 481.8pt>
 File: figures/plots/edge_embeddings.png Graphic file (type png)
 <use figures/plots/edge_embeddings.png>
 Package luatex.def Info: figures/plots/edge_embeddings.png  used on input line 3
 9.
 (luatex.def)             Requested size: 234.73524pt x 176.05035pt.
-<figures/plots/logit_means_hist.png, id=744, 702.625pt x 440.64626pt>
+<figures/plots/logit_means_hist.png, id=751, 702.625pt x 440.64626pt>
 File: figures/plots/logit_means_hist.png Graphic file (type png)
 <use figures/plots/logit_means_hist.png>
 Package luatex.def Info: figures/plots/logit_means_hist.png  used on input line 
@@ -1980,12 +1966,12 @@ LaTeX Warning: Text page 42 contains only floats.
 
 [42<./figures/plots/results_dice_reward.png><./figures/plots/edge_embeddings.png
 ><./figures/plots/logit_means_hist.png>]
-<figures/plots/res_unsup.jpeg, id=763, 563.10374pt x 200.75pt>
+<figures/plots/res_unsup.jpeg, id=770, 563.10374pt x 200.75pt>
 File: figures/plots/res_unsup.jpeg Graphic file (type jpg)
 <use figures/plots/res_unsup.jpeg>
 Package luatex.def Info: figures/plots/res_unsup.jpeg  used on input line 63.
 (luatex.def)             Requested size: 375.57782pt x 133.89528pt.
-<figures/plots/hist_unsup.jpeg, id=765, 717.68124pt x 484.81125pt>
+<figures/plots/hist_unsup.jpeg, id=772, 717.68124pt x 484.81125pt>
 File: figures/plots/hist_unsup.jpeg Graphic file (type jpg)
 <use figures/plots/hist_unsup.jpeg>
 Package luatex.def Info: figures/plots/hist_unsup.jpeg  used on input line 70.
@@ -1997,17 +1983,14 @@ Chapter 5.
 
 ] [46
 
-]) [47]
+] [47]) [48]
 Package atveryend Info: Empty hook `BeforeClearDocument' on input line 75.
 Package atveryend Info: Empty hook `AfterLastShipout' on input line 75.
  (./main_frame.aux)
 Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 75.
 Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 75.
 Package rerunfilecheck Info: File `main_frame.out' has not changed.
-(rerunfilecheck)             Checksum: 45CBD7A9A3982FBD30BBA8F972A2A38C;3174.
-
-
-LaTeX Warning: There were undefined references.
+(rerunfilecheck)             Checksum: 60383C7069CBE6FD79337184EFEBFA5C;3204.
 
 
 LaTeX Warning: There were multiply-defined labels.
@@ -2015,16 +1998,16 @@ LaTeX Warning: There were multiply-defined labels.
 )
 
 Here is how much of LuaTeX's memory you used:
- 33051 strings out of 494480
+ 33052 strings out of 494480
  125171,953878 words of node,token memory allocated
  1141 words of node memory still in use:
    7 hlist, 2 vlist, 2 rule, 2 glue, 1 kern, 26 sub_mlist, 71 attribute, 132 glu
 e_spec, 36 attribute_list, 1 write, 1 pdf_action nodes
-   avail lists: 1:1,2:18394,3:209,4:38,5:397,6:4344,7:1387,8:133,9:733,10:18,11:
-425
- 35481 multiletter control sequences out of 65536+600000
+   avail lists: 1:1,2:18394,3:215,4:40,5:392,6:4507,7:1417,8:133,9:740,10:18,11:
+468
+ 35480 multiletter control sequences out of 65536+600000
  76 fonts using 11612775 bytes
- 67i,18n,119p,1719b,623s stack positions out of 5000i,500n,10000p,200000b,100000s
+ 67i,18n,119p,1174b,623s stack positions out of 5000i,500n,10000p,200000b,100000s
 </usr/share/fonts/truetype/msttcorefonts/Arial_Bold_Italic.ttf></usr/share/fonts
 /truetype/msttcorefonts/Arial_Italic.ttf></usr/share/fonts/truetype/msttcorefont
 s/Arial.ttf></usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf></usr/share/
@@ -2039,10 +2022,10 @@ cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10
 sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></usr/share/t
 exlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on main_frame.pdf (48 pages, 1197159 bytes).
+Output written on main_frame.pdf (49 pages, 1198427 bytes).
 
-PDF statistics: 883 PDF objects out of 1000 (max. 8388607)
- 771 compressed objects within 8 object streams
- 266 named destinations out of 1000 (max. 131072)
+PDF statistics: 894 PDF objects out of 1000 (max. 8388607)
+ 781 compressed objects within 8 object streams
+ 268 named destinations out of 1000 (max. 131072)
  384 words of extra memory for PDF output out of 10000 (max. 100000000)
 
