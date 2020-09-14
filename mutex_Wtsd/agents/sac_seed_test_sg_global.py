@@ -30,7 +30,7 @@ import portalocker
 import sys
 from shutil import copyfile
 from scipy.sparse.csgraph import dijkstra
-from losses.rag_contrastive_loss import ContrastiveLoss
+from mu_net.criteria import ContrastiveLoss
 from losses.rag_contrastive_triplet_loss import ContrastiveTripletLoss
 
 
@@ -48,7 +48,8 @@ class AgentSacTrainer_test_sg_global(object):
         self.global_win_event_count = global_win_event_count
         self.action_stats_count = action_stats_count
         self.global_writer_count = global_writer_count
-        self.embedd_loss = ContrastiveTripletLoss(delta_var=0.5)
+        self.contr_trpl_loss = ContrastiveTripletLoss(delta_var=0.5)
+        self.contr_loss = ContrastiveLoss(delta_var=0.5, delta_dist=1.5)
 
         self.memory = TransitionData_ts(capacity=self.args.t_max)
         # self.eps = self.args.init_epsilon
@@ -83,6 +84,25 @@ class AgentSacTrainer_test_sg_global(object):
 
         # initialize the process group
         dist.init_process_group("gloo", rank=rank, world_size=world_size)
+
+    def pretrain_embeddings(self, model, device, writer=None):
+        dset = MultiDiscPixDset(root_dir=self.args.data_dir)
+        dloader = DataLoader(dset, batch_size=self.args.fe_warmup_batch_size, shuffle=True, pin_memory=True, num_workers=0)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+        for i in range(self.args.fe_warmup_iterations):
+            for it, (raw, gt, indices) in enumerate(dloader):
+                raw, gt = raw.to(device), gt.to(device)
+                edges, edge_feat, diff_to_gt, gt_edge_weights, sp_seg = dloader.dataset.get_graphs(indices, device)
+                embeddings = model(torch.cat([raw, sp_seg], 1))
+                loss = self.contr_loss(embeddings, sp_seg.long().squeeze())
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                if writer is not None:
+                    writer.add_scalar("loss/fe_warm_start/ttl", loss.item(), it)
 
     def cleanup(self):
         dist.destroy_process_group()
@@ -173,16 +193,7 @@ class AgentSacTrainer_test_sg_global(object):
             return torch.stack([torch.from_numpy(attr_edges[0]), torch.from_numpy(attr_edges[1])], 0)
         return None
 
-    def update_embeddings(self, obs, env, model, optimizers):
-        distribution, actor_Q1, actor_Q2, action, embeddings = self.agent_forward(env, model, grad=False, state=obs, policy_opt=False, embeddings_opt=True)
-
-        # embedding_regularizer = torch.tensor(0.)
-        weights = distribution.loc.detach()
-
-        # weights = torch.autograd.grad(outputs=actor_loss, inputs=distribution.loc, retain_graph=True, create_graph=True, only_inputs=True)[0]
-        # weights = weights.detach().cpu().numpy()
-        weights = weights.cpu().numpy()
-
+    def get_embed_loss_contr_trpl(self, weights, obs, embeddings):
         b_attr_edges = []
         b_rep_edges = []
         for i in range(obs[1].shape[0]):
@@ -215,10 +226,24 @@ class AgentSacTrainer_test_sg_global(object):
             else:
                 b_rep_edges.append(None)
 
-        embedding_regularizer = self.embedd_loss(
+        return self.contr_trpl_loss(
             embeddings, obs[1].long().to(embeddings.device), (b_attr_edges, b_rep_edges))
 
-        loss = embedding_regularizer
+    def get_embed_loss_contr(self, weights, env, embeddings):
+        segs = env.get_current_soln(weights)
+        return self.contr_loss(embeddings, segs.long().to(embeddings.device))
+
+    def update_embeddings(self, obs, env, model, optimizers):
+        distribution, actor_Q1, actor_Q2, action, embeddings = self.agent_forward(env, model, grad=False, state=obs, policy_opt=False, embeddings_opt=True)
+
+        # embedding_regularizer = torch.tensor(0.)
+        weights = distribution.loc.detach()
+
+        # weights = torch.autograd.grad(outputs=actor_loss, inputs=distribution.loc, retain_graph=True, create_graph=True, only_inputs=True)[0]
+        # weights = weights.detach().cpu().numpy()
+        weights = weights.cpu().numpy()
+
+        loss = self.get_embed_loss_contr(weights, env, embeddings)
 
         optimizers.embeddings.zero_grad()
         loss.backward()
@@ -257,11 +282,12 @@ class AgentSacTrainer_test_sg_global(object):
         (obs, action, reward, next_obs, done), sample_idx = replay_buffer.sample()
         not_done = int(not done)
 
-        if max(1, self.global_count.value()-self.args.t_max) % self.cfg.embeddings_update_frequency <= self.args.n_processes_per_gpu*self.args.n_gpu:
-            embedd_loss = self.update_embeddings(obs, env, model, optimizers)
-            if writer is not None:
-                writer.add_scalar("loss/embedd", embedd_loss, self.global_writer_loss_count.value())
-            return
+        if not self.args.no_fe_extr_optim:
+            if max(1, self.global_count.value()-self.args.t_max) % self.cfg.embeddings_update_frequency <= self.args.n_processes_per_gpu*self.args.n_gpu:
+                embedd_loss = self.update_embeddings(obs, env, model, optimizers)
+                if writer is not None:
+                    writer.add_scalar("loss/embedd", embedd_loss, self.global_writer_loss_count.value())
+                return
 
         critic_loss = self.update_critic(obs, action, reward, next_obs, not_done, env, model, optimizers)
         replay_buffer.report_sample_loss(critic_loss + reward.mean(), sample_idx)
@@ -319,14 +345,18 @@ class AgentSacTrainer_test_sg_global(object):
         model.cuda(device)
         shared_model = DDP(model, device_ids=[device], find_unused_parameters=True)
 
-        # optimizers
-        OptimizerContainer = namedtuple('OptimizerContainer', ('actor', 'embeddings', 'critic', 'temperature'))
+        if not self.args.no_fe_extr_optim:
+            # optimizers
+            OptimizerContainer = namedtuple('OptimizerContainer', ('actor', 'embeddings', 'critic', 'temperature'))
+        else:
+            OptimizerContainer = namedtuple('OptimizerContainer', ('actor', 'critic', 'temperature'))
         actor_optimizer = torch.optim.Adam(shared_model.module.actor.parameters(),
                                            lr=self.cfg.actor_lr,
                                            betas=self.cfg.actor_betas)
-        embeddings_optimizer = torch.optim.Adam(shared_model.module.fe_ext.parameters(),
-                                           lr=self.cfg.embeddings_lr,
-                                           betas=self.cfg.actor_betas)
+        if not self.args.no_fe_extr_optim:
+            embeddings_optimizer = torch.optim.Adam(shared_model.module.fe_ext.parameters(),
+                                               lr=self.cfg.embeddings_lr,
+                                               betas=self.cfg.actor_betas)
         critic_optimizer = torch.optim.Adam(shared_model.module.critic.parameters(),
                                             lr=self.cfg.critic_lr,
                                             betas=self.cfg.critic_betas)
@@ -334,21 +364,26 @@ class AgentSacTrainer_test_sg_global(object):
                                           lr=self.cfg.alpha_lr,
                                           betas=self.cfg.alpha_betas)
 
-        optimizers = OptimizerContainer(actor_optimizer, embeddings_optimizer, critic_optimizer, temp_optimizer)
+        if not self.args.no_fe_extr_optim:
+            optimizers = OptimizerContainer(actor_optimizer, embeddings_optimizer, critic_optimizer, temp_optimizer)
+        else:
+            optimizers = OptimizerContainer(actor_optimizer, critic_optimizer, temp_optimizer)
+
+        dist.barrier()
+
+        if self.args.model_name != "":
+            shared_model.module.load_state_dict(torch.load(os.path.join(self.log_dir, self.args.model_name)))
+        elif self.args.model_fe_name != "":
+            shared_model.module.fe_ext.load_state_dict(torch.load(os.path.join(self.save_dir, self.args.model_fe_name)))
+        elif self.args.fe_extr_warmup and rank == 0:
+            print('pretrain fe extractor')
+            self.pretrain_embeddings(shared_model.module.fe_ext, device, writer)
 
         dist.barrier()
 
         if self.args.no_fe_extr_optim:
             for param in model.fe_ext.parameters():
                 param.requires_grad = False
-
-        if self.args.model_name != "":
-            shared_model.module.load_state_dict(torch.load(os.path.join(self.log_dir, self.args.model_name)))
-        elif self.args.model_fe_name != "":
-            shared_model.module.fe_ext.load_state_dict(torch.load(os.path.join(self.save_dir, self.args.model_fe_name)))
-        elif self.args.fe_extr_warmup:
-            print('loaded fe extractor')
-            shared_model.module.fe_ext.load_state_dict(torch.load(os.path.join(self.save_dir, 'agent_model_fe_extr')))
 
         dset = MultiDiscPixDset(root_dir=self.args.data_dir)
         quality = self.args.stop_qual_scaling + self.args.stop_qual_offset

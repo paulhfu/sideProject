@@ -28,21 +28,21 @@
 \contentsline {section}{\numberline {3.4}The pipeline in reinforcement learning terminology}{29}{section.3.4}
 \contentsline {subsection}{\numberline {3.4.1}The state}{29}{subsection.3.4.1}
 \contentsline {subsection}{\numberline {3.4.2}The actions}{29}{subsection.3.4.2}
-\contentsline {subsection}{\numberline {3.4.3}The reward}{30}{subsection.3.4.3}
+\contentsline {subsection}{\numberline {3.4.3}The reward}{31}{subsection.3.4.3}
 \contentsline {subsection}{\numberline {3.4.4}The agent}{31}{subsection.3.4.4}
 \contentsline {subsection}{\numberline {3.4.5}The environment}{31}{subsection.3.4.5}
 \contentsline {subsection}{\numberline {3.4.6}The problem of local optima}{31}{subsection.3.4.6}
 \contentsline {subsection}{\numberline {3.4.7}Definition of the RL algorithm}{32}{subsection.3.4.7}
 \contentsline {section}{\numberline {3.5}Obtaining superpixels from mutex watershed}{33}{section.3.5}
-\contentsline {section}{\numberline {3.6}The embedding network}{33}{section.3.6}
-\contentsline {section}{\numberline {3.7}The actor critic networks}{34}{section.3.7}
+\contentsline {section}{\numberline {3.6}The embedding network}{34}{section.3.6}
+\contentsline {section}{\numberline {3.7}The actor critic networks}{35}{section.3.7}
 \contentsline {section}{\numberline {3.8}Finding subgraphs}{37}{section.3.8}
-\contentsline {subsection}{\numberline {3.8.1}Thoughts on dependence}{38}{subsection.3.8.1}
+\contentsline {subsection}{\numberline {3.8.1}Dependence of action distributions}{38}{subsection.3.8.1}
 \contentsline {section}{\numberline {3.9}Technical details}{39}{section.3.9}
 \contentsline {subsection}{\numberline {3.9.1}Batch processing}{39}{subsection.3.9.1}
 \contentsline {chapter}{\numberline {4}Experiments and results}{40}{chapter.4}
 \contentsline {subsection}{\numberline {4.0.1}Supervised training}{41}{subsection.4.0.1}
-\contentsline {subsection}{\numberline {4.0.2}Unsupervised training}{43}{subsection.4.0.2}
-\contentsline {subsubsection}{Data conformity}{43}{subsubsection*.17}
-\contentsline {chapter}{\numberline {5}Conclusion}{45}{chapter.5}
-\contentsline {section}{References}{45}{section*.18}
+\contentsline {subsection}{\numberline {4.0.2}Unsupervised training}{42}{subsection.4.0.2}
+\contentsline {subsubsection}{Data conformity}{43}{subsubsection*.19}
+\contentsline {chapter}{\numberline {5}Conclusion}{46}{chapter.5}
+\contentsline {section}{References}{46}{section*.20}

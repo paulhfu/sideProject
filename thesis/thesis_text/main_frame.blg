@@ -18,19 +18,19 @@ I was expecting a `,' or a `}'---line 14 of file bibliography.bib.bib
  :  organization={The MIT Press}
 (Error may have been on previous line)
 I'm skipping whatever remains of this entry
-I was expecting a `,' or a `}'---line 22 of file bibliography.bib.bib
+I was expecting a `,' or a `}'---line 47 of file bibliography.bib.bib
  :  
  :  organization={The MIT}
 (Error may have been on previous line)
 I'm skipping whatever remains of this entry
 Warning--entry type for "AAAIziebert" isn't style-file defined
---line 25 of file bibliography.bib.bib
-I was expecting a `,' or a `}'---line 307 of file bibliography.bib.bib
+--line 50 of file bibliography.bib.bib
+I was expecting a `,' or a `}'---line 332 of file bibliography.bib.bib
  :  
  :  journal={International Colloquium on Automata, Languages, and Programming},
 (Error may have been on previous line)
 I'm skipping whatever remains of this entry
-Repeated entry---line 354 of file bibliography.bib.bib
+Repeated entry---line 379 of file bibliography.bib.bib
  : @misc{kingma2013autoencoding
  :                             ,
 I'm skipping whatever remains of this entry
@@ -44,45 +44,45 @@ Too many commas in name 1 of "BrianD. Ziebart, Andrew Maas, J.Andrew Bagnell,and
 while executing---line 2403 of file IEEEtran.bst
 
 Done.
-You've used 33 entries,
+You've used 36 entries,
             4087 wiz_defined-function locations,
-            988 strings with 13372 characters,
-and the built_in function-call counts, 18326 in all, are:
-= -- 1341
-> -- 604
+            1000 strings with 13798 characters,
+and the built_in function-call counts, 19620 in all, are:
+= -- 1442
+> -- 633
 < -- 46
-+ -- 292
-- -- 136
-* -- 823
-:= -- 2821
-add.period$ -- 67
-call.type$ -- 33
-change.case$ -- 35
++ -- 306
+- -- 143
+* -- 874
+:= -- 3049
+add.period$ -- 73
+call.type$ -- 36
+change.case$ -- 40
 chr.to.int$ -- 84
-cite$ -- 36
-duplicate$ -- 1456
-empty$ -- 1595
-format.name$ -- 168
-if$ -- 4189
+cite$ -- 39
+duplicate$ -- 1561
+empty$ -- 1713
+format.name$ -- 176
+if$ -- 4475
 int.to.chr$ -- 0
-int.to.str$ -- 33
-missing$ -- 330
-newline$ -- 140
-num.names$ -- 35
-pop$ -- 931
+int.to.str$ -- 36
+missing$ -- 357
+newline$ -- 153
+num.names$ -- 38
+pop$ -- 1009
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 2
-skip$ -- 1411
+skip$ -- 1510
 stack$ -- 0
-substring$ -- 274
-swap$ -- 986
+substring$ -- 281
+swap$ -- 1048
 text.length$ -- 18
 text.prefix$ -- 0
 top$ -- 5
-type$ -- 33
+type$ -- 36
 warning$ -- 3
-while$ -- 52
-width$ -- 35
-write$ -- 311
+while$ -- 55
+width$ -- 38
+write$ -- 340
 (There were 6 error messages)

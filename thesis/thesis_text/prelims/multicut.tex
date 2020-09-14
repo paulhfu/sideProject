@@ -5,13 +5,13 @@ The multicut problem is a graph cuts problem that is in \cite{10.1007/978-3-642-
 	\min_{x \in L^{|V|}} \sum_{uv \in E} \beta_{uv} I(x_u \neq x_v) \text{, \hspace{5mm}} L=\{ 1, ..., |V| \}
 \end{align}
 
-where $I$ is a indicator function that maps a boolean expression to $1$ if it is true and to $0$ otherwise. $L$ is the set of all possible labels, $\beta_{uv}$ is the edge cost that is active if $u$ has a different label than $v$. $x=(x_v)_{v\in V} \in L^{|V|}$ is a node labeling that defines a partitioning of $V$ into subsets of nodes $S_l$ assigned to class $l$ such that $\bigcup_{l \in L} S_l = V$. Eq. (2.38) defines the unsupervised partitioning problem where the maximum number of classes in the final labeling is the number of nodes $|V|$ in the graph $G$. Therefore the coefficients $\beta$ can depend on the data but are assumed not to depend on prior information about a fixed number of classes $L$. \\
+where $I$ is an indicator function that maps a boolean expression to $1$ if it is true and to $0$ otherwise. $L$ is the set of all possible labels, $\beta_{uv}$ is the edge cost that is active if $u$ has a different label than $v$. $x=(x_v)_{v\in V} \in L^{|V|}$ is a node labeling that defines a partitioning of $V$ into subsets of nodes $S_l$ assigned to class $l$ such that $\bigcup_{l \in L} S_l = V$. Eq. (2.38) defines the unsupervised partitioning problem where the maximum number of classes in the final labeling is the number of nodes $|V|$ in the graph $G$. Therefore the coefficients $\beta$ can depend on the data but are assumed not to depend on prior information about a fixed number of classes $L$. \\
 A \emph{multicut} on a graph $G=(V,E)$ with a partitioning $\bigcup_{l \in L} S_l = V$ is defined as 
 \begin{align}
 	\delta(S_1, ..., S_k) := \left\{ uv \in E | \exists i \neq j : u \in S_i \text{\hspace{1mm}and\hspace{1mm}} v \in S_j \right\}
 \end{align}
 Where the sets $S_1, ..., S_k$ are called the \emph{shores} of the multicut.
-To obtain a polyhedral representation of the set of multicuts on a graph on needs to define incidence vectors $\mathcal{X}(F) \in \mathbb{R}^{|E|}$ for each subset $F \subseteq E$:
+To obtain a polyhedral representation of the set of multicuts on a graph, one needs to define incidence vectors $\mathcal{X}(F) \in \mathbb{R}^{|E|}$ for each subset $F \subseteq E$:
 \begin{align}
 	\mathcal{X}_e(F) = \begin{cases}
 	1, \text{\hspace{1mm}if\hspace{1mm}} e \in F \\
@@ -32,9 +32,10 @@ defining cycle constraints allows to rewrite eq. (2.42) as the integer linear pr
 
 \begin{align}
 	\min_{y \in [0, 1]^{|E|}} & \sum_{uv \in E} \beta_{uv} y_{uv} \\
-	 \text{s.t. \hspace{4mm}} \sum_{uv \in C} y_{uv} & \neq 1 \text{, \hspace{8mm}} \forall \text{ cycles } C \subseteq E 
+	 \text{s.t. \hspace{4mm}} \sum_{uv \in C} y_{uv} & \neq 1 \text{, \hspace{8mm}} \forall \text{ cycles } C \subseteq E .
 \end{align}
 
-The cycle constraints in eq. (2.47) enforce that $y$ lies inside the multicut polytope by guaranteeing that there are no active edges inside a shore. There are many solution methods for this problem. The one used in \cite{10.1007/978-3-642-23094-3_3} is based on iteratively solving the ILP in eq. (2.43) without cycle constraints initially, then finding violated constraints in the sense of eq. (2.44), adding them to the ILP and reiterate until there are no more violated cycle constraints.\\
-Violated constraints can be found by projecting a obtained solution $y$ to the multicut polytope and checking for differences in the solution and the projection $y'$.
+The cycle constraints in eq. (2.44) enforce that $y$ lies inside the multicut polytope by guaranteeing that there are no active edges inside a shore.\\
+There are many solution methods for this problem. The one used in \cite{10.1007/978-3-642-23094-3_3} is based on iteratively solving the ILP in eq. (2.43) without cycle constraints initially, then finding violated constraints in the sense of eq. (2.44), adding them to the ILP and reiterate until there are no more violated cycle constraints.\\
+Violated constraints can be found by projecting an obtained solution $y$ to the multicut polytope and checking for differences in the solution and the projection $y'$.
 The projection is achieved by assigning a label to each connected component in $G=(V, \left\{ uv | y_{uv} = 0 \right\})$ which produces a valid partition for which the respective \emph{multicut}, and therefore $y'$, can be obtained easily. If there exists an active edge $uv$ inside the solution that is not active within the projection then this is an edge inside a shore and one of the respective violated cycle constraints is obtained by computing the shortest path between $u$ and $v$ inside the shore and adding the active edge $uv$ to that path, yielding a cycle.

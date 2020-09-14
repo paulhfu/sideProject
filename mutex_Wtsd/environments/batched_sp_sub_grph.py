@@ -86,7 +86,7 @@ class SpGcnEnv(Environment):
         return self.get_state(), reward, quality
 
     def get_state(self):
-        return torch.cat([self.raw, self.init_sp_seg.unsqueeze(1), self.current_soln.unsqueeze(1)], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
+        return torch.cat([self.raw, self.init_sp_seg.unsqueeze(1)], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
 
     def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_labeling, raw, angles, gt):
         self.gt_seg = gt

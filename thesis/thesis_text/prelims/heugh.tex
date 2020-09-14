@@ -1,5 +1,5 @@
 \section{The Heugh transform}\label{ssec:heugh_tf}
-The Hough transform for the application of detecting curves in an image was first introduced by \cite{10.1145/361237.361242}. Reducing this problem to finding lines in a set of $N$ points $(x_i, y_i)\in \Omega$ where $x_i\in [0..X]$, $y_i\in [0..Y]$ and $i = 0, ...,N$. $X$ is the size in the first x-dimension and $Y$ the size in the second y-dimension of the image.\\
+The Hough transform for the application of detecting curves in an image was first introduced by \cite{10.1145/361237.361242}. Reducing this problem to finding lines in a set of $N$ points $(x_i, y_i)\in \Omega$ where $x_i\in [0..X]$, $y_i\in [0..Y]$ and $i = 0, ...,N$, $X$ is the size in the first x-dimension and $Y$ the size in the second y-dimension of the image, goes as follows.\\
 Assuming each point lies on a line and each of those points is transferred to the latent space of lines defined by the \emph{normal parameterization} of a line. As shown in figure \ref{fig:norm_line} this representation is defined by the angle $\theta$ of the line's normal and its algebraic distance $\rho$ from the origin.\\
 
 \begin{figure}[ht!]
@@ -13,9 +13,9 @@ Transforming all points in $\Omega$ to sinusoidals in the $\theta$-$\rho$ plane 
 \begin{align}
 	\rho_i(\theta) = x_i \cos \theta + y_i \sin \theta \text{, \hspace{8mm} $i = 0, ...,N$}.
 \end{align}
-One property of this point to curve transformation is, that an intersection of two or more of those functions means, that there is a line in the image plane that is going through all points the functionals correspond to.\\
+One property of this point to curve transformation is, that an intersection of two or more of those functions means that there is a line in the image plane that is going through all the points which the functions correspond to.\\
 Therefore lines are found by discretizing the $\theta$-$\rho$ plane and counting in each cell the intersections of functions $\rho_i(\theta)$ going through that cell.\\
-Thresholding leaves only the cells with a count of intersections higher than the thresholding parameter and each of those cells can be transformed to a line in the image space.\\
+Thresholding leaves only the cells with a count of intersections higher than the threshold parameter and each of those cells can be transformed to a line in the image space.\\
 This idea can be extended to the detection of circles resulting in the Circle Heugh transform (CHT). A parametric representation for a circle in the x-y plane is given by 
 \begin{align}
 	c^2 = (x-a)^2 + (y-b)^2.
@@ -26,4 +26,4 @@ Each point $(x_i, y_i)$ in the image place can be transformed to a surface in th
 c_i^2(a, b) = (x_i-a)^2 + (y_i-b)^2
 \end{align}
 
-this surface correponds to a right circular cone. Again intersections of multiple functionals $c_i^2(a, b)$ means that the corresponding points in the image plane correspond to the circle defined by the intersection point in the $a$-$b$-$c$ parameter space. The same procedure of discretizing and counting as for the line detection method results in the CHT as defined in \cite{10.1145/361237.361242}.
+this surface correponds to a right circular cone. Again, intersections of multiple functionals $c_i^2(a, b)$ mean, that the corresponding points in the image plane correspond to the circle defined by the intersection point in the $a$-$b$-$c$ parameter space. The same procedure of discretizing and counting as for the line detection method results in the CHT as defined in \cite{10.1145/361237.361242}.

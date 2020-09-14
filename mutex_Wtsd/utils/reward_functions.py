@@ -215,7 +215,7 @@ class HoughCircles(object):
     def plot_reward_function(self, is_bg):
         fig = plt.figure(figsize=plt.figaspect(0.5))
         n_obj = np.linspace(0, 100, 100)
-        heugh_val = np.linspace(0, 1, 100)
+        heugh_val = np.linspace(.7, 1, 100)
         x, y = np.meshgrid(n_obj, heugh_val)
         x_shape = x.shape
         y_shape = y.shape
@@ -224,11 +224,11 @@ class HoughCircles(object):
 
         for i, (x_s, y_s) in enumerate(zip(x, y)):
             n_obj_within_bounds = False
-            if (x_s - 1) < self.range_num[0]:
-                diff = self.range_num[0] - (x_s - 1)
-                z[i] -= ((torch.sigmoid(torch.tensor(diff / 10)) - 0.5) * 5).item()
-                continue
-            elif (x_s - 1) > self.range_num[1]:
+            # if (x_s - 1) < self.range_num[0]:
+            #     diff = self.range_num[0] - (x_s - 1)
+            #     z[i] -= ((torch.sigmoid(torch.tensor(diff / 10)) - 0.5) * 5).item()
+            #     continue
+            if (x_s - 1) > self.range_num[1]:
                 diff = (x_s - 1) - self.range_num[1]
                 z[i] -= ((torch.sigmoid(torch.tensor(diff / 10)) - 0.5) * 5).item()
             else:
@@ -250,7 +250,7 @@ class HoughCircles(object):
 
         ax.set_zlim(-2.51, 1.31)
         ax.set_xlabel('num obj')
-        ax.set_ylabel('Heugh value')
+        ax.set_ylabel('CHT value')
         ax.set_zlabel('reward value')
         plt.show()
         return

@@ -1,12 +1,12 @@
 \section{Principal component analysis}~\label{sec:pca}
-The principal components of a collection of data points can be thought of as the directions in which the variance of the data points is the highest. The magnitude of the variance in the direction of a principal component is referred to as the score of that principal component. All principal component vectors form a orthonormal basis.\\
+The principal components of a collection of data points can be thought of as the ordered orthogonal directions in which the variance of the data points is the highest. The magnitude of the variance in the direction of a principal component is referred to as the score of that principal component. All principal component vectors form a orthonormal basis.\\
 Consider a data matrix $X \in \mathbb{R}^{n\times p}$ of $n$, $p$-dimensional samples from an arbitrary distribution. The first principal component is
 
 \begin{align}
 	w_{(1)} = \argmax_{\norm{w} = 1} \norm{Xw}^2
 \end{align}
 
-Since this is a convex optimization problem, the solution can be found by finding the stationary points of the Lagrange function
+since this is a convex optimization problem, it can be solved by finding the stationary points of the Lagrange function
 
 \begin{align}
 	\mathcal{L}(w, \lambda) &= w^TCw - \lambda(w^Tw -1)
@@ -25,13 +25,13 @@ setting eq. (2.47) to $0$ yields
 	Cw &= \lambda w
 \end{align}
 
-it strikes that eq. (2.50) is an eigenvalue problem. Since $C$ is hermetian its eigenvectors form a orthonormal basis, therefore eq. (2.47) equals to $0$ if $w$ is an eigenvector. To see that the solution to eq. (2.45) is in fact the eigenvector with the largest eigenvalue, one has to substitute eq. (2.50) into eq. (2.46).
+it strikes that eq. (2.50) is an eigenvalue problem. Since $C$ is hermetian its eigenvectors form an orthonormal basis, therefore eq. (2.47) equals to $0$ if $w$ is an eigenvector. To see that the solution to eq. (2.45) is in fact the eigenvector with the largest eigenvalue, one has to substitute eq. (2.50) into eq. (2.46).
 
 \begin{align}
 	w^TCw - \lambda(w^Tw -1) = w^TCw = \lambda w^Tw = \lambda.
 \end{align}
 
 Since eq. (2.45) is a maximization problem, $\lambda$ has to be the largest eigenvalue.
-Therefore the first principal component is the eigenvector $w_{(1)}$ with the largest eigenvalue $\lambda_{(1)}$ of $C$. $\lambda_{(1)}$ is also referred to as the score of the principal component $w_{(1)}$. \\
+Therefore the first principal component is the eigenvector $w_{(1)}$ with the largest eigenvalue $\lambda_{(1)}$ of $C$. $\lambda_{(1)}$ is the score of the principal component $w_{(1)}$. \\
 
 The remaining principal components are given by the other eigenvectors sorted by their eigenvalues.

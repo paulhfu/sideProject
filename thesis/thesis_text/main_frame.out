@@ -36,11 +36,11 @@
 \BOOKMARK [1][-]{section.3.6}{The embedding network}{chapter.3}% 36
 \BOOKMARK [1][-]{section.3.7}{The actor critic networks}{chapter.3}% 37
 \BOOKMARK [1][-]{section.3.8}{Finding subgraphs}{chapter.3}% 38
-\BOOKMARK [2][-]{subsection.3.8.1}{Thoughts on dependence}{section.3.8}% 39
+\BOOKMARK [2][-]{subsection.3.8.1}{Dependence of action distributions}{section.3.8}% 39
 \BOOKMARK [1][-]{section.3.9}{Technical details}{chapter.3}% 40
 \BOOKMARK [2][-]{subsection.3.9.1}{Batch processing}{section.3.9}% 41
 \BOOKMARK [0][-]{chapter.4}{Experiments and results}{}% 42
 \BOOKMARK [1][-]{subsection.4.0.1}{Supervised training}{chapter.4}% 43
 \BOOKMARK [2][-]{subsection.4.0.2}{Unsupervised training}{subsection.4.0.1}% 44
 \BOOKMARK [0][-]{chapter.5}{Conclusion}{}% 45
-\BOOKMARK [1][-]{section*.18}{References}{chapter.5}% 46
+\BOOKMARK [1][-]{section*.20}{References}{chapter.5}% 46

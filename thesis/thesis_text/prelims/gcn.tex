@@ -2,7 +2,7 @@
 \noindent Convolutional neural networks use the convolution operation to "filter" a regular grid graph of certain dimension with a filter consisting of learnable parameters. Graph convolution, as introduced by \cite{bruna2013spectral} generalizes this notion of convolutional filtering to arbitrary graphs. Through that it is possible to learn functions on non eucledian, structured domains that have a notion of locality.\\
 Since then the field developed rapidly, \cite{Bronstein_2017} provides a good overview of the research that was done so far.\\
 Most of the research focuses on the application where graphs are constructed from discretizations of 2-dimensional manifolds, embedded in a 3-dimensional eucledian space, usually called point clouds. However the principle can be used for arbitrary graphs that contain features in their nodes.\\
-Typically there are two equivalent definitions of convolution on graphs. One is the spectral definition which suffers from large complexity in terms of memory and time. The other one is a spatial construction motivated from signal flows on graphs which is much faster as it operates with sparse representations of the graph. A quick summary of the latter as in \cite{gilmer2017neural} is given below. \\
+Typically there are two equivalent definitions for the convolution on graphs. One is the spectral definition which suffers from large complexity in terms of memory and time. The other one is a spatial construction motivated from signal flows on graphs which is much faster as it operates with sparse representations of the graph. A quick summary of the latter as in \cite{gilmer2017neural} is given below. \\
 
 Let a graph be represented by $G=(X, (A, E))$ where $X\in \mathbb{R}^{N\times m}$ is a node feature matrix of $N$, $m$-dimensional node feature vectors, with nodes ecoded as $i \in[1..N]$. $A$ is a set of adjacency tuples where $A\in \mathbb{N}^{2\times |E|}$ encodes the set of $|E|$ edges with $n$-dimensional edge features $E \in \mathbb{R}^{|E|\times n}$.
 
@@ -12,7 +12,7 @@ The generalization of the convolutional operator, locally expressed by means of 
 	\vec{x}_i^\prime = \gamma \left(\vec{x}_i, \aggr_{j \in \mathcal{N}(i)}  \phi \left(\vec{x}_i, \vec{x}_i, \vec{e}_{ij} \right) \right)
 \end{align}
 
-where $\aggr$ is a differentiable and permutation invariant function such as the sum or the mean. $\gamma$ and $\phi$ are differentiable functions represented by multi layer perceptrons. This convolution is also referred to as message passing scheme. All this convolution operations w.r.t. to each node in the graph allow parallel computation what makes this schemes fast.
+where $\aggr$ is a differentiable and permutation invariant function such as the sum or the mean. $\gamma$ and $\phi$ are differentiable functions represented by multi layer perceptrons. This convolution definition is also referred to as message passing scheme. All this convolution operations w.r.t. to each node in the graph allow to be computed in parallel what makes these schemes fast.
 
 
 

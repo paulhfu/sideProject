@@ -11,7 +11,6 @@ from models.GCNNs.gcnn import Gcnn, QGcnn, GlobalEdgeGcnn
 from utils.sigmoid_normal1 import SigmNorm
 import numpy as np
 from losses.rag_contrastive_loss import ContrastiveLoss
-# import gpushift
 
 
 class GcnEdgeAC(torch.nn.Module):

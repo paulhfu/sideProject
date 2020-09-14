@@ -24,13 +24,13 @@ general:
   weight_edge_loss: 0.3
   weight_side_loss: 10
   n_embedding_features: 16 #number of embedding feature channels
-  n_raw_channels: 3 #number of channels in raw data
-  fe_extr_warmup: false
+  n_raw_channels: 2 #number of channels in raw data
+  fe_extr_warmup: true
 
   #pretrain the feature extractor with contrastive loss
-  fe_warmup_iterations: 60 #number of iterations of feature extrqactor warmup
+  fe_warmup_iterations: 1 #number of iterations of feature extrqactor warmup
   fe_warmup_batch_size: 10 #batch size for feature extractor warmup
-  no_fe_extr_optim: false #optimize feature extractor with ril loss
+  no_fe_extr_optim: true #optimize feature extractor with ril loss
   ## main training (env, trainer)
   T_max: 100000 #Number of training steps
   t_max: 100 #Mem size
