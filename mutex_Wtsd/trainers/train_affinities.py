@@ -3,7 +3,7 @@ from mutex_watershed import compute_mws_segmentation_cstm
 from affogato.segmentation import compute_mws_segmentation
 from affogato.segmentation.mws import get_valid_edges
 from models.simple_unet import UNet, smallUNet
-from data.datasets import simpleSeg_4_4_Dset, CustomDiscDset
+from data.disc_datasets import simpleSeg_4_4_Dset, CustomDiscDset
 from torch.utils.data import DataLoader
 import time
 import torch

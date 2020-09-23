@@ -22,6 +22,7 @@ class SpGcnEnv(Environment):
         self.writer = writer
         self.writer_counter = writer_counter
         self.discrete_action_space = False
+        self.max_p = torch.nn.MaxPool2d(3, padding=1, stride=1)
 
         if self.args.reward_function == 'fully_supervised':
             self.reward_function = FullySupervisedReward(env=self)
@@ -86,12 +87,13 @@ class SpGcnEnv(Environment):
         return self.get_state(), reward, quality
 
     def get_state(self):
-        return torch.cat([self.raw, self.init_sp_seg.unsqueeze(1)], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
+        return torch.cat([self.raw, self.init_sp_seg_edge.unsqueeze(1)], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
 
-    def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, node_labeling, raw, angles, gt):
+    def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, sp_seg, raw, angles, gt):
         self.gt_seg = gt
         self.raw = raw
-        self.init_sp_seg = node_labeling.squeeze()
+        self.init_sp_seg = sp_seg.squeeze()
+        self.init_sp_seg_edge = torch.cat([(-self.max_p(-sp_seg) != sp_seg).float(), (self.max_p(sp_seg) != sp_seg).float()], 1)
 
         self.n_nodes = [edge_ids.max() + 1 for edge_ids in b_edge_ids]
         b_subgraphs, sep_subgraphs = find_dense_subgraphs([edge_ids.transpose(0, 1).cpu().numpy() for edge_ids in b_edge_ids], self.args.s_subgraph)
@@ -113,7 +115,7 @@ class SpGcnEnv(Environment):
         self.b_current_edge_weights = self.b_initial_edge_weights.clone()
         self.current_soln = self.get_current_soln(self.b_current_edge_weights)
 
-        stacked_superpixels = [[node_labeling[i] == n for n in range(n_node)] for i, n_node in enumerate(self.n_nodes)]
+        stacked_superpixels = [[sp_seg[i] == n for n in range(n_node)] for i, n_node in enumerate(self.n_nodes)]
         self.sp_indices = [[torch.nonzero(sp, as_tuple=False).cpu() for sp in stacked_superpixel] for stacked_superpixel in stacked_superpixels]
 
         # self.b_penalize_diff_thresh = diff_to_gt * 4

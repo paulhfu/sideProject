@@ -18,13 +18,13 @@ def computeAffs(file_from, offsets):
     return
 
 def get_naive_affinities(raw, offsets):
-    affinities = np.zeros([len(offsets)] + list(raw.shape))
+    affinities = np.zeros([len(offsets)] + list(raw.shape[:2]))
     normed_raw = raw / raw.max()
     for y in range(normed_raw.shape[0]):
         for x in range(normed_raw.shape[1]):
             for i, off in enumerate(offsets):
                 if 0 <= y+off[0] < normed_raw.shape[0] and 0 <= x+off[1] < normed_raw.shape[1]:
-                    affinities[i, y, x] = abs(normed_raw[y, x] - normed_raw[y+off[0], x+off[1]])
+                    affinities[i, y, x, ...] = np.linalg.norm(normed_raw[y, x] - normed_raw[y+off[0], x+off[1]])
     return affinities
 
 def get_stacked_node_data(nodes, edges, segmentation, raw, size):

@@ -1,4 +1,4 @@
-from data.disjoint_disc_fast import MultiDiscPixDset
+from data.spg_dset import SpgDset
 from data.disjoint_discs_balanced_graph import MultiDiscSpGraphDsetBalanced
 import torch
 from torch.optim import Adam
@@ -303,7 +303,7 @@ class AgentSacTrainer_sg_lg(object):
             print('loaded fe extractor')
             shared_model.module.fe_ext.load_state_dict(torch.load(os.path.join(self.save_dir, 'agent_model_fe_extr')))
 
-        dset = MultiDiscPixDset(root_dir=self.args.data_dir)
+        dset = SpgDset(root_dir=self.args.data_dir)
         quality = self.args.stop_qual_scaling + self.args.stop_qual_offset
         best_quality = np.inf
         last_quals = []
@@ -507,7 +507,7 @@ class SacValidate(object):
         model.cuda(self.device)
         for param in model.parameters():
             param.requires_grad = False
-        dloader = DataLoader(MultiDiscPixDset(root_dir=self.args.data_dir), batch_size=1, shuffle=True, pin_memory=True,
+        dloader = DataLoader(SpgDset(root_dir=self.args.data_dir), batch_size=1, shuffle=True, pin_memory=True,
                              num_workers=0)
         env = SpGcnEnv(self.args, self.device)
         abs_diffs, rel_diffs, sizes, n_larger_thresh = [], [], [], []

@@ -1,4 +1,4 @@
-from data.disjoint_disc_fast import MultiDiscPixDset
+from data.spg_dset import SpgDset
 from data.disjoint_discs_balanced_graph import MultiDiscSpGraphDsetBalanced
 import torch
 from torch.optim import Adam
@@ -250,7 +250,7 @@ class AgentSacTrainer_test_sg(object):
 
         # dloader = DataLoader(MultiDiscSpGraphDsetBalanced(no_suppix=False, create=False), batch_size=1, shuffle=True, pin_memory=True,
         #                      num_workers=0)
-        dloader = DataLoader(MultiDiscPixDset(), batch_size=self.cfg.batch_size, shuffle=True, pin_memory=True,
+        dloader = DataLoader(SpgDset(), batch_size=self.cfg.batch_size, shuffle=True, pin_memory=True,
                              num_workers=0)
         # Create optimizer for shared network parameters with shared statistics
         # optimizer = CstmAdam(shared_model.parameters(), lr=self.args.lr, betas=self.args.Adam_betas,

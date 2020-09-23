@@ -3,7 +3,7 @@ import elf.segmentation.multicut as mc
 import elf.segmentation.features as feats
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
-from data.datasets import DiscSpGraphDset
+from data.disc_datasets import DiscSpGraphDset
 from models.simple_unet import UNet
 from torch.utils.data import DataLoader
 from utils.general import calculate_gt_edge_costs

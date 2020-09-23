@@ -1,4 +1,4 @@
-from data.disjoint_disc_fast import MultiDiscPixDset
+from data.spg_dset import SpgDset
 from data.disjoint_discs_balanced_graph import MultiDiscSpGraphDsetBalanced
 import torch
 from torch.optim import Adam
@@ -86,23 +86,30 @@ class AgentSacTrainer_test_sg_global(object):
         dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
     def pretrain_embeddings(self, model, device, writer=None):
-        dset = MultiDiscPixDset(root_dir=self.args.data_dir)
+        dset = SpgDset(root_dir=self.args.data_dir)
         dloader = DataLoader(dset, batch_size=self.args.fe_warmup_batch_size, shuffle=True, pin_memory=True, num_workers=0)
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+        max_p = torch.nn.MaxPool2d(3, padding=1, stride=1)
 
         for i in range(self.args.fe_warmup_iterations):
             for it, (raw, gt, indices) in enumerate(dloader):
                 raw, gt = raw.to(device), gt.to(device)
                 edges, edge_feat, diff_to_gt, gt_edge_weights, sp_seg = dloader.dataset.get_graphs(indices, device)
-                embeddings = model(torch.cat([raw, sp_seg], 1))
-                loss = self.contr_loss(embeddings, sp_seg.long().squeeze())
+                sp_seg_edge = torch.cat([(-max_p(-sp_seg) != sp_seg).float(), (max_p(sp_seg) != sp_seg).float()], 1)
+                embeddings = model(torch.cat([raw, sp_seg_edge], 1))
+                loss = self.contr_loss(embeddings, sp_seg.long().squeeze(1))
 
                 optimizer.zero_grad()
-                loss.backward()
+                loss.backward(retain_graph=False)
                 optimizer.step()
 
                 if writer is not None:
                     writer.add_scalar("loss/fe_warm_start/ttl", loss.item(), it)
+                del loss
+                del embeddings
+                break
+            break
+        a=1
 
     def cleanup(self):
         dist.destroy_process_group()
@@ -385,7 +392,7 @@ class AgentSacTrainer_test_sg_global(object):
             for param in model.fe_ext.parameters():
                 param.requires_grad = False
 
-        dset = MultiDiscPixDset(root_dir=self.args.data_dir)
+        dset = SpgDset(root_dir=self.args.data_dir)
         quality = self.args.stop_qual_scaling + self.args.stop_qual_offset
         best_quality = np.inf
         last_quals = []
@@ -589,7 +596,7 @@ class SacValidate(object):
         model.cuda(self.device)
         for param in model.parameters():
             param.requires_grad = False
-        dloader = DataLoader(MultiDiscPixDset(root_dir=self.args.data_dir), batch_size=1, shuffle=True, pin_memory=True,
+        dloader = DataLoader(SpgDset(root_dir=self.args.data_dir), batch_size=1, shuffle=True, pin_memory=True,
                              num_workers=0)
         env = SpGcnEnv(self.args, self.device)
         abs_diffs, rel_diffs, sizes, n_larger_thresh = [], [], [], []

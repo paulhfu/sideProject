@@ -3,7 +3,7 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 from models.ril_function_models import DNDQN
 from models.simple_unet import UNet
-from data.datasets import CustomDiscDset, SimpleSeg_20_20_Dset
+from data.disc_datasets import CustomDiscDset, SimpleSeg_20_20_Dset
 from torch.utils.data import DataLoader
 from main import reinforce
 import torch

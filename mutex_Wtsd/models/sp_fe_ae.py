@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import DataLoader
-from data.datasets import DiscSpGraphDset
+from data.disc_datasets import DiscSpGraphDset
 from utils import general
 from models.simple_unet import UNet
 import numpy as np

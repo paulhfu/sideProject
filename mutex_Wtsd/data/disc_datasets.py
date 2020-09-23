@@ -2,6 +2,8 @@ import torch.utils.data as torch_data
 import torch
 import numpy as np
 from affogato.affinities import compute_affinities
+from skimage import draw
+from skimage.filters import gaussian
 import torchvision.transforms as transforms
 from utils.general import calculate_gt_edge_costs
 import torch_geometric as tg
@@ -10,15 +12,21 @@ from affogato.segmentation.mws import get_valid_edges
 from mutex_watershed import compute_mws_segmentation_cstm
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from utils import general
 import os
+import nifty.graph
+import skimage.data
+import skimage.segmentation
+import vigra
+import pylab
 import h5py
 
 offsets = [[0, -1], [-1, 0],
            # direct 3d nhood for attractive edges
            # [0, -1], [-1, 0]]
-            [-3, 0], [0, -3]]
+            [-3, 0], [0, -3],
+           [-6, 0], [0, -6]]
 sep_chnl = 2
+np.random.seed(100)
 
 def computeAffs(file_from, offsets):
     file = h5py.File(file_from, 'a')
@@ -32,6 +40,159 @@ def computeAffs(file_from, offsets):
         file['masks'].create_dataset(k, data=data)
         del file[k]
     return
+
+class Polys_and_ellis():
+
+    def __init__(self):
+        self.dim = (256, 256)
+        self.edge_offsets = offsets
+        self.sep_chnl = 2
+        self.transform = None
+        self.n_ellips = 5
+        self.n_polys = 10
+        self.n_rect = 5
+        self.ellips_color = np.array([1, 0, 0], dtype=np.float)
+        self.rect_color = np.array([0, 0, 1], dtype=np.float)
+        self.col_diff = 0.4
+        self.min_r, self.max_r = 10, 20
+        self.min_dist = self.max_r
+        return
+
+    def __len__(self):
+        return 100000
+
+    def get(self, idx):
+        img = np.random.randn(*(self.dim + (3,)))/5
+
+        ri1, ri2, ri3, ri4, ri5, ri6 = np.sign(np.random.randint(-100, 100)) * ((np.random.rand() * 2) + .5), np.sign(
+            np.random.randint(-100, 100)) * ((np.random.rand() * 2) + .5), (np.random.rand() * 4) + 3, (
+                                               np.random.rand() * 4) + 3, np.sign(np.random.randint(-100, 100)) * (
+                                                   (np.random.rand() * 2) + .5), np.sign(np.random.randint(-100, 100)) * ((np.random.rand() * 2) + .5)
+        x = np.zeros(self.dim)
+        x[:, :] = np.arange(img.shape[0])[np.newaxis, :]
+        y = x.transpose()
+        img += (np.sin(np.sqrt((x*ri1) ** 2 + ((self.dim[1] - y)*ri2) ** 2) * ri3 * np.pi / self.dim[0]))[..., np.newaxis]
+        img += (np.sin(np.sqrt((x*ri5) ** 2 + ((self.dim[1] - y)*ri6) ** 2) * ri4 * np.pi / self.dim[1]))[..., np.newaxis]
+        img = gaussian(np.clip(img, 0.1, 1), sigma=.8)
+        circles = []
+        cmps = []
+        while len(circles) < self.n_ellips:
+            mp = np.random.randint(self.min_r, self.dim[0]-self.min_r, 2)
+            too_close = False
+            for cmp in cmps:
+                if np.linalg.norm(cmp-mp) < self.min_dist:
+                    too_close = True
+            if too_close:
+                continue
+            r = np.random.randint(self.min_r, self.max_r, 2)
+            circles.append(draw.circle(mp[0], mp[1], r[0], shape=self.dim))
+            cmps.append(mp)
+
+        polys = []
+        while len(polys) < self.n_polys:
+            mp = np.random.randint(self.min_r, self.dim[0]-self.min_r, 2)
+            too_close = False
+            for cmp in cmps:
+                if np.linalg.norm(cmp-mp) < self.min_dist//2:
+                    too_close = True
+            if too_close:
+                continue
+            circle = draw.circle_perimeter(mp[0], mp[1], self.max_r)
+            poly_vert = np.random.choice(len(circle[0]), np.random.randint(3, 6), replace=False)
+            polys.append(draw.polygon(circle[0][poly_vert], circle[1][poly_vert], shape=self.dim))
+            cmps.append(mp)
+
+        rects = []
+        while len(rects) < self.n_rect:
+            mp = np.random.randint(self.min_r, self.dim[0]-self.min_r, 2)
+            _len = np.random.randint(self.min_r//2, self.max_r, (2,))
+            too_close = False
+            for cmp in cmps:
+                if np.linalg.norm(cmp - mp) < self.min_dist:
+                    too_close = True
+            if too_close:
+                continue
+            start = (mp[0] - _len[0], mp[1]-_len[1])
+            rects.append(draw.rectangle(start, extent=(_len[0]*2, _len[1]*2), shape=self.dim))
+            cmps.append(mp)
+
+        for poly in polys:
+            color = np.random.rand(3)
+            while np.linalg.norm(color-self.ellips_color) < self.col_diff or np.linalg.norm(color-self.rect_color) < self.col_diff:
+                color = np.random.rand(3)
+            img[poly[0], poly[1], :] = color
+            img[poly[0], poly[1], :] += np.random.randn(len(poly[1]), 3)/5
+
+        cols = np.random.choice(np.arange(4, 11, 1).astype(np.float)/10, self.n_ellips, replace=False)
+        for i, ellipse in enumerate(circles):
+            ri1, ri2, ri3, ri4, ri5, ri6 = np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7), np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7), (np.random.rand() + 1) * 3, (
+                        np.random.rand() + 1) * 3, np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7), np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7)
+            img[ellipse[0], ellipse[1], :] = np.array([cols[i], 0.0, 0.0])
+            img[ellipse[0], ellipse[1], :] += np.array([1.0, 1.0, 0.0]) * ((np.sin(np.sqrt((x[ellipse[0], ellipse[1]]*ri5) ** 2 + ((self.dim[1] - y[ellipse[0], ellipse[1]]) * ri2) ** 2) * ri3 * np.pi / self.dim[0]))[..., np.newaxis]*0.15)+0.2
+            img[ellipse[0], ellipse[1], :] += np.array([1.0, 1.0, 0.0]) * ((np.sin(np.sqrt((x[ellipse[0], ellipse[1]]*ri6) ** 2 + ((self.dim[1] - y[ellipse[0], ellipse[1]])*ri1) ** 2) * ri4 * np.pi / self.dim[1]))[..., np.newaxis]*0.15)+0.2
+            # img[ellipse[0], ellipse[1], :] += np.random.randn(len(ellipse[1]), 3) / 10
+
+        cols = np.random.choice(np.arange(4, 11, 1).astype(np.float)/10, self.n_rect, replace=False)
+        for rect in rects:
+            ri1, ri2, ri3, ri4, ri5, ri6 = np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7), np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7), (np.random.rand() + 1) * 3, (
+                        np.random.rand() + 1) * 3, np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7), np.sign(np.random.randint(-100,100))*((np.random.rand()*4)+7)
+            img[rect[0], rect[1], :] = np.array([0.0, 0.0, cols[i]])
+            img[rect[0], rect[1], :] += np.array([1.0, 1.0, 0.0]) * ((np.sin(np.sqrt((x[rect[0], rect[1]] * ri5) ** 2 + ((self.dim[1] - y[rect[0], rect[1]]) * ri2) ** 2) * ri3 * np.pi/self.dim[0]))[..., np.newaxis] * 0.15) + 0.2
+            img[rect[0], rect[1], :] += np.array([1.0, 1.0, 0.0]) * ((np.sin(np.sqrt((x[rect[0], rect[1]] * ri1) ** 2 + ((self.dim[1] - y[rect[0], rect[1]]) * ri6) ** 2) * ri4 * np.pi/self.dim[1]))[..., np.newaxis] * 0.15) + 0.2
+            # img[rect[0], rect[1], :] += np.random.randn(*(rect[1].shape + (3,)))/10
+
+        img = np.clip(img, 0, 1).astype(np.float32)
+
+        smooth_image = gaussian(img, sigma=.2)
+
+        # shape = np.array(smooth_image.shape[0:2]).astype(np.uint32).tolist()
+        # taggedImg = vigra.taggedView(smooth_image, 'xyc')
+        # edgeStrength = vigra.filters.structureTensorEigenvalues(taggedImg, 1.5, 1.9)[:, :, 0]
+        # edgeStrength = edgeStrength.squeeze()
+        # edgeStrength = np.array(edgeStrength).astype(np.float32)
+        # seeds = vigra.analysis.localMinima(edgeStrength)
+        # seeds = vigra.analysis.labelImageWithBackground(seeds)
+        # gridGraph = nifty.graph.undirectedGridGraph(shape)
+        # # oversegNodeWeighted = nifty.graph.nodeWeightedWatershedsSegmentation(graph=gridGraph, seeds=seeds.ravel(),
+        # #                                                                      nodeWeights=edgeStrength.ravel())
+        # # oversegNodeWeighted = oversegNodeWeighted.reshape(shape)
+        #
+        # gridGraphEdgeStrength = gridGraph.imageToEdgeMap(edgeStrength, mode='sum')
+        # np.random.permutation(gridGraphEdgeStrength)
+        # oversegEdgeWeightedA = nifty.graph.edgeWeightedWatershedsSegmentation(graph=gridGraph, seeds=seeds.ravel(),
+        #                                                                    edgeWeights=gridGraphEdgeStrength)
+        # oversegEdgeWeightedA = oversegEdgeWeightedA.reshape(shape)
+        # interpixelShape = [2 * s - 1 for s in shape]
+        # imgBig = vigra.sampling.resize(taggedImg, interpixelShape)
+        # edgeStrength = vigra.filters.structureTensorEigenvalues(imgBig, 2 * 1.5, 2 * 1.9)[:, :, 0]
+        # edgeStrength = edgeStrength.squeeze()
+        # edgeStrength = np.array(edgeStrength)
+        # gridGraphEdgeStrength = gridGraph.imageToEdgeMap(edgeStrength, mode='interpixel')
+        # oversegEdgeWeightedB = nifty.graph.edgeWeightedWatershedsSegmentation(
+        #     graph=gridGraph,
+        #     seeds=seeds.ravel(),
+        #     edgeWeights=gridGraphEdgeStrength)
+        # oversegEdgeWeightedB = oversegEdgeWeightedB.reshape(shape)
+
+        affinities = get_naive_affinities(smooth_image, offsets)
+        affinities[:self.sep_chnl] *= -1
+        affinities[:self.sep_chnl] += +1
+        affinities[:self.sep_chnl] /= 1.3
+        affinities[self.sep_chnl:] *= 1.3
+        affinities = np.clip(affinities, 0, 1)
+        #
+        valid_edges = get_valid_edges((len(self.edge_offsets),) + self.dim, self.edge_offsets,
+                                           self.sep_chnl, None, False)
+        node_labeling, neighbors, cutting_edges, mutexes = compute_mws_segmentation_cstm(affinities.ravel(),
+                                                                                    valid_edges.ravel(),
+                                                                                    offsets,
+                                                                                    self.sep_chnl,
+                                                                                    self.dim)
+
+        return img, None
+
+
+
 
 class simpleSeg_4_4_Dset(torch_data.Dataset):
 
@@ -382,13 +543,13 @@ def get_stacked_node_data(nodes, edges, segmentation, raw, size):
     return raw_nodes, angles.long()
 
 def get_naive_affinities(raw, offsets):
-    affinities = np.zeros([len(offsets)] + list(raw.shape))
+    affinities = np.zeros([len(offsets)] + list(raw.shape[:2]))
     normed_raw = raw / raw.max()
     for y in range(normed_raw.shape[0]):
         for x in range(normed_raw.shape[1]):
             for i, off in enumerate(offsets):
                 if 0 <= y+off[0] < normed_raw.shape[0] and 0 <= x+off[1] < normed_raw.shape[1]:
-                    affinities[i, y, x] = abs(normed_raw[y, x] - normed_raw[y+off[0], x+off[1]])
+                    affinities[i, y, x, ...] = np.linalg.norm(normed_raw[y, x] - normed_raw[y+off[0], x+off[1]])
     return affinities
 
 def get_edge_features_1d(sp_seg, offsets, affinities):
@@ -399,3 +560,26 @@ def get_edge_features_1d(sp_seg, offsets, affinities):
     rag = feats.compute_rag(np.expand_dims(sp_seg, axis=0))
     edge_feat = feats.compute_affinity_features(rag, np.expand_dims(affinities, axis=1), offsets_3d)[:, :]
     return edge_feat
+
+def interference(ri1, ri2, ri3, ri4):
+    dim = (256, 256)
+    img = np.random.randn(*(dim + (3,))) / 5
+    x = np.zeros(dim)
+    x[:, :] = np.arange(img.shape[0])[np.newaxis, :]
+    y = x.transpose()
+    img += (np.sin(np.sqrt((x*ri1) ** 2 + ((dim[1] - y) * ri2) ** 2) * ri3 * np.pi / dim[0]))[..., np.newaxis]
+    # img += (np.sin(np.sqrt((x * ri1) ** 2 + (dim[1] - y) ** 2) * ri4 * np.pi / dim[1]))[..., np.newaxis]
+
+    plt.imshow(img)
+    plt.show()
+
+if __name__ == "__main__":
+    for i in range(3):
+        # interference(i, i, 10, 10)
+        ds = Polys_and_ellis()
+        img, sp = ds.get(1)
+        plt.imshow(cm.prism(sp/sp.max()))
+        plt.show()
+        plt.imshow(img)
+        plt.show()
+    a=1

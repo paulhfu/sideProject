@@ -2,7 +2,7 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 # from models.GCNNs.mc_pooling_1 import test
-from data.datasets import DiscSpGraphDset
+from data.disc_datasets import DiscSpGraphDset
 from models.GCNNs.mc_glbl_edge_costs import GcnEdgeConvNet3
 from models.simple_unet import UNet
 from torch.utils.data import DataLoader

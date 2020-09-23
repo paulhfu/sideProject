@@ -2,7 +2,7 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 from models.simple_unet import UNet
-from data.datasets import CustomDiscDset, SimpleSeg_20_20_Dset
+from data.disc_datasets import CustomDiscDset, SimpleSeg_20_20_Dset
 from torch.utils.data import DataLoader
 from main import a2c
 import torch
