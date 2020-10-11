@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from agents.replayMemory import TransitionData_ts
 from collections import namedtuple
-from mu_net.criteria.contrastive_loss import ContrastiveLoss
+from losses import ContrastiveLoss
 from environments.sp_grph_gcn_2 import SpGcnEnv
 from models.GCNNs.sac_agent import GcnEdgeAC
 from models.GCNNs.sac_agent1 import GcnEdgeAC_1

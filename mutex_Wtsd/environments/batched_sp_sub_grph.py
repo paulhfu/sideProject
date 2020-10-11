@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from environments.environment_bc import Environment
 from utils.reward_functions import FocalReward, FullySupervisedReward, ObjectLevelReward, UnSupervisedReward, \
     GraphDiceReward, GlobalSparseReward, SubGraphDiceReward, HoughCircles, HoughCircles_lg, HoughCirclesOnSp
-from utils.graphs import separate_nodes, collate_edges, get_edge_indices
+from utils.graphs import separate_nodes, collate_edges, get_edge_indices, get_angles_in_rag
 from rag_utils import find_dense_subgraphs
 
 class SpGcnEnv(Environment):
@@ -67,7 +67,7 @@ class SpGcnEnv(Environment):
                 current_soln = self.get_current_soln(self.b_current_edge_weights)
                 gt_soln = self.get_current_soln(self.b_gt_edge_weights)
                 fig, (a1, a2, a3, a4) = plt.subplots(1, 4, sharex='col', sharey='row', gridspec_kw={'hspace': 0, 'wspace': 0})
-                a1.imshow(self.raw[0].cpu().squeeze(), cmap='hot')
+                a1.imshow(self.raw[0].cpu().permute(1,2,0).squeeze(), cmap='hot')
                 a1.set_title('raw image')
                 a2.imshow(cm.prism(self.init_sp_seg[0].cpu() / self.init_sp_seg[0].max().item()))
                 a2.set_title('superpixels')
@@ -87,12 +87,14 @@ class SpGcnEnv(Environment):
         return self.get_state(), reward, quality
 
     def get_state(self):
-        return torch.cat([self.raw, self.init_sp_seg_edge.unsqueeze(1)], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
+        return torch.cat([self.raw, self.init_sp_seg_edge], 1), self.init_sp_seg, self.b_edge_ids, self.sp_indices, \
+               self.b_edge_angles, self.b_subgraph_indices, self.sep_subgraphs, self.counter, self.b_gt_edge_weights, self.e_offs
 
-    def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, sp_seg, raw, angles, gt):
-        self.gt_seg = gt
+    def update_data(self, b_edge_ids, edge_features, diff_to_gt, gt_edge_weights, sp_seg, raw, gt):
+        self.gt_seg = gt.squeeze(1)
         self.raw = raw
-        self.init_sp_seg = sp_seg.squeeze()
+        self.init_sp_seg = sp_seg.squeeze(1)
+        self.b_edge_angles = torch.cat([get_angles_in_rag(edges, sp) for edges, sp in zip(b_edge_ids, self.init_sp_seg)]).unsqueeze(-1)
         self.init_sp_seg_edge = torch.cat([(-self.max_p(-sp_seg) != sp_seg).float(), (self.max_p(sp_seg) != sp_seg).float()], 1)
 
         self.n_nodes = [edge_ids.max() + 1 for edge_ids in b_edge_ids]
@@ -108,7 +110,6 @@ class SpGcnEnv(Environment):
         self.b_subgraph_indices = get_edge_indices(self.b_edge_ids, self.b_subgraphs)
         self.b_gt_edge_weights = torch.cat(gt_edge_weights, 0)
         self.sg_gt_edge_weights = self.b_gt_edge_weights[self.b_subgraph_indices].view(-1, self.args.s_subgraph)
-        self.b_edge_angles = angles
         self.sg_current_edge_weights = torch.ones_like(self.sg_gt_edge_weights) / 2
 
         self.b_initial_edge_weights = torch.cat([edge_fe[:, 0] for edge_fe in edge_features], dim=0)
@@ -117,6 +118,17 @@ class SpGcnEnv(Environment):
 
         stacked_superpixels = [[sp_seg[i] == n for n in range(n_node)] for i, n_node in enumerate(self.n_nodes)]
         self.sp_indices = [[torch.nonzero(sp, as_tuple=False).cpu() for sp in stacked_superpixel] for stacked_superpixel in stacked_superpixels]
+
+        # cs = self.get_current_soln(self.b_gt_edge_weights)
+        # fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        # ax1.imshow(cm.prism(self.gt_seg[0].detach().cpu().numpy() / self.gt_seg[0].detach().cpu().numpy().max()));
+        # ax1.set_title('gt')
+        # ax2.imshow(cm.prism(self.init_sp_seg[0].detach().cpu().numpy() / self.init_sp_seg[0].detach().cpu().numpy().max()));
+        # ax2.set_title('sp')
+        # ax3.imshow(cm.prism(cs[0].detach().cpu().numpy() / cs[0].detach().cpu().numpy().max()));
+        # ax3.set_title('mc')
+        # plt.show()
+        # a=1
 
         # self.b_penalize_diff_thresh = diff_to_gt * 4
         # plt.imshow(self.get_current_soln_pic(1));plt.show()

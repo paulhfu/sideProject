@@ -14,7 +14,7 @@ class FullySupervisedReward(object):
         super(FullySupervisedReward, self).__init__()
         self.env = env
 
-    def get(self, diff=None, actions=None, res_seg=None):
+    def get(self, actions=None, diff=None, res_seg=None):
         if self.env.discrete_action_space:
             new_diff = diff - (self.env.state[0].float() - self.env.gt_edge_weights).abs()
             reward = -(new_diff < -0.05).float() * 0.5 + (new_diff > 0.05).float()
@@ -24,7 +24,7 @@ class FullySupervisedReward(object):
             # new_diff = diff - (self.env.state[0] - self.env.gt_edge_weights).abs()
             # reward = (new_diff > 0).float() * 0.8 - (new_diff < 0).float() * 0.2
             # gt_diff = (actions - self.env.b_gt_edge_weights).abs()
-            gt_diff = (actions - self.env.sg_gt_edge_weights).abs()
+            gt_diff = (actions - self.env.b_gt_edge_weights).abs()
             # gt_diff = (actions - self.env.gt_edge_weights).abs()
             # pos_rew = (gt_diff < 0.2).float()
             # favor_separations = self.env.gt_edge_weights * actions
@@ -144,8 +144,9 @@ class SubGraphDiceReward(object):
         self.class_weights = torch.tensor([1.0, 1.0]).unsqueeze(-1)
         self.reward_offset = torch.tensor([[-0.7], [-0.7]]).unsqueeze(-1)
 
-    def get(self, diff=None, actions=None, res_seg=None):
+    def get(self, actions=None, diff=None, res_seg=None):
         # compute per channel Dice Coefficient
+        actions = actions[self.env.b_subgraph_indices].view(-1, self.env.args.s_subgraph)
         input = torch.stack([1-actions, actions], 0)
         target = torch.stack([self.env.sg_gt_edge_weights == 0, self.env.sg_gt_edge_weights == 1], 0).float()
         intersect = (input * target).sum(-1)
@@ -155,7 +156,7 @@ class SubGraphDiceReward(object):
         dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
         dice_score = dice_score * self.class_weights.to(dice_score.device)
 
-        reward = dice_score.sum(0) - 0.4
+        reward = dice_score.sum(0) / self.env.args.s_subgraph - 0.4
         return reward
 
 

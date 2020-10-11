@@ -13,6 +13,7 @@ sac:
   critic_betas: [0.9, 0.999]
   critic_tau: 0.005
   critic_target_update_frequency: 2
+  sl_beta: 0.1
   batch_size: 10
   weight_tolerance_attr: 0.1
   weight_tolerance_rep: 0.9

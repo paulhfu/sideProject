@@ -12,7 +12,7 @@ import os
 import time
 import torch.nn as nn
 from agents.qlagent import QlAgent1
-from mu_net.criteria.contrastive_loss import ContrastiveLoss
+from losses import ContrastiveLoss
 from torch.utils.data import DataLoader
 from data.disjoint_discs import MultiDiscSpGraphDset
 from mu_net.models.unet import UNet2d

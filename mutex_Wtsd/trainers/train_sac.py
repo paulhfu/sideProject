@@ -117,7 +117,7 @@ class TrainSAC(object):
                                           action_stats_count=action_stats_count,
                                           save_dir=save_dir)
 
-            rns = torch.randint(0, 2 ** 32, torch.Size([10]))
+            rns = torch.randint(0, 2 ** 32, torch.Size([1]))
             best_qual = np.inf
             best_seed = None
             for i, rn in enumerate(rns):

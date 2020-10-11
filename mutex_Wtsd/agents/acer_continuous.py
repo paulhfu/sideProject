@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from agents.replayMemory import TransitionData
 from collections import namedtuple
-from mu_net.criteria.contrastive_loss import ContrastiveLoss
+from losses import ContrastiveLoss
 from environments.sp_grph_gcn_1 import SpGcnEnv
 from models.GCNNs.dueling_networks import GcnEdgeAngle1dPQA_dueling
 from models.GCNNs.dueling_networks_1 import GcnEdgeAngle1dPQA_dueling_1

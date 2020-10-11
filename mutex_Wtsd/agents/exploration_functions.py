@@ -56,7 +56,7 @@ class ExpSawtoothEpsDecay(object):
 
 
 class RunningAverage(object):
-    def __init__(self, band_width, init_val, offset):
+    def __init__(self, band_width=10, init_val=0, offset=0):
         super(RunningAverage, self).__init__()
         self.band_width = band_width
         self.init_val = init_val
@@ -66,7 +66,7 @@ class RunningAverage(object):
     def reset(self):
         self._mem = [self.init_val]
 
-    def apply(self, _, el):
+    def apply(self, el):
         if len(self._mem) == self.band_width:
             self._mem.pop(0)
         self._mem.append(el)
@@ -74,7 +74,7 @@ class RunningAverage(object):
 
     @property
     def avg(self):
-        return max(0, (sum(self._mem) / len(self._mem)) + self.offset)
+        return (sum(self._mem) / len(self._mem)) + self.offset
 
 
 class ExponentialAverage(object):

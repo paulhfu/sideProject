@@ -35,7 +35,39 @@ def get_edge_indices(edges, edge_list):
     return indices
 
 
+def get_angles_in_rag(edges, segmentation):
+    """
+    calculates the angles in a region adjacency graph based on the center of mass of each sp.
+    Batches are not supported.
+    :param edges: torch.Tensor storing the undirectional edges in the rag
+    :param segmentation: torch.Tensor storing a single segmentation images
+    :return: for each undirectional edge two angles of the line going through the center of masses of the incidental nodes
+    and the x-axis w.r.t. each node. W.r.t. the first and the second node is in first and second half of result respectively
+    """
+    nodes = torch.unique(segmentation)
+    cms = torch.empty((len(nodes), 2), dtype=torch.float, device=edges.device)
+    for i, (n, mask) in enumerate(zip(nodes, segmentation.unsqueeze(0) == nodes.unsqueeze(-1).unsqueeze(-1))):
+        idxs = torch.where(mask)
+        cms[i] = torch.stack([torch.sum(idxs[0]), torch.sum(idxs[1])]) / (mask.sum().float() + np.finfo(float).eps)
+
+    vec = cms[edges[0]] - cms[edges[1]]
+    angles = torch.atan(vec[:, 0] / (vec[:, 1] + np.finfo(float).eps))
+    angles = 2 * angles / np.pi
+    return angles
+
+
 if __name__ == "__main__":
-    edges = np.array([[1, 3], [2, 4], [1, 2], [2, 3], [3, 5], [3, 6], [1, 5], [2, 8], [4, 8], [4, 9], [5, 9], [8, 9]])
-    edge_list = edges[np.random.choice(np.arange(edges.shape[0]), size=(20 * 10))]
-    edge_indices = get_edge_indices(torch.from_numpy(edges).transpose(0, 1), torch.from_numpy(edge_list).transpose(0, 1))
+    # edges = np.array([[1, 3], [2, 4], [1, 2], [2, 3], [3, 5], [3, 6], [1, 5], [2, 8], [4, 8], [4, 9], [5, 9], [8, 9]])
+    # edge_list = edges[np.random.choice(np.arange(edges.shape[0]), size=(20 * 10))]
+    # edge_indices = get_edge_indices(torch.from_numpy(edges).transpose(0, 1), torch.from_numpy(edge_list).transpose(0, 1))
+
+    sp = torch.zeros((100, 100), dtype=torch.float)
+    sp[:50, :50] = 0.0
+    sp[50:, :50] = 1.0
+    sp[:50, 50:] = 2.0
+    sp[50:, 50:] = 3.0
+    sp[40:60, 40:60] = 4.0
+    edges = torch.tensor([[0, 4], [1, 4], [2, 4], [3, 4]], dtype=torch.long).T
+
+    get_angles_in_rag(edges, sp)
+

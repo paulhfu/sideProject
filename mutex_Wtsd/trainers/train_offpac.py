@@ -11,7 +11,6 @@ from models.GCNNs.mc_glbl_edge_costs import WrappedGcnEdgeAngle1dPQV
 from optimizers.shared_rmsprob import SharedRMSprop
 from torch import multiprocessing as mp
 from agents.offpac import AgentOffpac
-from mu_net.criteria.contrastive_loss import ContrastiveLoss
 from torch.utils.data import DataLoader
 from data.disjoint_discs import MultiDiscSpGraphDset
 

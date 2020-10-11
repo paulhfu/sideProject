@@ -9,30 +9,32 @@ general:
   evaluate: false #evaluate existing model
   seed: 123 #Random seed
   data_shape: [128, 128]
-  target_dir: seed_test_sg_global_gcn_rules #Save folder
+  target_dir: seed_test_sg_global_gcn #Save folder
   base_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd #Save folder
-  data_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/sqrs_crclspn/pix_and_graphs
+  data_dir: /g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/circles/pix_and_graphs
   ## env and model defs
   model_name: ''
 
   #Pretrained model (state dict)
-  model_fe_name: ''
+  model_fe_name: 'embedding_net_gt'
   model_name_dest: agent_model #(state dict) is safed to
   n_edge_features: 10 #number of initial edge features
   ## feature extractor
   weight_edge_loss: 0.3
   weight_side_loss: 10
-  n_embedding_features: 16 #number of embedding feature channels
-  n_raw_channels: 5 #number of channels in current state
-  fe_extr_warmup: true
-
+  n_embedding_features: 32 #number of embedding feature channels
+  n_raw_channels: 3 #number of channels in current state
   #pretrain the feature extractor with contrastive loss
-  fe_warmup_iterations: 1 #number of iterations of feature extrqactor warmup
-  fe_warmup_batch_size: 1 #batch size for feature extractor warmup
+  fe_extr_warmup: false
+  patch_shape: [180, 180]
+  patch_stride: [90, 90]
+  patch_manager: rotated
+  fe_warmup_iterations: 12 #number of iterations of feature extrqactor warmup
+  fe_warmup_batch_size: 10 #batch size for feature extractor warmup
   no_fe_extr_optim: true #optimize feature extractor with ril loss
   ## main training (env, trainer)
   T_max: 100000 #Number of training steps
-  t_max: 100 #Mem size
+  t_max: 500 #Mem size
   data_update_frequency: 10
   n_updates_per_step: 10
   max_episode_length: 1 #Maximum episode length
@@ -46,7 +48,7 @@ general:
   stop_qual_offset: 5 #
   stop_qual_ra_bw: 20 #running average bandwidth
   stop_qual_ra_off: -15 #running average offset
-  reward_function: defining_rules_sp_based #Reward function: sub_graph_dice, fully_supervised, defining_rules, defining_rules_lg,defining_rules_edge_based
+  reward_function: sub_graph_dice #Reward function: sub_graph_dice, fully_supervised, defining_rules, defining_rules_lg,defining_rules_edge_based
   action_agression: 0.1 #value by which one action changes state
   ## acer continuous
   b_simga_final: 0.0001 #final behavior std dev
@@ -68,7 +70,7 @@ general:
   l2_reg_params_weight: 0.0 #Gradient L2 weight
   p_loss_weight: 1 # policy loss weight
   v_loss_weight: 1 # value loss weight
-  s_subgraph: 10
+  s_subgraph: [10, 20, 30, 40, 50] # subgraph sizes
   ## Optimization
   min_lr: 0.0 #min Learning rate
   lr: 0.00006 #

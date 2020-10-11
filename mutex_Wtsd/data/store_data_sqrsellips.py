@@ -6,14 +6,18 @@ from affogato.affinities import compute_affinities
 from affogato.segmentation.mws import get_valid_edges
 from skimage import draw
 from skimage.filters import gaussian
+import elf
+import nifty
 
 from data.mtx_wtsd import get_sp_graph
 from mutex_watershed import compute_mws_segmentation_cstm
 from utils.affinities import get_naive_affinities, get_edge_features_1d
-from utils.general import calculate_gt_edge_costs
+from utils.general import calculate_gt_edge_costs, set_seed_everywhere
+from data.spg_dset import SpgDset
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
+set_seed_everywhere(10)
 
 def get_pix_data(length=50000, shape=(128, 128), radius=72):
     dim = (256, 256)
@@ -150,9 +154,6 @@ def get_pix_data(length=50000, shape=(128, 128), radius=72):
                                                                                      edge_offsets,
                                                                                      sep_chnl,
                                                                                      dim)
-    # plt.imshow(cm.prism(gt/gt.max()));plt.show()
-    # plt.imshow(cm.prism(node_labeling / node_labeling.max()));plt.show()
-
     node_labeling = node_labeling - 1
     nodes = np.unique(node_labeling)
     try:
@@ -162,9 +163,16 @@ def get_pix_data(length=50000, shape=(128, 128), radius=72):
 
     edge_feat, neighbors = get_edge_features_1d(node_labeling, edge_offsets, affinities)
     gt_edge_weights = calculate_gt_edge_costs(neighbors, node_labeling.squeeze(), gt.squeeze())
-
-
     edges = neighbors.astype(np.long)
+
+    gt_seg = get_current_soln(gt_edge_weights, node_labeling, edges)
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+    ax1.imshow(cm.prism(gt/gt.max()));ax1.set_title('gt')
+    ax2.imshow(cm.prism(node_labeling / node_labeling.max()));ax2.set_title('sp')
+    ax3.imshow(cm.prism(gt_seg / gt_seg.max()));ax3.set_title('mc')
+    plt.show()
+
+
     affinities = affinities.astype(np.float32)
     edge_feat = edge_feat.astype(np.float32)
     nodes = nodes.astype(np.float32)
@@ -177,31 +185,62 @@ def get_pix_data(length=50000, shape=(128, 128), radius=72):
 
     return img, gt, edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, nodes, affinities
 
+def get_current_soln(edge_weights, sp_seg, edge_ids):
+    p_min = 0.001
+    p_max = 1.
+    probs = edge_weights
+    # probs = self.b_gt_edge_weights[self.e_offs[i-1]:self.e_offs[i]]
+    edges = edge_ids
+    costs = (p_max - p_min) * probs + p_min
+    # probabilities to costs
+    costs = np.log((1. - costs) / costs)
+    graph = nifty.graph.undirectedGraph(len(np.unique(sp_seg)))
+    graph.insertEdges(edges)
+
+    node_labels = elf.segmentation.multicut.multicut_kernighan_lin(graph, costs)
+
+    mc_seg = np.zeros_like(sp_seg)
+    for j, lbl in enumerate(node_labels):
+        mc_seg += (sp_seg == j).astype(np.uint) * lbl
+
+    return mc_seg
 
 def store_all(base_dir):
     pix_dir = os.path.join(base_dir, 'pix_data')
     graph_dir = os.path.join(base_dir, 'graph_data')
 
 
-    for i in range(2000):
+    for i in range(1):
         raw, gt, edges, edge_feat, diff_to_gt, gt_edge_weights, node_labeling, nodes, affinities = get_pix_data()
 
-        graph_file = h5py.File(os.path.join(graph_dir, "graph_" + str(i) + ".h5"), 'w')
-        pix_file = h5py.File(os.path.join(pix_dir, "pix_" + str(i) + ".h5"), 'w')
-
-        pix_file.create_dataset("raw", data=raw, chunks=True)
-        pix_file.create_dataset("gt", data=gt, chunks=True)
-
-        graph_file.create_dataset("edges", data=edges, chunks=True)
-        graph_file.create_dataset("edge_feat", data=edge_feat, chunks=True)
-        graph_file.create_dataset("diff_to_gt", data=diff_to_gt)
-        graph_file.create_dataset("gt_edge_weights", data=gt_edge_weights, chunks=True)
-        graph_file.create_dataset("node_labeling", data=node_labeling, chunks=True)
-        graph_file.create_dataset("affinities", data=affinities, chunks=True)
-
-        graph_file.close()
-        pix_file.close()
+        # graph_file = h5py.File(os.path.join(graph_dir, "graph_" + str(i) + ".h5"), 'w')
+        # pix_file = h5py.File(os.path.join(pix_dir, "pix_" + str(i) + ".h5"), 'w')
+        #
+        # pix_file.create_dataset("raw", data=raw, chunks=True)
+        # pix_file.create_dataset("gt", data=gt, chunks=True)
+        #
+        # graph_file.create_dataset("edges", data=edges, chunks=True)
+        # graph_file.create_dataset("edge_feat", data=edge_feat, chunks=True)
+        # graph_file.create_dataset("diff_to_gt", data=diff_to_gt)
+        # graph_file.create_dataset("gt_edge_weights", data=gt_edge_weights, chunks=True)
+        # graph_file.create_dataset("node_labeling", data=node_labeling, chunks=True)
+        # graph_file.create_dataset("affinities", data=affinities, chunks=True)
+        #
+        # graph_file.close()
+        # pix_file.close()
 
 
 if __name__ == "__main__":
-    store_all("/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/sqrs_crclspn/pix_and_graphs_validation")
+    dir = "/g/kreshuk/hilt/projects/fewShotLearning/mutexWtsd/data/storage/sqrs_crclspn/pix_and_graphs"
+    # store_all(dir)
+
+    dset = SpgDset(dir)
+    raw, gt, sp_seg, idx = dset.__getitem__(20)
+    edges, edge_feat, diff_to_gt, gt_edge_weights = dset.get_graphs(idx)
+    gt_seg = get_current_soln(gt_edge_weights[0].numpy().astype(np.float64), sp_seg[0].numpy().astype(np.uint64), edges[0].numpy().transpose().astype(np.int64))
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+    ax1.imshow(gt[0]);ax1.set_title('gt')
+    ax2.imshow(cm.prism(sp_seg[0]/ sp_seg[0].max()));ax2.set_title('sp')
+    ax3.imshow(gt_seg);ax3.set_title('mc')
+    plt.show()
+    a=1

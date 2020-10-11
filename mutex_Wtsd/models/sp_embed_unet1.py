@@ -10,20 +10,21 @@ from models.unet3d.model import UNet2D
 class SpVecsUnet(nn.Module):
     def __init__(self, n_channels=1, n_classes=10, device=None, writer=None):
         super(SpVecsUnet, self).__init__()
-        self.embed_model = UNet2D(n_channels, n_classes, final_sigmoid=False, f_maps=n_classes)
+        self.embed_model = UNet2D(n_channels, n_classes, final_sigmoid=False, num_levels=5)
         self.device = device
         self.writer = writer
         self.writer_counter = 0
         self.pw_dist = torch.nn.PairwiseDistance()
 
-    def forward(self, raw):
+    def forward(self, raw, post_input=False):
         import matplotlib.pyplot as plt
-        # plt.imshow(raw[0, 0].cpu());plt.show()
         raw = raw.unsqueeze(2)
         ret = self.embed_model(raw).squeeze(2)
+        if self.writer is not None and post_input:
+            self.post_pca(ret[0].detach().squeeze())
         return ret
 
-    def get_node_features(self, raw, features, sp_indices, post_input=False):
+    def get_node_features(self, features, sp_indices):
         sp_feat_vecs = torch.empty((len(sp_indices), features.shape[0])).to(self.device).float()
         sp_similarity_reg = 0
         for i, sp in enumerate(sp_indices):
@@ -38,12 +39,11 @@ class SpVecsUnet(nn.Module):
             #     sp_similarity_reg = sp_similarity_reg + self.pw_dist(sp_features, sp_features.roll(shift, dims=0)).sum()/mass
             sp_feat_vecs[i] = sp_features.sum(0) / mass
 
-        if self.writer is not None and post_input:
-            plt.clf()
-            fig = plt.figure(frameon=False)
-            plt.imshow(_pca_project(features.detach().squeeze().cpu().numpy()))
-            plt.colorbar()
-            self.writer.add_figure("image/embedding_proj", fig, self.writer_counter)
-            self.writer_counter += 1
-
         return sp_feat_vecs, sp_similarity_reg
+
+    def post_pca(self, features):
+        plt.clf()
+        fig = plt.figure(frameon=False)
+        plt.imshow(_pca_project(features.detach().squeeze().cpu().numpy()))
+        self.writer.add_figure("image/embedding_proj", fig, self.writer_counter)
+        self.writer_counter += 1

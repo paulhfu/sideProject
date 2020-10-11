@@ -14,8 +14,6 @@ from optimizers.shared_rmsprob import SharedRMSprop
 from torch import multiprocessing as mp
 from agents.acer import AgentAcerTrainer
 from agents.acer_continuous import AgentAcerContinuousTrainer
-from mu_net.criteria.contrastive_loss import ContrastiveLoss
-from torch.utils.data import DataLoader
 import yaml
 from data.disjoint_discs import MultiDiscSpGraphDset
 

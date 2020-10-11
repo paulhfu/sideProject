@@ -45,7 +45,7 @@ def check_consecutive(labels):
     return (labels[0] == 0) and (diff == 1).all()
 
 
-class RagContrastiveLoss(nn.Module):
+class ContrastiveLoss(nn.Module):
     """
     Implementation of contrastive loss defined in https://arxiv.org/pdf/1708.02551.pdf
     'Semantic Instance Segmentation with a Discriminative Loss Function'
@@ -117,8 +117,7 @@ class RagContrastiveLoss(nn.Module):
         variance_term = torch.sum(embedding_variance / num_voxels_per_instance, dim=1) / C
         return variance_term
 
-    def _compute_distance_term(self, cluster_means, C, ndim, attr_edges):
-
+    def _compute_distance_term(self, cluster_means, C, ndim):
         if C == 1:
             # just one cluster in the batch, so distance term does not contribute to the loss
             return 0.
@@ -138,14 +137,13 @@ class RagContrastiveLoss(nn.Module):
         # compute pair-wise distances (NxCxC)
         dist_matrix = torch.norm(cm_matrix1 - cm_matrix2, p=self.norm, dim=3)
 
-        force_dist = 2 * self.delta_dist * (1 - torch.eye(C))
+        # create matrix for the repulsion distance (i.e. cluster centers further apart than 2 * delta_dist
+        # are not longer repulsed)
+        repulsion_dist = 2 * self.delta_dist * (1 - torch.eye(C))
         # 1xCxC
-        force_dist = force_dist.unsqueeze(0).to(cluster_means.device)
-        force_dist[:, attr_edges[0], attr_edges[1]] = 0
-        force_direction = torch.ones((1, C, C), device=cluster_means.device)
-        force_direction[:, attr_edges[0], attr_edges[1]] = -1
+        repulsion_dist = repulsion_dist.unsqueeze(0).to(cluster_means.device)
         # zero out distances grater than 2*delta_dist (NxCxC)
-        hinged_dist = torch.clamp(force_dist - (force_direction * dist_matrix), min=0)**2
+        hinged_dist = torch.clamp(repulsion_dist - dist_matrix, min=0) ** 2
         # sum all of the hinged pair-wise distances
         hinged_dist = torch.sum(hinged_dist, dim=(1, 2))
         # normalized by the number of paris and return
@@ -160,7 +158,7 @@ class RagContrastiveLoss(nn.Module):
         # return the average norm per batch
         return torch.sum(norms, dim=1).div(C)
 
-    def forward(self, input_, target, b_attr_edges):
+    def forward(self, input_, target):
         """
         Args:
              input_ (torch.tensor): embeddings predicted by the network (NxExDxHxW) (E - embedding dims)
@@ -176,7 +174,7 @@ class RagContrastiveLoss(nn.Module):
         # compute the loss per each instance in the batch separately
         # and sum it up in the per_instance variable
         per_instance_loss = 0.
-        for single_input, single_target, attr_edges in zip(input_, target, b_attr_edges):
+        for single_input, single_target in zip(input_, target):
             # add singleton batch dimension required for further computation
             single_input = single_input.unsqueeze(0)
             single_target = single_target.unsqueeze(0)
@@ -201,7 +199,7 @@ class RagContrastiveLoss(nn.Module):
                                                                                  single_target, spatial_dims)
             variance_term = self._compute_variance_term(cluster_means, embeddings_per_instance,
                                                         single_target, spatial_dims)
-            distance_term = self._compute_distance_term(cluster_means, C, spatial_dims, attr_edges)
+            distance_term = self._compute_distance_term(cluster_means, C, spatial_dims)
             regularization_term = self._compute_regularizer_term(cluster_means, C, spatial_dims)
             # compute total loss and sum it up
             loss = self.alpha * variance_term + self.beta * distance_term + self.gamma * regularization_term

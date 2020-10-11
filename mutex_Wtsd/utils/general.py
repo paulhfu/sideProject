@@ -87,6 +87,8 @@ def calculate_gt_edge_costs(neighbors, new_seg, gt_seg):
                 mask_gt = mskd_gt_seg == obj
                 overlaps[j] = np.sum(mask_gt * mask_n1) / np.sum(mask_n1), \
                               np.sum(mask_gt * mask_n2) / np.sum(mask_n2)
+            # rewards[idx] = np.sum(overlaps.max(axis=1))/len(n_obj_gt)
+            # rewards[idx] = overlaps.max(axis=0)
             if np.sum(overlaps.max(axis=1) > 0.5) >= 2:
                 rewards[idx] = 1
             else:

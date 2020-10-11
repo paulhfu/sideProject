@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from utils.reward_functions import GraphDiceLoss
 from agents.replayMemory import TransitionData
 from collections import namedtuple
-from mu_net.criteria.contrastive_loss import ContrastiveLoss
+from losses import ContrastiveLoss
 from environments.sp_grph_gcn_1 import SpGcnEnv
 from models.GCNNs.q_value_net import GcnEdgeAngle1dQ
 from torch.nn.parallel import DistributedDataParallel as DDP
