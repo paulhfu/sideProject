@@ -60,15 +60,15 @@ include src/lib/CMakeFiles/_rag_utils.dir/flags.make
 src/lib/CMakeFiles/_rag_utils.dir/rag_utils.cxx.o: src/lib/CMakeFiles/_rag_utils.dir/flags.make
 src/lib/CMakeFiles/_rag_utils.dir/rag_utils.cxx.o: src/lib/rag_utils.cxx
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object src/lib/CMakeFiles/_rag_utils.dir/rag_utils.cxx.o"
-	cd /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib && /usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/_rag_utils.dir/rag_utils.cxx.o -c /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib/rag_utils.cxx
+	cd /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib && /usr/bin/g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/_rag_utils.dir/rag_utils.cxx.o -c /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib/rag_utils.cxx
 
 src/lib/CMakeFiles/_rag_utils.dir/rag_utils.cxx.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/_rag_utils.dir/rag_utils.cxx.i"
-	cd /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib/rag_utils.cxx > CMakeFiles/_rag_utils.dir/rag_utils.cxx.i
+	cd /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib && /usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib/rag_utils.cxx > CMakeFiles/_rag_utils.dir/rag_utils.cxx.i
 
 src/lib/CMakeFiles/_rag_utils.dir/rag_utils.cxx.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/_rag_utils.dir/rag_utils.cxx.s"
-	cd /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib/rag_utils.cxx -o CMakeFiles/_rag_utils.dir/rag_utils.cxx.s
+	cd /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib && /usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cpp_utils/graph_utils/src/lib/rag_utils.cxx -o CMakeFiles/_rag_utils.dir/rag_utils.cxx.s
 
 src/lib/CMakeFiles/_rag_utils.dir/rag_utils.cxx.o.requires:
 

@@ -32,18 +32,19 @@ PYBIND11_MODULE(_rag_utils, m){
     using namespace graph_utils;
 
     m.def("find_dense_subgraphs_impl", [](const xt::pyarray<uint64_t> & edges,
-                                     const size_t size,
+                                     const std::vector<uint64_t> & sizes,
 									 const std::vector<uint64_t> & n_nodes,
 									 const std::vector<uint64_t> & n_edges) {
 
 			std::vector<uint64_t> components;
 			std::vector<uint64_t> sep_sgs;
-			std::vector<uint64_t> n_components(n_edges.size(), 0);
+			uint64_t bs = n_edges.size();
+			std::vector<uint64_t> n_components(n_edges.size() * sizes.size(), 0);
 			{
 				py::gil_scoped_release allowThreads;
-				find_dense_subgraphs(edges, size, n_nodes, n_edges, n_components, components);
+				find_dense_subgraphs(edges, sizes, n_nodes, n_edges, n_components, components);
 				sep_sgs.resize(components.size(), 0);
-				separate_subgraphs(components, size, sep_sgs);
+				separate_subgraphs(bs, n_components, components, sizes, sep_sgs);
 			}
 			xt::xarray<uint64_t> py_comps = xt::adapt(components, {components.size()});
 			xt::xarray<uint64_t> py_n_comps = xt::adapt(n_components, {n_components.size()});
@@ -52,7 +53,7 @@ PYBIND11_MODULE(_rag_utils, m){
 			py::tuple out = py::make_tuple(py_comps, py_n_comps, py_sep_sgs);
 			return out;
     }, py::arg("edges"),
-       py::arg("size"),
+       py::arg("sizes"),
        py::arg("n_nodes"),
        py::arg("shape")
     );

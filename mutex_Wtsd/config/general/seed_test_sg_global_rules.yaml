@@ -1,4 +1,4 @@
-general:
+gen:
   algorithm: sac_seed_test_sg_global #Algorithm used for training
   master_port: !!str "12352" #port num on localhost for icp
   cross_validate_hp: false # make gridsearch cv of hp

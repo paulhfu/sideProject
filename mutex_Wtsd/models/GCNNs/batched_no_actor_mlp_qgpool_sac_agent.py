@@ -14,25 +14,24 @@ from losses.rag_contrastive_loss import RagContrastiveLoss
 
 
 class GcnEdgeAC(torch.nn.Module):
-    def __init__(self, cfg, args, device, writer=None):
+    def __init__(self, cfg, device, writer=None):
         super(GcnEdgeAC, self).__init__()
         self.writer = writer
-        self.args = args
         self.cfg = cfg
-        self.log_std_bounds = cfg.diag_gaussian_actor.log_std_bounds
+        self.log_std_bounds = self.cfg.sac.diag_gaussian_actor.log_std_bounds
         self.device = device
         self.writer_counter = 0
-        n_q_vals = args.s_subgraph
-        if "sg_rew" in args.algorithm:
+        n_q_vals = self.cfg.sac.s_subgraph
+        if "sg_rew" in self.cfg.gen.algorithm:
             n_q_vals = 1
 
-        self.fe_ext = SpVecsUnet(self.args.n_raw_channels, self.args.n_embedding_features, device, writer)
+        self.fe_ext = SpVecsUnet(self.cfg.fe.n_raw_channels, self.cfg.fe.n_embedding_features, device, writer)
 
-        self.actor = PolicyNet(self.args.n_embedding_features, 2, device, writer)
-        self.critic = DoubleQValueNet(self.args.n_embedding_features, 1, self.args, device, writer)
-        self.critic_tgt = DoubleQValueNet(self.args.n_embedding_features, 1, self.args, device, writer)
+        self.actor = PolicyNet(self.cfg.fe.n_embedding_features, 2, device, writer)
+        self.critic = DoubleQValueNet(self.cfg.sac.s_subgraph, self.cfg.fe.n_embedding_features, 1, device, writer)
+        self.critic_tgt = DoubleQValueNet(self.cfg.sac.s_subgraph, self.cfg.fe.n_embedding_features, 1, device, writer)
 
-        self.log_alpha = torch.tensor(np.log(self.cfg.init_temperature)).to(device)
+        self.log_alpha = torch.tensor([np.log(self.cfg.sac.init_temperature)] * len(self.cfg.sac.s_subgraph)).to(device)
         self.log_alpha.requires_grad = True
 
     @property
@@ -81,7 +80,6 @@ class GcnEdgeAC(torch.nn.Module):
                 actions = dist.rsample()
 
             q1, q2, _ = self.critic_tgt(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
-            q1, q2 = q1.squeeze(), q1.squeeze()
             if policy_opt:
                 return dist, q1, q2, actions, side_loss
             else:
@@ -89,7 +87,6 @@ class GcnEdgeAC(torch.nn.Module):
                 return dist, q1, q2, actions, embeddings
 
         q1, q2, side_loss = self.critic(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
-        q1, q2 = q1.squeeze(), q1.squeeze()
         return q1, q2, side_loss
 
 
@@ -104,51 +101,59 @@ class PolicyNet(torch.nn.Module):
 
 
 class DoubleQValueNet(torch.nn.Module):
-    def __init__(self, n_in_features, n_classes, args, device, writer):
+    def __init__(self, s_subgraph, n_in_features, n_classes, device, writer):
         super(DoubleQValueNet, self).__init__()
 
-        self.args = args
+        self.s_subgraph = s_subgraph
 
         self.gcn1_1 = QGcnn(n_in_features, n_in_features, device, writer)
-        self.gcn1_2 = GlobalEdgeGcnn(n_in_features, n_in_features, device, writer)
-
         self.gcn2_1 = QGcnn(n_in_features, n_in_features, device, writer)
-        self.gcn2_2 = GlobalEdgeGcnn(n_in_features, n_in_features, device, writer)
+
+        self.gcn1_2, self.gcn2_2 = [], []
+
+        for i, ssg in enumerate(self.s_subgraph):
+            self.gcn1_2.append(GlobalEdgeGcnn(n_in_features, n_in_features, ssg//2, device, writer))
+            self.gcn2_2.append(GlobalEdgeGcnn(n_in_features, n_in_features, ssg//2, device, writer))
+            super(DoubleQValueNet, self).add_module(f"gcn1_2_{i}", self.gcn1_2[-1])
+            super(DoubleQValueNet, self).add_module(f"gcn2_2_{i}", self.gcn2_2[-1])
 
         self.value1 = nn.Sequential(
-            nn.Linear(n_in_features, 1024),
+            nn.Linear(n_in_features, n_in_features * 8),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(1024, 1024),
+            nn.Linear(n_in_features * 8, n_in_features * 8),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(1024, n_classes),
+            nn.Linear(n_in_features * 8, n_classes),
         )
 
         self.value2 = nn.Sequential(
-            nn.Linear(n_in_features, 1024),
+            nn.Linear(n_in_features, n_in_features * 8),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(1024, 1024),
+            nn.Linear(n_in_features * 8, n_in_features * 8),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(1024, n_classes),
+            nn.Linear(n_in_features * 8, n_classes),
         )
 
     def forward(self, node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input):
         actions = actions.unsqueeze(-1)
-        sg_edge_features1, side_loss = self.gcn1_1(node_features, edge_index, angles, gt_edges, actions, post_input)
+        _sg_edge_features1, side_loss = self.gcn1_1(node_features, edge_index, angles, gt_edges, actions, post_input)
 
-        sg_edge_features2, _side_loss = self.gcn2_1(node_features, edge_index, angles, gt_edges, actions, post_input)
+        _sg_edge_features2, _side_loss = self.gcn2_1(node_features, edge_index, angles, gt_edges, actions, post_input)
         side_loss += _side_loss
 
-        sg_edge_features1 = sg_edge_features1[sub_graphs]
-        sg_edge_features2 = sg_edge_features2[sub_graphs]
-        sg_edges = sep_subgraphs.view(-1, 2).T
-        sg_edges = torch.cat([sg_edges, torch.stack([sg_edges[1], sg_edges[0]], dim=0)], dim=1)  # gcnn expects two directed edges for one undirected edge
+        sg_edge_features1, sg_edge_features2 = [], []
+        for i, sg_size in enumerate(self.s_subgraph):
+            sub_sg_edge_features1 = _sg_edge_features1[sub_graphs[i]]
+            sub_sg_edge_features2 = _sg_edge_features2[sub_graphs[i]]
+            sg_edges = torch.cat([sep_subgraphs[i], torch.stack([sep_subgraphs[i][1], sep_subgraphs[i][0]], dim=0)], dim=1)  # gcnn expects two directed edges for one undirected edge
 
-        sg_edge_features1, _side_loss = self.gcn1_2(sg_edge_features1, sg_edges)
-        side_loss += _side_loss
-        sg_edge_features2, _side_loss = self.gcn2_2(sg_edge_features2, sg_edges)
-        side_loss += _side_loss
+            sub_sg_edge_features1, _side_loss = self.gcn1_2[i](sub_sg_edge_features1, sg_edges)
+            side_loss += _side_loss
+            sub_sg_edge_features2, _side_loss = self.gcn2_2[i](sub_sg_edge_features2, sg_edges)
+            side_loss += _side_loss
 
-        sg_edge_features1 = sg_edge_features1.view(-1, self.args.s_subgraph, sg_edge_features1.shape[-1]).mean(1)
-        sg_edge_features2 = sg_edge_features2.view(-1, self.args.s_subgraph, sg_edge_features2.shape[-1]).mean(1)
+            sg_edge_features1.append(self.value1(sub_sg_edge_features1.view(-1, sg_size,
+                                                                        sub_sg_edge_features1.shape[-1]).mean(1)).squeeze())
+            sg_edge_features2.append(self.value2(sub_sg_edge_features2.view(-1, sg_size,
+                                                                        sub_sg_edge_features2.shape[-1]).mean(1)).squeeze())
 
-        return self.value1(sg_edge_features1), self.value2(sg_edge_features2), side_loss / 4
+        return sg_edge_features1, sg_edge_features2, side_loss / 4

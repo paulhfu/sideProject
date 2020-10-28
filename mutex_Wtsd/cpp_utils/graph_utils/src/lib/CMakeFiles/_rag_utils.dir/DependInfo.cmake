@@ -10,10 +10,9 @@ set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
-  "/include"
-  "/home/drford/miniconda3/lib/python3.7/site-packages/numpy/core/include"
   "/home/drford/miniconda3/include"
-  "inc"
+  "/home/drford/miniconda3/lib/python3.7/site-packages/numpy/core/include"
+  "include"
   "/home/drford/miniconda3/include/python3.7m"
   )
 

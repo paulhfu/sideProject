@@ -139,29 +139,27 @@ def main(cfg):
 
 
 
-
     # q_learning(dloader_mult_discs, rootPath, args, learn=True)
     print('visible gpus: ', torch.cuda.device_count())
-    args = cfg.general
     mp.set_start_method('spawn', force=True)
-    if args.algorithm == 'offpac':
-        trainer = TrainOffpac(args)
+    if cfg.gen.algorithm == 'offpac':
+        trainer = TrainOffpac(cfg)
         score = trainer.train(start_time)
-    elif args.algorithm == 'offpac2m':
-        trainer = TrainOffpac2M(args)
+    elif cfg.gen.algorithm == 'offpac2m':
+        trainer = TrainOffpac2M(cfg)
         score = trainer.train(start_time)
-    elif args.algorithm == 'retrace':
-        trainer = TrainDql(args)
+    elif cfg.gen.algorithm == 'retrace':
+        trainer = TrainDql(cfg)
         score = trainer.train(start_time)
-    elif args.algorithm == 'naive_gcn':
-        trainer = TrainNaiveGcn(args)
+    elif cfg.gen.algorithm == 'naive_gcn':
+        trainer = TrainNaiveGcn(cfg)
         score = trainer.train()
-    elif "sac" in args.algorithm:
-        trainer = TrainSAC(cfg.sac, args)
+    elif "sac" in cfg.gen.algorithm:
+        trainer = TrainSAC(cfg)
         score = trainer.train(start_time)
-    elif 'acer' in args.algorithm:
-        if not args.cross_validate_hp:
-            trainer = TrainACER(args)
+    elif 'acer' in cfg.gen.algorithm:
+        if not cfg.gen.cross_validate_hp:
+            trainer = TrainACER(cfg)
             score = trainer.train(start_time)
         else:
             # HP-GridSearch for acer:
@@ -182,7 +180,7 @@ def main(cfg):
                 sub_new_args = get_all_arg_combos(grid, [])
                 for sub_new_arg in sub_new_args:
                     params = {}
-                    new_args = vars(args).copy()
+                    new_args = vars(cfg.gen).copy()
                     for d in glob_best_params:
                         for key, val in d.items():
                             new_args[key] = val
@@ -201,7 +199,7 @@ def main(cfg):
                 print('max score: ', max_score)
                 glob_best_params.append(best_params)
 
-            save_dir = os.path.join(args.base_dir, 'results/acer', args.target_dir)
+            save_dir = os.path.join(cfg.gen.base_dir, 'results/acer', cfg.gen.target_dir)
             # Saving parameters
             with open(os.path.join(save_dir, 'cross_validated_params.txt'), 'w') as f:
                 for best_params in glob_best_params:
@@ -209,7 +207,7 @@ def main(cfg):
                         print(' ' * 26 + k + ': ' + str(v))
                         f.write(k + ' : ' + str(v) + '\n')
     else:
-        assert False, "Unknown algorithm: " + args.algorithm
+        assert False, "Unknown algorithm: " + cfg.gen.algorithm
 
 
 if __name__ == '__main__':

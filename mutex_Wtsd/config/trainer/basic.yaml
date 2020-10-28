@@ -1,0 +1,21 @@
+trainer:
+  # main training (env, trainer)
+  T_max: 100000  # 100000 #Number of training steps
+  t_max: 100  # Mem size
+  data_update_frequency: 10
+  post_stats_frequency: 10
+  post_model_frequency: 100
+  n_updates_per_step: 10
+  max_episode_length: 1  # Maximum episode length
+  eps_rule: self_reg_exp_avg #
+  batch_size: 1
+  add_noise: false
+
+  stop_qual_rule:
+    type: constant  # running_average
+    final: 5 #
+    scaling: 40 #
+    offset: 5 #
+    ra_bw: 20 #running average bandwidth
+    ra_off: -15 #running average offset
+

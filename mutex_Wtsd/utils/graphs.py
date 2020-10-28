@@ -1,7 +1,9 @@
 import torch
 import numpy as np
 
+
 def collate_edges(edges):
+    "batches a list of graphs defined by edge arrays"
     n_offs = [0]
     e_offs = [0]
     for i in range(len(edges)):
@@ -11,11 +13,13 @@ def collate_edges(edges):
 
     return torch.cat(edges, 1), (n_offs, e_offs)
 
+
 def separate_nodes(nodes, n_offs):
     r_nodes = []
     for i in range(len(n_offs) - 1):
         r_nodes.append(nodes[n_offs[i]: n_offs[i+1]] - n_offs[i])
     return r_nodes
+
 
 def separate_edges(edges, e_offs, n_offs):
     r_edges = []
@@ -23,15 +27,17 @@ def separate_edges(edges, e_offs, n_offs):
         r_edges.append(edges[e_offs[:, i]: e_offs[:, i+1]] - n_offs[i])
     return r_edges
 
+
 def get_edge_indices(edges, edge_list):
     """
-    :param edges: list of edges in a graph shape(n, 2). must be sorted like (smaller, larger) and must not contain equal values
+    :param edges: double nested list of edges in a graph shape(n, 2). must be sorted like (smaller, larger) and must not contain equal values
     :param edge_list: list of edges. Each edge must be present in edges. Can contain multiple entries of one edge
     :return: the indices for edges that each entry in edge list correpsonds to
     """
-    indices = torch.nonzero(((edges[0] == edge_list[0].unsqueeze(-1)) & (edges[1] == edge_list[1].unsqueeze(-1))),
-                  as_tuple=True)[1]
-    assert indices.shape[0] == edge_list.shape[1], "edges must be sorted and unique"
+    indices = []
+    for sg in edge_list:
+        indices.append(torch.nonzero(((edges[0] == sg[0].unsqueeze(-1)) & (edges[1] == sg[1].unsqueeze(-1))), as_tuple=True)[1])
+        assert indices[-1].shape[0] == sg.shape[1], "edges must be sorted and unique"
     return indices
 
 

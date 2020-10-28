@@ -466,10 +466,7 @@ class NodeConv1(EdgeMessagePassing):
         super(NodeConv1, self).__init__(aggr='mean')  # no need for aggregation when only updating edges.
 
         m = 2
-        hli = [torch.nn.Linear(n_channels_in * m, n_channels_in * (m + 2))]
-        hli.append(torch.nn.LeakyReLU())
-        hli.append(torch.nn.BatchNorm1d(n_channels_in * (m + 2), track_running_stats=False))
-        m += 2
+        hli = []
         for i in range(n_hidden_layer):
             hli.append(torch.nn.Linear(n_channels_in * m, n_channels_in * (m + 2)))
             hli.append(torch.nn.LeakyReLU())

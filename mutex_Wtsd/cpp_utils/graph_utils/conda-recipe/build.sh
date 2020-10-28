@@ -63,4 +63,6 @@ make -j${CPU_COUNT}
 ##
 ## Install to prefix
 #mkdir ${PREFIX}/lib/python${PY_VER}/site-packages/rag_utils
+echo ${SRC_DIR}/build/python/*
+echo ${PREFIX}/lib/python${PY_VER}/site-packages/
 cp -r ${SRC_DIR}/build/python/* ${PREFIX}/lib/python${PY_VER}/site-packages/

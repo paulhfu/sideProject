@@ -56,20 +56,55 @@ CMAKE_BINARY_DIR = /home/drford/Documents/Masterarbeit/sideProject/mutex_Wtsd/cp
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target rebuild_cache
-rebuild_cache:
-	@echo "Running external command ..."
-	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : rebuild_cache
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
 
-# Special rule for the target rebuild_cache
-rebuild_cache/fast: rebuild_cache
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
 
-.PHONY : rebuild_cache/fast
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+
+.PHONY : list_install_components/fast
 
 # Special rule for the target edit_cache
 edit_cache:
-	@echo "Running external command ..."
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
 	/usr/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
 .PHONY : edit_cache
 
@@ -77,6 +112,17 @@ edit_cache:
 edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
+
+# Special rule for the target rebuild_cache
+rebuild_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
+	/usr/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : rebuild_cache
+
+# Special rule for the target rebuild_cache
+rebuild_cache/fast: rebuild_cache
+
+.PHONY : rebuild_cache/fast
 
 # The main all target
 all: cmake_check_build_system
@@ -110,14 +156,74 @@ depend:
 	$(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
+#=============================================================================
+# Target rules for targets named copy_rag_utils___init__.py
+
+# Build rule for target.
+copy_rag_utils___init__.py: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 copy_rag_utils___init__.py
+.PHONY : copy_rag_utils___init__.py
+
+# fast build rule for target.
+copy_rag_utils___init__.py/fast:
+	$(MAKE) -f src/lib/CMakeFiles/copy_rag_utils___init__.py.dir/build.make src/lib/CMakeFiles/copy_rag_utils___init__.py.dir/build
+.PHONY : copy_rag_utils___init__.py/fast
+
+#=============================================================================
+# Target rules for targets named _rag_utils
+
+# Build rule for target.
+_rag_utils: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 _rag_utils
+.PHONY : _rag_utils
+
+# fast build rule for target.
+_rag_utils/fast:
+	$(MAKE) -f src/lib/CMakeFiles/_rag_utils.dir/build.make src/lib/CMakeFiles/_rag_utils.dir/build
+.PHONY : _rag_utils/fast
+
+#=============================================================================
+# Target rules for targets named python-module
+
+# Build rule for target.
+python-module: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 python-module
+.PHONY : python-module
+
+# fast build rule for target.
+python-module/fast:
+	$(MAKE) -f src/lib/CMakeFiles/python-module.dir/build.make src/lib/CMakeFiles/python-module.dir/build
+.PHONY : python-module/fast
+
+#=============================================================================
+# Target rules for targets named copy_rag_utils_connected_components.py
+
+# Build rule for target.
+copy_rag_utils_connected_components.py: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 copy_rag_utils_connected_components.py
+.PHONY : copy_rag_utils_connected_components.py
+
+# fast build rule for target.
+copy_rag_utils_connected_components.py/fast:
+	$(MAKE) -f src/lib/CMakeFiles/copy_rag_utils_connected_components.py.dir/build.make src/lib/CMakeFiles/copy_rag_utils_connected_components.py.dir/build
+.PHONY : copy_rag_utils_connected_components.py/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... rebuild_cache"
+	@echo "... install/strip"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... list_install_components"
 	@echo "... edit_cache"
+	@echo "... rebuild_cache"
+	@echo "... copy_rag_utils___init__.py"
+	@echo "... _rag_utils"
+	@echo "... python-module"
+	@echo "... copy_rag_utils_connected_components.py"
 .PHONY : help
 
 

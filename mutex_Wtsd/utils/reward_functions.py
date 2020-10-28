@@ -146,17 +146,18 @@ class SubGraphDiceReward(object):
 
     def get(self, actions=None, diff=None, res_seg=None):
         # compute per channel Dice Coefficient
-        actions = actions[self.env.b_subgraph_indices].view(-1, self.env.args.s_subgraph)
-        input = torch.stack([1-actions, actions], 0)
-        target = torch.stack([self.env.sg_gt_edge_weights == 0, self.env.sg_gt_edge_weights == 1], 0).float()
-        intersect = (input * target).sum(-1)
+        reward = []
+        for i, sz in enumerate(self.env.cfg.sac.s_subgraph):
+            input = torch.stack([1-actions[i], actions[i]], 0)
+            target = torch.stack([self.env.sg_gt_edge_weights[i] == 0, self.env.sg_gt_edge_weights[i] == 1], 0).float()
+            intersect = (input * target).sum(-1)
 
-        # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)
-        denominator = (input * input).sum(-1) + (target * target).sum(-1)
-        dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
-        dice_score = dice_score * self.class_weights.to(dice_score.device)
+            # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)
+            denominator = (input * input).sum(-1) + (target * target).sum(-1)
+            dice_score = 2 * (intersect / denominator.clamp(min=self.epsilon))
+            dice_score = dice_score * self.class_weights.to(dice_score.device)
 
-        reward = dice_score.sum(0) / self.env.args.s_subgraph - 0.4
+            reward.append((dice_score.sum(0) - 0.4) * 2)
         return reward
 
 
@@ -373,7 +374,7 @@ class HoughCircles(object):
                         score *= 1.2
                     edge_reward[circle_edges] += score
 
-        reward = edge_reward[self.env.b_subgraph_indices].view(-1, self.env.args.s_subgraph).sum(-1)
+        reward = edge_reward[self.env.b_subgraph_indices].view(-1, self.env.cfg.gen.s_subgraph).sum(-1)
 
         end = timeit.timeit()
         time = start - end
@@ -457,7 +458,7 @@ class HoughCirclesOnSp(object):
                     sp_reward[circle_sp + self.env.n_offs[g_idx]] += score
 
         node_count = ((self.env.b_subgraphs.view(2, -1, 10).unsqueeze(-1).unsqueeze(0) == self.env.b_subgraphs.view(2, -1, 10).unsqueeze(-2).unsqueeze(1)).sum(0).sum(-1)).view(2, -1).float()
-        reward = (sp_reward[self.env.b_subgraphs[0]] / node_count[0] + sp_reward[self.env.b_subgraphs[1]] / node_count[1]).view(-1, self.env.args.s_subgraph).sum(-1)
+        reward = (sp_reward[self.env.b_subgraphs[0]] / node_count[0] + sp_reward[self.env.b_subgraphs[1]] / node_count[1]).view(-1, self.env.cfg.gen.s_subgraph).sum(-1)
         reward = reward / 8
 
         end = timeit.timeit()
@@ -528,7 +529,7 @@ class HoughCircles_lg(object):
                     circle_edges = torch.nonzero(mask_circle_sp).squeeze() + self.env.e_offs[g_idx]
                     edge_reward_l[circle_edges] += val * 10
 
-        reward_l = edge_reward_l[self.env.b_subgraph_indices].view(-1, self.env.args.s_subgraph).sum(-1)
+        reward_l = edge_reward_l[self.env.b_subgraph_indices].view(-1, self.env.cfg.gen.s_subgraph).sum(-1)
 
         end = timeit.timeit()
         time = start - end
