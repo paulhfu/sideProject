@@ -4,7 +4,7 @@ import torch
 from torch.optim import Adam
 import time
 from torch import nn
-from models.sp_embed_unet import SpVecsUnetGcn
+from models.sp_embed_unet import SpVecsUnet
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from agents.replayMemory import TransitionData_ts

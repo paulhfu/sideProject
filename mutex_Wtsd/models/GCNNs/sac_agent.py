@@ -1,13 +1,7 @@
 import torch
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
-import torch.nn.functional as F
 import torch.nn as nn
-from models.sp_embed_unet import SpVecsUnet, SpVecsUnetGcn
-import matplotlib.pyplot as plt
-from utils.general import _pca_project, plt_bar_plot
-from utils.truncated_normal import TruncNorm
+from models.sp_embed_unet import SpVecsUnet, SpVecsUnet
 from utils.sigmoid_normal1 import SigmNorm
-# import gpushift
 
 
 class GcnEdgeAC(torch.nn.Module):
@@ -19,7 +13,7 @@ class GcnEdgeAC(torch.nn.Module):
         self.device = device
         self.writer_counter = 0
 
-        self.fe_ext = SpVecsUnetGcn(n_embedding_channels, n_raw_channels, n_embedding_channels, device, writer)
+        self.fe_ext = SpVecsUnet(n_embedding_channels, n_raw_channels, n_embedding_channels, device, writer)
 
         self.actor = nn.Sequential(
             nn.Linear(n_embedding_channels + 1, 256),

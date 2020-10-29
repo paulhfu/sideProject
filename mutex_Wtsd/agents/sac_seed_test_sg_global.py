@@ -4,7 +4,7 @@ import torch
 from torch.optim import Adam
 import time
 from torch import nn
-from models.sp_embed_unet import SpVecsUnetGcn
+from models.sp_embed_unet import SpVecsUnet
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from agents.replayMemory import TransitionData_ts
@@ -53,27 +53,8 @@ class AgentSacTrainer_test_sg_global(object):
         self.memory = TransitionData_ts(capacity=self.cfg.trainer.t_max)
         # self.eps = self.args.init_epsilon
         self.save_dir = save_dir
-        if self.cfg.trainer.stop_qual_rule.type == 'naive':
-            self.stop_qual_rule = NaiveDecay(initial_eps=self.cfg.trainer.init_stop_qual, episode_shrinkage=1,
-                                             change_after_n_episodes=5)
-        elif self.cfg.trainer.stop_qual_rule.type == 'gaussian':
-            self.stop_qual_rule = GaussianDecay(self.cfg.trainer.stop_qual_rule.final,
-                                                self.cfg.trainer.stop_qual_rule.scaling,
-                                                self.cfg.trainer.stop_qual_rule.offset,
-                                                self.cfg.trainer.T_max)
-        elif self.cfg.trainer.stop_qual_rule.type == 'running_average':
-            self.stop_qual_rule = RunningAverage(self.cfg.trainer.stop_qual_rule.ra_bw,
-                                                 self.cfg.trainer.stop_qual_rule.scaling + self.cfg.trainer.stop_qual_rule.offset,
-                                                 self.cfg.trainer.stop_qual_rule.ra_off)
-        else:
-            self.stop_qual_rule = Constant(self.cfg.trainer.stop_qual_rule.final)
 
-        if self.cfg.sac.temperature_regulation == 'follow_quality':
-            self.beta_rule = FollowLeadAvg(1, 80, 1)
-        elif self.cfg.sac.temperature_regulation == 'constant':
-            self.eps_rule = Constant(self.cfg.sac.init_temperature)
-
-    def setup(self, rank, world_size, device):
+    def setup(self, rank, world_size):
         # BLAS setup
         os.environ['OMP_NUM_THREADS'] = '10'
         os.environ['MKL_NUM_THREADS'] = '10'
@@ -209,31 +190,6 @@ class AgentSacTrainer_test_sg_global(object):
 
         return ret
 
-    def update_critic(self, obs, action, reward, next_obs, not_done, env, model, optimizers):
-        distribution, target_Q1, target_Q2, next_action, _ = self.agent_forward(env, model, state=next_obs)
-        current_Q1, current_Q2, side_loss = self.agent_forward(env, model, state=obs, actions=action)
-
-        log_prob = distribution.log_prob(next_action)
-        critic_loss = torch.tensor([0.0], device=target_Q1[0].device)
-        mean_reward = 0
-
-        for i, sz in enumerate(self.cfg.sac.s_subgraph):
-            _log_prob = log_prob[next_obs[5][i].view(-1, sz)].sum(-1)
-
-            target_V = torch.min(target_Q1[i], target_Q2[i]) - model.module.alpha[i].detach() * _log_prob
-
-            target_Q = reward[i] + (not_done * self.cfg.sac.discount * target_V)
-            target_Q = target_Q.detach()
-
-            critic_loss = critic_loss + (F.mse_loss(current_Q1[i], target_Q) + F.mse_loss(current_Q2[i], target_Q))# / 2) + self.cfg.sac.sl_beta * side_loss
-            mean_reward += reward[i].mean()
-        # critic_loss = critic_loss / len(self.cfg.sac.s_subgraph)
-        optimizers.critic.zero_grad()
-        critic_loss.backward()
-        optimizers.critic.step()
-
-        return critic_loss.item(), mean_reward / len(self.cfg.sac.s_subgraph)
-
     def _get_connected_paths(self, edges, weights, size, get_repulsive=False):
         graph = np.ones((size, size)) * np.inf
         graph[edges[0], edges[1]] = weights
@@ -295,15 +251,9 @@ class AgentSacTrainer_test_sg_global(object):
         return self.contr_loss(embeddings, segs.long().to(embeddings.device))
 
     def update_embeddings(self, obs, env, model, optimizers):
-        distribution, actor_Q1, actor_Q2, action, embeddings = self.agent_forward(env, model, grad=False, state=obs,
-                                                                                  policy_opt=False, embeddings_opt=True)
-
-        # embedding_regularizer = torch.tensor(0.)
+        distribution, actor_Q1, actor_Q2, action, embeddings, side_loss = \
+            self.agent_forward(env, model, grad=False, state=obs, policy_opt=False, embeddings_opt=True)
         weights = distribution.loc.detach()
-
-        # weights = torch.autograd.grad(outputs=actor_loss, inputs=distribution.loc, retain_graph=True, create_graph=True, only_inputs=True)[0]
-        # weights = weights.detach().cpu().numpy()
-
         loss = self.get_embed_loss_contr(weights, env, embeddings)
 
         optimizers.embeddings.zero_grad()
@@ -311,9 +261,34 @@ class AgentSacTrainer_test_sg_global(object):
         optimizers.embeddings.step()
         return loss.item()
 
+    def update_critic(self, obs, action, reward, next_obs, not_done, env, model, optimizers):
+        distribution, target_Q1, target_Q2, next_action, _, side_loss = self.agent_forward(env, model, state=next_obs)
+        current_Q1, current_Q2, side_loss = self.agent_forward(env, model, state=obs, actions=action)
+
+        log_prob = distribution.log_prob(next_action)
+        critic_loss = torch.tensor([0.0], device=target_Q1[0].device)
+        mean_reward = 0
+
+        for i, sz in enumerate(self.cfg.sac.s_subgraph):
+            _log_prob = log_prob[next_obs[5][i].view(-1, sz)].sum(-1)
+
+            target_V = torch.min(target_Q1[i], target_Q2[i]) - model.module.alpha[i].detach() * _log_prob
+
+            target_Q = reward[i] + (not_done * self.cfg.sac.discount * target_V)
+            target_Q = target_Q.detach()
+
+            critic_loss = critic_loss + (F.mse_loss(current_Q1[i], target_Q) + F.mse_loss(current_Q2[i], target_Q))# / 2) + self.cfg.sac.sl_beta * side_loss
+            mean_reward += reward[i].mean()
+        # critic_loss = critic_loss / len(self.cfg.sac.s_subgraph)
+        optimizers.critic.zero_grad()
+        critic_loss.backward()
+        optimizers.critic.step()
+
+        return critic_loss.item(), mean_reward / len(self.cfg.sac.s_subgraph)
+
     def update_actor_and_alpha(self, obs, env, model, optimizers, embeddings_opt=False):
-        distribution, actor_Q1, actor_Q2, action, side_loss = self.agent_forward(env, model, state=obs, policy_opt=True,
-                                                                                 embeddings_opt=embeddings_opt)
+        distribution, actor_Q1, actor_Q2, action, side_loss = \
+            self.agent_forward(env, model, state=obs, policy_opt=True, embeddings_opt=embeddings_opt)
 
         log_prob = distribution.log_prob(action)
         actor_loss = torch.tensor([0.0], device=actor_Q1[0].device)
@@ -337,7 +312,7 @@ class AgentSacTrainer_test_sg_global(object):
         for i, sz in enumerate(self.cfg.sac.s_subgraph):
             _log_prob = log_prob[obs[5][i].view(-1, sz)].sum(-1)
             alpha_loss = alpha_loss + (model.module.alpha[i] *
-                                       (-_log_prob - self.cfg.sac.s_subgraph[i]).detach()).mean()
+                                       (-_log_prob + self.cfg.sac.s_subgraph[i]).detach()).mean()
 
         optimizers.temperature.zero_grad()
         alpha_loss.backward()
@@ -413,7 +388,7 @@ class AgentSacTrainer_test_sg_global(object):
         print('Running on device: ', device)
         torch.cuda.set_device(device)
         torch.set_default_tensor_type(torch.FloatTensor)
-        self.setup(rank, self.cfg.gen.n_processes_per_gpu * self.cfg.gen.n_gpu, device)
+        self.setup(rank, self.cfg.gen.n_processes_per_gpu * self.cfg.gen.n_gpu)
 
         env = SpGcnEnv(self.cfg, device, writer=writer, writer_counter=self.global_writer_quality_count)
         # Create shared network
@@ -463,6 +438,7 @@ class AgentSacTrainer_test_sg_global(object):
                                             ReduceLROnPlateau(critic_optimizer), ReduceLROnPlateau(temp_optimizer))
 
         dist.barrier()
+
         if self.cfg.gen.resume:
             shared_model.module.load_state_dict(torch.load(os.path.join(self.log_dir, self.cfg.gen.model_name)))
         elif self.cfg.fe.load_pretrained:
@@ -514,7 +490,7 @@ class AgentSacTrainer_test_sg_global(object):
                     if not self.memory.is_full():
                         action = torch.rand_like(env.current_edge_weights)
                     else:
-                        distr, _, _, action, _ = self.agent_forward(env, shared_model, state=state, grad=False,
+                        distr, _, _, action, _, _ = self.agent_forward(env, shared_model, state=state, grad=False,
                                                                     post_input=post_stats, post_model=post_model)
 
                     logg_dict = {}

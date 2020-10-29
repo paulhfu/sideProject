@@ -144,12 +144,12 @@ class SubGraphDiceReward(object):
         self.class_weights = torch.tensor([1.0, 1.0]).unsqueeze(-1)
         self.reward_offset = torch.tensor([[-0.7], [-0.7]]).unsqueeze(-1)
 
-    def get(self, actions=None, diff=None, res_seg=None):
+    def get(self, inp, tgt):
         # compute per channel Dice Coefficient
         reward = []
         for i, sz in enumerate(self.env.cfg.sac.s_subgraph):
-            input = torch.stack([1-actions[i], actions[i]], 0)
-            target = torch.stack([self.env.sg_gt_edge_weights[i] == 0, self.env.sg_gt_edge_weights[i] == 1], 0).float()
+            input = torch.stack([1-inp[i], inp[i]], 0)
+            target = torch.stack([tgt[i] == 0, tgt[i] == 1], 0).float()
             intersect = (input * target).sum(-1)
 
             # here we can use standard dice (input + target).sum(-1) or extension (see V-Net) (input^2 + target^2).sum(-1)

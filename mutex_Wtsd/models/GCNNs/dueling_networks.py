@@ -1,7 +1,5 @@
 import torch
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
-from models.GCNNs.cstm_message_passing import GcnEdgeConv, EdgeConv, NodeConv, EdgeConvNoEdge, SpatEdgeConv, \
-    SpatNodeConv
+from models.GCNNs.cstm_message_passing import EdgeConv, NodeConv
 from torch_geometric.utils import degree
 import torch.nn.functional as F
 import torch.nn as nn
@@ -20,11 +18,11 @@ class GcnEdgeAngle1dPQA_dueling(torch.nn.Module):
         self.p_sigma = p_sigma
         self.density_eval_range = density_eval_range
         self.exp_steps = exp_steps
-        self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels,
-                                    use_init_edge_feats=True, n_init_edge_channels=n_embedding_channels, n_hidden_layer=5)
+        self.node_conv1 = NodeConv(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv1 = EdgeConv(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.node_conv2 = NodeConv(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv2 = EdgeConv(n_embedding_channels, n_embedding_channels, n_embedding_channels,
+                                   use_init_edge_feats=True, n_init_edge_channels=n_embedding_channels, n_hidden_layer=5)
 
         # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
 

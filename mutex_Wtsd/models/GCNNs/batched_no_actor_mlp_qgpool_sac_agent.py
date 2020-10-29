@@ -1,9 +1,8 @@
 import torch
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
 import torch.nn.functional as F
 import torch.nn as nn
 # from models.sp_embed_with_affs import SpVecsUnet
-from models.sp_embed_unet1 import SpVecsUnet
+from models.sp_embed_unet import SpVecsUnet
 import matplotlib.pyplot as plt
 from utils.general import _pca_project, plt_bar_plot
 from utils.truncated_normal import TruncNorm
@@ -21,9 +20,6 @@ class GcnEdgeAC(torch.nn.Module):
         self.log_std_bounds = self.cfg.sac.diag_gaussian_actor.log_std_bounds
         self.device = device
         self.writer_counter = 0
-        n_q_vals = self.cfg.sac.s_subgraph
-        if "sg_rew" in self.cfg.gen.algorithm:
-            n_q_vals = 1
 
         self.fe_ext = SpVecsUnet(self.cfg.fe.n_raw_channels, self.cfg.fe.n_embedding_features, device, writer)
 
@@ -52,10 +48,10 @@ class GcnEdgeAC(torch.nn.Module):
             embeddings = self.fe_ext(raw, post_input)
         node_feats = []
         for i, sp_ind in enumerate(sp_indices):
-            n_f, _mass = self.fe_ext.get_node_features(embeddings[i].detach().squeeze(), sp_ind)
+            n_f = self.fe_ext.get_node_features(embeddings[i], sp_ind)
             node_feats.append(n_f)
 
-        node_features = torch.cat(node_feats, dim=0).detach()
+        node_features = torch.cat(node_feats, dim=0)
 
         edge_index = torch.cat([edge_index, torch.stack([edge_index[1], edge_index[0]], dim=0)], dim=1)  # gcnn expects two directed edges for one undirected edge
 
@@ -79,12 +75,13 @@ class GcnEdgeAC(torch.nn.Module):
                 dist = SigmNorm(mu, std)
                 actions = dist.rsample()
 
-            q1, q2, _ = self.critic_tgt(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
+            q1, q2, sl = self.critic_tgt(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
+            side_loss = (side_loss + sl) / 2
             if policy_opt:
                 return dist, q1, q2, actions, side_loss
             else:
-                # this means either exploration or the embeddings are to be optimized
-                return dist, q1, q2, actions, embeddings
+                # this means either exploration,critic opt or embedding opt
+                return dist, q1, q2, actions, embeddings, side_loss
 
         q1, q2, side_loss = self.critic(node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input)
         return q1, q2, side_loss

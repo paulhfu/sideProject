@@ -1,7 +1,5 @@
 import torch
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
-from models.GCNNs.cstm_message_passing import GcnEdgeConv, EdgeConv, NodeConv, EdgeConvNoEdge, SpatEdgeConv, \
-    SpatNodeConv
+from models.GCNNs.cstm_message_passing import EdgeConv, NodeConv
 from torch_geometric.utils import degree
 import torch.nn.functional as F
 import torch.nn as nn
@@ -21,7 +19,7 @@ class GcnEdgeAngle1dPQA_dueling_1(torch.nn.Module):
         self.p_sigma = p_sigma
         self.density_eval_range = density_eval_range
         self.exp_steps = exp_steps
-        self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv1 = EdgeConv(n_embedding_channels, n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
 
         self.out_p1 = nn.Linear(n_embedding_channels + n_edge_features_in, 256)
         self.out_p2 = nn.Linear(256, n_edge_classes)

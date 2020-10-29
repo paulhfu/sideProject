@@ -50,8 +50,9 @@ class SpGcnEnv(Environment):
             self.sg_current_edge_weights.append(
                 self.current_edge_weights[self.subgraph_indices[i].view(-1, sz)])
 
+
         self.current_soln = self.get_current_soln(self.current_edge_weights)
-        reward = self.reward_function.get(self.sg_current_edge_weights, self.current_soln)
+        reward = self.reward_function.get(self.sg_current_edge_weights, self.sg_gt_edge_weights) #self.current_soln)
         # reward = self.reward_function.get(actions, self.get_current_soln(self.gt_edge_weights))
         # reward = self.reward_function.get(actions=self.sg_current_edge_weights)
 

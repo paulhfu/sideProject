@@ -5,7 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 from utils.general import _pca_project, _pca_project_1d, plt_bar_plot
 from collections import OrderedDict
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv2, EdgeConvNoNodes
+from models.GCNNs.cstm_message_passing import NodeConv, EdgeConv, EdgeConvNoNodes
 
 
 class Gcnn(nn.Module):
@@ -16,11 +16,11 @@ class Gcnn(nn.Module):
         self.writer = writer
         self.writer_counter = 0
         self.n_in_channels = n_in_channels
-        self.node_conv1 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=4)
-        self.edge_conv1 = EdgeConv2(n_in_channels, n_in_channels * 2, use_init_edge_feats=True, n_init_edge_channels=1,
+        self.node_conv1 = NodeConv(n_in_channels, n_in_channels, n_hidden_layer=4)
+        self.edge_conv1 = EdgeConv(n_in_channels, n_in_channels * 2, use_init_edge_feats=True, n_init_edge_channels=1,
                                     n_hidden_layer=4)
-        self.node_conv2 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=4)
-        self.edge_conv2 = EdgeConv2(n_in_channels, n_out_channels, use_init_edge_feats=True,
+        self.node_conv2 = NodeConv(n_in_channels, n_in_channels, n_hidden_layer=4)
+        self.edge_conv2 = EdgeConv(n_in_channels, n_out_channels, use_init_edge_feats=True,
                                     n_init_edge_channels=n_in_channels * 2, n_hidden_layer=4, final_bn_nl=final_bn_nl)
 
     def forward(self, node_features, edge_index, angles, gt_edges, post_input=False):
@@ -64,11 +64,11 @@ class QGcnn(nn.Module):
         self.writer = writer
         self.writer_counter = 0
         self.n_in_channels = n_in_channels
-        self.node_conv1 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=4)
-        self.edge_conv1 = EdgeConv2(n_in_channels, n_in_channels * 2, use_init_edge_feats=True,
+        self.node_conv1 = NodeConv(n_in_channels, n_in_channels, n_hidden_layer=4)
+        self.edge_conv1 = EdgeConv(n_in_channels, n_in_channels * 2, use_init_edge_feats=True,
                                     n_init_edge_channels=2, n_hidden_layer=4)
-        self.node_conv2 = NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=4)
-        self.edge_conv2 = EdgeConv2(n_in_channels, n_out_channels, use_init_edge_feats=True,
+        self.node_conv2 = NodeConv(n_in_channels, n_in_channels, n_hidden_layer=4)
+        self.edge_conv2 = EdgeConv(n_in_channels, n_out_channels, use_init_edge_feats=True,
                                     n_init_edge_channels=n_in_channels * 2, n_hidden_layer=4, final_bn_nl=final_bn_nl)
 
     def forward(self, node_features, edge_index, angles, gt_edges, actions, post_input=False):
@@ -105,10 +105,10 @@ class GlobalEdgeGcnn(nn.Module):
         self.init_conv = EdgeConvNoNodes()
         self.node_conv = []
         for i in range(n_conv_its):
-            self.node_conv.append(NodeConv1(n_in_channels, n_in_channels, n_hidden_layer=0))
+            self.node_conv.append(NodeConv(n_in_channels, n_in_channels, n_hidden_layer=0))
             super(GlobalEdgeGcnn, self).add_module(f"node_conv_{i}", self.node_conv[-1])
 
-        self.edge_conv = EdgeConv2(n_in_channels, n_out_channels, use_init_edge_feats=False, n_hidden_layer=0,
+        self.edge_conv = EdgeConv(n_in_channels, n_out_channels, use_init_edge_feats=False, n_hidden_layer=0,
                                    final_bn_nl=final_bn_nl)
 
     def forward(self, edge_features, edge_index):

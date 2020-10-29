@@ -2,7 +2,7 @@ sac:
   # specific confics for the sac algorithm
   reward_function: sub_graph_dice #Reward function: sub_graph_dice, fully_supervised, defining_rules, defining_rules_lg,defining_rules_edge_based
   data_shape: [128, 128]
-  s_subgraph: [10, 20, 40] # [8, 16, 32, 64] # subgraph sizes
+  s_subgraph: [10] # [8, 16, 32, 64] # subgraph sizes
   reg_scaler: 10
   discount: 0.99
   init_temperature: 0.1

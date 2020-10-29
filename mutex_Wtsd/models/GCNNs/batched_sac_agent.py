@@ -1,8 +1,8 @@
 import torch
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
+from models.GCNNs.cstm_message_passing import NodeConv, EdgeConv
 import torch.nn.functional as F
 import torch.nn as nn
-from models.sp_embed_unet1 import SpVecsUnet
+from models.sp_embed_unet import SpVecsUnet
 import matplotlib.pyplot as plt
 from utils.general import _pca_project, plt_bar_plot
 from utils.truncated_normal import TruncNorm

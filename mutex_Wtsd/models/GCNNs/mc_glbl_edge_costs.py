@@ -1,8 +1,5 @@
 import torch
-from models.GCNNs.cstm_message_passing import NodeConv1, EdgeConv1
-from models.GCNNs.cstm_message_passing import GcnEdgeConv, EdgeConv, NodeConv, EdgeConvNoEdge, SpatEdgeConv, \
-    SpatNodeConv
-from torch_geometric.utils import degree
+from models.GCNNs.cstm_message_passing import EdgeConv, NodeConv
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn import BatchNorm1d
@@ -17,9 +14,6 @@ class GcnEdgeConvNet(torch.nn.Module):
         self.e_conv1 = GCNConv(n_node_features_in, 15)
         self.e_conv2 = GCNConv(15, 25)
         self.e_conv3 = GCNConv(25, 30)
-        self.e_conv4 = GcnEdgeConv(30, n_edge_features_in, 35, 15)
-        self.e_conv5 = GcnEdgeConv(35, 15, 40, 20)
-        self.e_conv6 = GcnEdgeConv(40, 20, 45, 25)
         self.e_conv7 = EdgeConv(45, 25, n_edge_classes)
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
@@ -62,7 +56,6 @@ class GcnEdgeConvNet2(torch.nn.Module):
         self.e_conv4 = NodeConv(30, 30)
         self.e_conv5 = NodeConv(30, 40)
         self.e_conv6 = NodeConv(40, 40)
-        self.e_conv7 = EdgeConvNoEdge(40, 40)
         self.e_conv8 = torch.nn.Linear(40, 40)
         self.e_conv9 = torch.nn.Linear(40, n_edge_classes)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
@@ -106,7 +99,6 @@ class GcnEdgeConvNet3(torch.nn.Module):
         # self.e_conv1 = GATConv(n_node_features_in, 5)
         # self.e_conv2 = GATConv(5, 10)
         # self.e_conv3 = GATConv(10, 10)
-        self.e_conv7 = EdgeConvNoEdge(n_node_features_in, 20)
         self.e_conv8 = torch.nn.Linear(20, 10)
         self.e_conv81 = torch.nn.Linear(10, 10)
         self.e_conv82 = torch.nn.Linear(10, 5)
@@ -225,10 +217,6 @@ class GcnEdgeAngleConv2(torch.nn.Module):
     def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True):
         super(GcnEdgeAngleConv2, self).__init__()
         self.softmax = softmax
-        self.node_conv1 = SpatNodeConv(n_node_channels_in, 64)
-        self.edge_conv1 = SpatEdgeConv(64, 128)
-        self.node_conv2 = SpatNodeConv(64, 128)
-        self.edge_conv2 = SpatEdgeConv(128, 128, use_init_edge_feats=True, n_channels_in=128)
         self.global_pool = nn.AdaptiveAvgPool2d([1, 1])
         self.out_lcf1 = nn.Linear(128 + n_edge_features_in + 1, 256)
         self.out_lcf2 = nn.Linear(256, n_edge_classes)
@@ -258,11 +246,11 @@ class GcnEdgeAngleConv1(torch.nn.Module):
     def __init__(self, n_node_channels_in, n_edge_features_in, n_edge_classes, device, softmax=True, fe_params=None):
         super(GcnEdgeAngleConv1, self).__init__()
         self.softmax = softmax
-        self.node_conv1 = NodeConv1(n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
-        self.edge_conv1 = EdgeConv1(n_node_channels_in, n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
-        self.node_conv2 = NodeConv1(n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
-        self.edge_conv2 = EdgeConv1(n_node_channels_in, n_node_channels_in, n_node_channels_in,
-                                    use_init_edge_feats=True, n_init_edge_channels=n_node_channels_in, n_hidden_layer=5)
+        self.node_conv1 = NodeConv(n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
+        self.edge_conv1 = EdgeConv(n_node_channels_in, n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
+        self.node_conv2 = NodeConv(n_node_channels_in, n_node_channels_in, n_hidden_layer=5)
+        self.edge_conv2 = EdgeConv(n_node_channels_in, n_node_channels_in, n_node_channels_in,
+                                   use_init_edge_feats=True, n_init_edge_channels=n_node_channels_in, n_hidden_layer=5)
         self.out_lcf1 = nn.Linear(n_node_channels_in + n_edge_features_in + 1, 256)
         self.out_lcf2 = nn.Linear(256, n_edge_classes)
 
@@ -300,12 +288,12 @@ class GcnEdgeAngle1dPQV(torch.nn.Module):
         self.fe_ext = SpVecsUnet(n_raw_channels, n_embedding_channels, device)
         n_embedding_channels += 1
         self.softmax = softmax
-        self.node_conv1 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.edge_conv1 = EdgeConv1(n_embedding_channels, n_embedding_channels, 3 * n_embedding_channels, n_hidden_layer=5)
-        self.node_conv2 = NodeConv1(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
-        self.edge_conv2 = EdgeConv1(n_embedding_channels, n_embedding_channels, 3 * n_embedding_channels,
-                                    use_init_edge_feats=True, n_init_edge_channels=3 * n_embedding_channels,
-                                    n_hidden_layer=5)
+        self.node_conv1 = NodeConv(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv1 = EdgeConv(n_embedding_channels, n_embedding_channels, 3 * n_embedding_channels, n_hidden_layer=5)
+        self.node_conv2 = NodeConv(n_embedding_channels, n_embedding_channels, n_hidden_layer=5)
+        self.edge_conv2 = EdgeConv(n_embedding_channels, n_embedding_channels, 3 * n_embedding_channels,
+                                   use_init_edge_feats=True, n_init_edge_channels=3 * n_embedding_channels,
+                                   n_hidden_layer=5)
 
         # self.lstm = nn.LSTMCell(n_embedding_channels + n_edge_features_in + 1, hidden_size)
 
