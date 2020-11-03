@@ -1,7 +1,7 @@
 # feature extractor
 fe:
   model_name: 'embedding_net_gt'
-  load_pretrained: true
+  load_pretrained: false
   optim: "none"  # none extra rl_loss  # optimize feature extractor with ril loss
   lr: 2e-4
   betas: [0.9, 0.999]
@@ -14,8 +14,8 @@ fe:
   patch_shape: [180, 180]
   patch_stride: [90, 90]
   patch_manager: rotated
-#  warmup:
-#    n_iterations: 50  # number of iterations of feature extrqactor warmup
-#    batch_size: 10  # batch size for feature extractor warmup
+  warmup:
+    n_iterations: 5000  # number of iterations of feature extrqactor warmup
+    batch_size: 10  # batch size for feature extractor warmup
 
 

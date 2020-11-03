@@ -338,15 +338,15 @@ class AgentSacTrainer_test_sg_global(object):
 
         critic_loss, mean_reward = self.update_critic(obs, action, reward, next_obs, not_done, env, model, optimizers)
         mov_sum_loss.critic.apply(critic_loss)
-        optimizers.critic_shed.step(mov_sum_loss.critic.avg)
+        # optimizers.critic_shed.step(mov_sum_loss.critic.avg)
         replay_buffer.report_sample_loss(critic_loss + mean_reward, sample_idx)
 
         if step % self.cfg.sac.actor_update_frequency == 0:
             actor_loss, alpha_loss = self.update_actor_and_alpha(obs, env, model, optimizers, embeddings_opt)
             mov_sum_loss.actor.apply(actor_loss)
             mov_sum_loss.temperature.apply(alpha_loss)
-            optimizers.temp_shed.step(mov_sum_loss.actor.avg)
-            optimizers.temp_shed.step(mov_sum_loss.temperature.avg)
+            # optimizers.temp_shed.step(mov_sum_loss.actor.avg)
+            # optimizers.temp_shed.step(mov_sum_loss.temperature.avg)
             if writer is not None:
                 writer.add_scalar("loss/actor", actor_loss, self.global_writer_loss_count.value())
                 writer.add_scalar("loss/temperature", alpha_loss, self.global_writer_loss_count.value())

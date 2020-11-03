@@ -1,0 +1,3 @@
+model:
+  n_hidden: 4
+  hl_factor: 64

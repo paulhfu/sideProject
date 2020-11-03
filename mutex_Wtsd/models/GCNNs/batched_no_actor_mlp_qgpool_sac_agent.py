@@ -23,9 +23,11 @@ class GcnEdgeAC(torch.nn.Module):
 
         self.fe_ext = SpVecsUnet(self.cfg.fe.n_raw_channels, self.cfg.fe.n_embedding_features, device, writer)
 
-        self.actor = PolicyNet(self.cfg.fe.n_embedding_features, 2, device, writer)
-        self.critic = DoubleQValueNet(self.cfg.sac.s_subgraph, self.cfg.fe.n_embedding_features, 1, device, writer)
-        self.critic_tgt = DoubleQValueNet(self.cfg.sac.s_subgraph, self.cfg.fe.n_embedding_features, 1, device, writer)
+        self.actor = PolicyNet(self.cfg.fe.n_embedding_features, 2, cfg.model.n_hidden, cfg.model.hl_factor, device, writer)
+        self.critic = DoubleQValueNet(self.cfg.sac.s_subgraph, self.cfg.fe.n_embedding_features, 1,
+                                      cfg.model.n_hidden, cfg.model.hl_factor, device, writer)
+        self.critic_tgt = DoubleQValueNet(self.cfg.sac.s_subgraph, self.cfg.fe.n_embedding_features, 1,
+                                          cfg.model.n_hidden, cfg.model.hl_factor, device, writer)
 
         self.log_alpha = torch.tensor([np.log(self.cfg.sac.init_temperature)] * len(self.cfg.sac.s_subgraph)).to(device)
         self.log_alpha.requires_grad = True
@@ -88,9 +90,9 @@ class GcnEdgeAC(torch.nn.Module):
 
 
 class PolicyNet(torch.nn.Module):
-    def __init__(self, n_in_features, n_classes, device, writer):
+    def __init__(self, n_in_features, n_classes, n_hidden_layer, hl_factor, device, writer):
         super(PolicyNet, self).__init__()
-        self.gcn = Gcnn(n_in_features, n_classes, device, writer)
+        self.gcn = Gcnn(n_in_features, n_classes, n_hidden_layer, hl_factor, device, writer)
 
     def forward(self, node_features, edge_index, angles, gt_edges, post_input):
         actor_stats, side_loss = self.gcn(node_features, edge_index, angles, gt_edges, post_input)
@@ -98,36 +100,36 @@ class PolicyNet(torch.nn.Module):
 
 
 class DoubleQValueNet(torch.nn.Module):
-    def __init__(self, s_subgraph, n_in_features, n_classes, device, writer):
+    def __init__(self, s_subgraph, n_in_features, n_classes, n_hidden_layer, hl_factor, device, writer):
         super(DoubleQValueNet, self).__init__()
 
         self.s_subgraph = s_subgraph
 
-        self.gcn1_1 = QGcnn(n_in_features, n_in_features, device, writer)
-        self.gcn2_1 = QGcnn(n_in_features, n_in_features, device, writer)
+        self.gcn1_1 = QGcnn(n_in_features, n_in_features, n_hidden_layer, hl_factor, device, writer)
+        self.gcn2_1 = QGcnn(n_in_features, n_in_features, n_hidden_layer, hl_factor, device, writer)
 
         self.gcn1_2, self.gcn2_2 = [], []
 
         for i, ssg in enumerate(self.s_subgraph):
-            self.gcn1_2.append(GlobalEdgeGcnn(n_in_features, n_in_features, ssg//2, device, writer))
-            self.gcn2_2.append(GlobalEdgeGcnn(n_in_features, n_in_features, ssg//2, device, writer))
+            self.gcn1_2.append(GlobalEdgeGcnn(n_in_features, n_in_features, ssg//2, hl_factor, device, writer))
+            self.gcn2_2.append(GlobalEdgeGcnn(n_in_features, n_in_features, ssg//2, hl_factor, device, writer))
             super(DoubleQValueNet, self).add_module(f"gcn1_2_{i}", self.gcn1_2[-1])
             super(DoubleQValueNet, self).add_module(f"gcn2_2_{i}", self.gcn2_2[-1])
 
         self.value1 = nn.Sequential(
-            nn.Linear(n_in_features, n_in_features * 8),
+            nn.Linear(n_in_features, hl_factor * 4),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(n_in_features * 8, n_in_features * 8),
+            nn.Linear(hl_factor * 4, hl_factor * 4),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(n_in_features * 8, n_classes),
+            nn.Linear(hl_factor * 4, n_classes),
         )
 
         self.value2 = nn.Sequential(
-            nn.Linear(n_in_features, n_in_features * 8),
+            nn.Linear(n_in_features, hl_factor * 4),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(n_in_features * 8, n_in_features * 8),
+            nn.Linear(hl_factor * 4, hl_factor * 4),
             nn.LeakyReLU(inplace=True),
-            nn.Linear(n_in_features * 8, n_classes),
+            nn.Linear(hl_factor * 4, n_classes),
         )
 
     def forward(self, node_features, actions, edge_index, angles, sub_graphs, sep_subgraphs, gt_edges, post_input):
